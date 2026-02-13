@@ -88,7 +88,7 @@ async function fetchProcessesFromDataJud(
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: apiKey,
+      Authorization: `ApiKey ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
