@@ -61,7 +61,8 @@ async function fetchDataJudMovements(
   processNumber: string,
   source: string
 ): Promise<Movement[]> {
-  const apiKey = Deno.env.get("DATAJUD_API_KEY");
+  const raw = Deno.env.get("DATAJUD_API_KEY") || "";
+  const apiKey = raw.replace(/^APIKey\s+/i, "").trim();
   if (!apiKey) {
     console.error("[fetch-movements] DATAJUD_API_KEY not configured");
     return [];
@@ -73,8 +74,9 @@ async function fetchDataJudMovements(
     return [];
   }
 
+  // DataJud expects the raw number without formatting
   const cleanNumber = processNumber.replace(/[.\-\/]/g, "");
-  console.log(`[fetch-movements] Querying DataJud for process ${cleanNumber} at ${endpoint}`);
+  console.log(`[fetch-movements] Querying DataJud for process ${cleanNumber} (original: ${processNumber}) at ${endpoint}`);
 
   const body = {
     query: {
@@ -101,10 +103,11 @@ async function fetchDataJudMovements(
   }
 
   const data = await response.json();
+  console.log(`[fetch-movements] DataJud response total hits: ${data?.hits?.total?.value ?? 'unknown'}`);
   const hits = data?.hits?.hits || [];
 
   if (hits.length === 0) {
-    console.log(`[fetch-movements] No results found for process ${cleanNumber}`);
+    console.log(`[fetch-movements] No results found for process ${cleanNumber}. This may mean the process number is incorrect or not yet indexed by DataJud.`);
     return [];
   }
 
