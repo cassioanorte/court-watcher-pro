@@ -6,13 +6,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Map source enum to eproc base URLs for public consultation
-const SOURCE_URLS: Record<string, string> = {
-  TJRS_1G: "https://www.tjrs.jus.br/site_php/consulta/verificacao.php",
-  TJRS_2G: "https://www.tjrs.jus.br/site_php/consulta/verificacao.php",
-  TRF4_JFRS: "https://consulta.trf4.jus.br/trf4/controlador.php",
-  TRF4_JFSC: "https://consulta.trf4.jus.br/trf4/controlador.php",
-  TRF4_JFPR: "https://consulta.trf4.jus.br/trf4/controlador.php",
+// Map source enum to DataJud API endpoints
+const DATAJUD_ENDPOINTS: Record<string, string> = {
+  TJRS_1G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
+  TJRS_2G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
+  TRF4_JFRS: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TRF4_JFSC: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TRF4_JFPR: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
 };
 
 interface Movement {
@@ -23,30 +23,75 @@ interface Movement {
   source_raw: string | null;
 }
 
-// Simulated public consultation - in production, this would scrape or call the actual court API
-async function fetchPublicMovements(
+async function fetchDataJudMovements(
   processNumber: string,
   source: string
 ): Promise<Movement[]> {
-  // Clean process number (remove dots, dashes)
+  const apiKey = Deno.env.get("DATAJUD_API_KEY");
+  if (!apiKey) {
+    console.error("[fetch-movements] DATAJUD_API_KEY not configured");
+    return [];
+  }
+
+  const endpoint = DATAJUD_ENDPOINTS[source];
+  if (!endpoint) {
+    console.error(`[fetch-movements] No DataJud endpoint for source: ${source}`);
+    return [];
+  }
+
+  // Clean process number - remove formatting but keep digits and dots as needed
   const cleanNumber = processNumber.replace(/[.\-\/]/g, "");
 
-  // For now, this is a stub that simulates what a real integration would return
-  // In production, this would:
-  // 1. Call the CNJ DataJud API (public, no auth needed)
-  // 2. Or scrape the eproc public consultation page
-  // 3. Or use eproc REST API with credentials if available
+  console.log(`[fetch-movements] Querying DataJud for process ${cleanNumber} at ${endpoint}`);
 
-  console.log(`[fetch-movements] Querying ${source} for process ${cleanNumber}`);
+  const body = {
+    query: {
+      match: {
+        numeroProcesso: cleanNumber,
+      },
+    },
+    size: 1,
+  };
 
-  // Return empty array - real movements would come from court API
-  // This stub allows the full pipeline to work end-to-end
-  return [];
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`[fetch-movements] DataJud API error ${response.status}: ${text}`);
+    return [];
+  }
+
+  const data = await response.json();
+  const hits = data?.hits?.hits || [];
+
+  if (hits.length === 0) {
+    console.log(`[fetch-movements] No results found for process ${cleanNumber}`);
+    return [];
+  }
+
+  const processo = hits[0]._source;
+  const movimentos = processo?.movimentos || [];
+
+  console.log(`[fetch-movements] Found ${movimentos.length} movements for process ${cleanNumber}`);
+
+  return movimentos.map((mov: any) => ({
+    title: mov.nome || mov.complemento || "Movimentação",
+    details: mov.complemento || null,
+    occurred_at: mov.dataHora || new Date().toISOString(),
+    source_label: source,
+    source_raw: JSON.stringify(mov),
+  }));
 }
 
 function generateHash(caseId: string, title: string, occurredAt: string): string {
   const raw = `${caseId}:${title}:${occurredAt}`;
-  // Simple hash - in production use crypto
   let hash = 0;
   for (let i = 0; i < raw.length; i++) {
     const char = raw.charCodeAt(i);
@@ -68,7 +113,6 @@ Deno.serve(async (req) => {
 
     const { case_id } = await req.json().catch(() => ({ case_id: null }));
 
-    // If case_id provided, update single case; otherwise update all with automation enabled
     let casesQuery = supabase
       .from("cases")
       .select("id, process_number, source, tenant_id");
@@ -92,12 +136,11 @@ Deno.serve(async (req) => {
 
     for (const c of cases) {
       try {
-        const movements = await fetchPublicMovements(c.process_number, c.source);
+        const movements = await fetchDataJudMovements(c.process_number, c.source);
 
         for (const mov of movements) {
           const uniqueHash = generateHash(c.id, mov.title, mov.occurred_at);
 
-          // Upsert - skip if hash already exists
           const { error: insertError } = await supabase
             .from("movements")
             .upsert(
@@ -117,7 +160,6 @@ Deno.serve(async (req) => {
           if (!insertError) totalNew++;
         }
 
-        // Update last_checked_at
         await supabase
           .from("cases")
           .update({ last_checked_at: new Date().toISOString() })
