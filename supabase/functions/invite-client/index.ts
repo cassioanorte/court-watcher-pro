@@ -33,6 +33,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Verify caller is owner
+    const { data: callerRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerUser.id)
+      .single();
+
+    if (!callerRole || callerRole.role !== "owner") {
+      return new Response(JSON.stringify({ error: "Apenas o dono do escritório pode cadastrar usuários" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     // Get caller's tenant
     const { data: callerProfile } = await supabaseAdmin
       .from("profiles")
@@ -46,12 +59,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, fullName, phone } = await req.json();
+    const { email, fullName, phone, role, oabNumber } = await req.json();
     if (!email || !fullName) {
       return new Response(JSON.stringify({ error: "Email e nome são obrigatórios" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
+
+    // Validate role
+    const validRoles = ["staff", "client"];
+    const userRole = validRoles.includes(role) ? role : "client";
 
     // Generate temporary password
     const tempPassword = crypto.randomUUID().slice(0, 12);
@@ -63,7 +80,7 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
-        role: "client",
+        role: userRole,
         tenant_id: callerProfile.tenant_id,
       },
     });
@@ -74,11 +91,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update phone if provided
-    if (phone) {
+    // Update phone/oab if provided
+    const updates: Record<string, string> = {};
+    if (phone) updates.phone = phone;
+    if (oabNumber) updates.oab_number = oabNumber;
+    if (Object.keys(updates).length > 0) {
       await supabaseAdmin
         .from("profiles")
-        .update({ phone })
+        .update(updates)
         .eq("user_id", authData.user.id);
     }
 
@@ -87,7 +107,7 @@ Deno.serve(async (req) => {
         success: true, 
         userId: authData.user.id, 
         tempPassword,
-        message: `Cliente criado. Senha temporária: ${tempPassword}`
+        message: `Usuário criado com papel "${userRole}". Senha temporária: ${tempPassword}`
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

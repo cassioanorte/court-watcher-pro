@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Save, Palette } from "lucide-react";
+import TeamManagement from "@/components/TeamManagement";
 
 const Settings = () => {
   const { tenantId, profile } = useAuth();
@@ -62,7 +63,7 @@ const Settings = () => {
   if (loading) return <div className="text-muted-foreground text-sm">Carregando...</div>;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
+    <div className="space-y-6 animate-fade-in max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">Personalize seu escritório</p>
@@ -127,6 +128,9 @@ const Settings = () => {
       >
         <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar configurações"}
       </button>
+
+      {/* Team Management */}
+      <TeamManagement />
     </div>
   );
 };
