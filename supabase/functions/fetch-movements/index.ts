@@ -88,7 +88,7 @@ async function fetchDataJudMovements(
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: apiKey,
+      Authorization: `APIKey ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
