@@ -91,7 +91,7 @@ const EprocCredentials = () => {
           source: s.value,
           login: "",
           password: "",
-          mode: "login_password",
+          mode: "credential",
           saved: false,
         })),
       ];
@@ -116,7 +116,7 @@ const EprocCredentials = () => {
       if (cred.id) {
         const { error } = await supabase
           .from("eproc_credentials")
-          .update({ encrypted_credentials: encryptedCredentials, mode: "login_password" })
+          .update({ encrypted_credentials: encryptedCredentials, mode: "credential" })
           .eq("id", cred.id);
         if (error) throw error;
       } else {
@@ -126,7 +126,7 @@ const EprocCredentials = () => {
             tenant_id: tenantId,
             source: cred.source,
             encrypted_credentials: encryptedCredentials,
-            mode: "login_password",
+            mode: "credential",
           });
         if (error) throw error;
       }
