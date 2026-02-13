@@ -1,0 +1,36 @@
+
+-- Add all DataJud court sources to the process_source enum
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TST';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TSE';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'STJ';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'STM';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRF1';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRF2';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRF3';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRF4';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRF5';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRF6';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT1';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT2';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT3';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT4';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT5';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT6';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT7';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT8';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT9';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT10';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT11';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT12';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT13';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT14';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT15';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT16';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT17';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT18';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT19';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT20';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT21';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT22';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT23';
+ALTER TYPE public.process_source ADD VALUE IF NOT EXISTS 'TRT24';

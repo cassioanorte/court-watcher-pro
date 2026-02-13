@@ -6,13 +6,46 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Map source enum to DataJud API endpoints
 const DATAJUD_ENDPOINTS: Record<string, string> = {
   TJRS_1G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
   TJRS_2G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
   TRF4_JFRS: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
   TRF4_JFSC: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
   TRF4_JFPR: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TST: "https://api-publica.datajud.cnj.jus.br/api_publica_tst/_search",
+  TSE: "https://api-publica.datajud.cnj.jus.br/api_publica_tse/_search",
+  STJ: "https://api-publica.datajud.cnj.jus.br/api_publica_stj/_search",
+  STM: "https://api-publica.datajud.cnj.jus.br/api_publica_stm/_search",
+  TRF1: "https://api-publica.datajud.cnj.jus.br/api_publica_trf1/_search",
+  TRF2: "https://api-publica.datajud.cnj.jus.br/api_publica_trf2/_search",
+  TRF3: "https://api-publica.datajud.cnj.jus.br/api_publica_trf3/_search",
+  TRF4: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TRF5: "https://api-publica.datajud.cnj.jus.br/api_publica_trf5/_search",
+  TRF6: "https://api-publica.datajud.cnj.jus.br/api_publica_trf6/_search",
+  TRT1: "https://api-publica.datajud.cnj.jus.br/api_publica_trt1/_search",
+  TRT2: "https://api-publica.datajud.cnj.jus.br/api_publica_trt2/_search",
+  TRT3: "https://api-publica.datajud.cnj.jus.br/api_publica_trt3/_search",
+  TRT4: "https://api-publica.datajud.cnj.jus.br/api_publica_trt4/_search",
+  TRT5: "https://api-publica.datajud.cnj.jus.br/api_publica_trt5/_search",
+  TRT6: "https://api-publica.datajud.cnj.jus.br/api_publica_trt6/_search",
+  TRT7: "https://api-publica.datajud.cnj.jus.br/api_publica_trt7/_search",
+  TRT8: "https://api-publica.datajud.cnj.jus.br/api_publica_trt8/_search",
+  TRT9: "https://api-publica.datajud.cnj.jus.br/api_publica_trt9/_search",
+  TRT10: "https://api-publica.datajud.cnj.jus.br/api_publica_trt10/_search",
+  TRT11: "https://api-publica.datajud.cnj.jus.br/api_publica_trt11/_search",
+  TRT12: "https://api-publica.datajud.cnj.jus.br/api_publica_trt12/_search",
+  TRT13: "https://api-publica.datajud.cnj.jus.br/api_publica_trt13/_search",
+  TRT14: "https://api-publica.datajud.cnj.jus.br/api_publica_trt14/_search",
+  TRT15: "https://api-publica.datajud.cnj.jus.br/api_publica_trt15/_search",
+  TRT16: "https://api-publica.datajud.cnj.jus.br/api_publica_trt16/_search",
+  TRT17: "https://api-publica.datajud.cnj.jus.br/api_publica_trt17/_search",
+  TRT18: "https://api-publica.datajud.cnj.jus.br/api_publica_trt18/_search",
+  TRT19: "https://api-publica.datajud.cnj.jus.br/api_publica_trt19/_search",
+  TRT20: "https://api-publica.datajud.cnj.jus.br/api_publica_trt20/_search",
+  TRT21: "https://api-publica.datajud.cnj.jus.br/api_publica_trt21/_search",
+  TRT22: "https://api-publica.datajud.cnj.jus.br/api_publica_trt22/_search",
+  TRT23: "https://api-publica.datajud.cnj.jus.br/api_publica_trt23/_search",
+  TRT24: "https://api-publica.datajud.cnj.jus.br/api_publica_trt24/_search",
 };
 
 interface ImportedProcess {
@@ -22,7 +55,6 @@ interface ImportedProcess {
   simple_status: string | null;
 }
 
-// Search DataJud for processes linked to a lawyer's OAB number
 async function fetchProcessesFromDataJud(
   source: string,
   credentials: { login: string; password: string }
@@ -39,44 +71,10 @@ async function fetchProcessesFromDataJud(
     return [];
   }
 
-  // Use the OAB number (login) to search for processes where this lawyer is listed
   const oabNumber = credentials.login;
   console.log(`[import-processes] Querying DataJud for OAB ${oabNumber} at ${endpoint}`);
 
-  // Search by lawyer name/OAB in the parties field
   const body = {
-    query: {
-      bool: {
-        should: [
-          { match: { "assuntos.nome": oabNumber } },
-          {
-            nested: {
-              path: "movimentos",
-              query: {
-                match_all: {},
-              },
-            },
-          },
-        ],
-        minimum_should_match: 0,
-        filter: [
-          {
-            match: {
-              "classe.nome": {
-                query: oabNumber,
-                operator: "or",
-              },
-            },
-          },
-        ],
-      },
-    },
-    size: 100,
-    _source: ["numeroProcesso", "classe", "assuntos", "dataAjuizamento", "tribunal", "grau"],
-  };
-
-  // Alternative: simpler search by text across all fields
-  const simpleBody = {
     query: {
       multi_match: {
         query: oabNumber,
@@ -93,7 +91,7 @@ async function fetchProcessesFromDataJud(
       Authorization: apiKey,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(simpleBody),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -139,7 +137,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get credentials for this tenant + source
     const { data: credData, error: credError } = await supabase
       .from("eproc_credentials")
       .select("encrypted_credentials")

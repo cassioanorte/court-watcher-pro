@@ -451,6 +451,40 @@ export type Database = {
         | "TRF4_JFRS"
         | "TRF4_JFSC"
         | "TRF4_JFPR"
+        | "TST"
+        | "TSE"
+        | "STJ"
+        | "STM"
+        | "TRF1"
+        | "TRF2"
+        | "TRF3"
+        | "TRF4"
+        | "TRF5"
+        | "TRF6"
+        | "TRT1"
+        | "TRT2"
+        | "TRT3"
+        | "TRT4"
+        | "TRT5"
+        | "TRT6"
+        | "TRT7"
+        | "TRT8"
+        | "TRT9"
+        | "TRT10"
+        | "TRT11"
+        | "TRT12"
+        | "TRT13"
+        | "TRT14"
+        | "TRT15"
+        | "TRT16"
+        | "TRT17"
+        | "TRT18"
+        | "TRT19"
+        | "TRT20"
+        | "TRT21"
+        | "TRT22"
+        | "TRT23"
+        | "TRT24"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -585,6 +619,40 @@ export const Constants = {
         "TRF4_JFRS",
         "TRF4_JFSC",
         "TRF4_JFPR",
+        "TST",
+        "TSE",
+        "STJ",
+        "STM",
+        "TRF1",
+        "TRF2",
+        "TRF3",
+        "TRF4",
+        "TRF5",
+        "TRF6",
+        "TRT1",
+        "TRT2",
+        "TRT3",
+        "TRT4",
+        "TRT5",
+        "TRT6",
+        "TRT7",
+        "TRT8",
+        "TRT9",
+        "TRT10",
+        "TRT11",
+        "TRT12",
+        "TRT13",
+        "TRT14",
+        "TRT15",
+        "TRT16",
+        "TRT17",
+        "TRT18",
+        "TRT19",
+        "TRT20",
+        "TRT21",
+        "TRT22",
+        "TRT23",
+        "TRT24",
       ],
     },
   },

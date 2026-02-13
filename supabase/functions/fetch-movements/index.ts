@@ -13,6 +13,40 @@ const DATAJUD_ENDPOINTS: Record<string, string> = {
   TRF4_JFRS: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
   TRF4_JFSC: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
   TRF4_JFPR: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TST: "https://api-publica.datajud.cnj.jus.br/api_publica_tst/_search",
+  TSE: "https://api-publica.datajud.cnj.jus.br/api_publica_tse/_search",
+  STJ: "https://api-publica.datajud.cnj.jus.br/api_publica_stj/_search",
+  STM: "https://api-publica.datajud.cnj.jus.br/api_publica_stm/_search",
+  TRF1: "https://api-publica.datajud.cnj.jus.br/api_publica_trf1/_search",
+  TRF2: "https://api-publica.datajud.cnj.jus.br/api_publica_trf2/_search",
+  TRF3: "https://api-publica.datajud.cnj.jus.br/api_publica_trf3/_search",
+  TRF4: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TRF5: "https://api-publica.datajud.cnj.jus.br/api_publica_trf5/_search",
+  TRF6: "https://api-publica.datajud.cnj.jus.br/api_publica_trf6/_search",
+  TRT1: "https://api-publica.datajud.cnj.jus.br/api_publica_trt1/_search",
+  TRT2: "https://api-publica.datajud.cnj.jus.br/api_publica_trt2/_search",
+  TRT3: "https://api-publica.datajud.cnj.jus.br/api_publica_trt3/_search",
+  TRT4: "https://api-publica.datajud.cnj.jus.br/api_publica_trt4/_search",
+  TRT5: "https://api-publica.datajud.cnj.jus.br/api_publica_trt5/_search",
+  TRT6: "https://api-publica.datajud.cnj.jus.br/api_publica_trt6/_search",
+  TRT7: "https://api-publica.datajud.cnj.jus.br/api_publica_trt7/_search",
+  TRT8: "https://api-publica.datajud.cnj.jus.br/api_publica_trt8/_search",
+  TRT9: "https://api-publica.datajud.cnj.jus.br/api_publica_trt9/_search",
+  TRT10: "https://api-publica.datajud.cnj.jus.br/api_publica_trt10/_search",
+  TRT11: "https://api-publica.datajud.cnj.jus.br/api_publica_trt11/_search",
+  TRT12: "https://api-publica.datajud.cnj.jus.br/api_publica_trt12/_search",
+  TRT13: "https://api-publica.datajud.cnj.jus.br/api_publica_trt13/_search",
+  TRT14: "https://api-publica.datajud.cnj.jus.br/api_publica_trt14/_search",
+  TRT15: "https://api-publica.datajud.cnj.jus.br/api_publica_trt15/_search",
+  TRT16: "https://api-publica.datajud.cnj.jus.br/api_publica_trt16/_search",
+  TRT17: "https://api-publica.datajud.cnj.jus.br/api_publica_trt17/_search",
+  TRT18: "https://api-publica.datajud.cnj.jus.br/api_publica_trt18/_search",
+  TRT19: "https://api-publica.datajud.cnj.jus.br/api_publica_trt19/_search",
+  TRT20: "https://api-publica.datajud.cnj.jus.br/api_publica_trt20/_search",
+  TRT21: "https://api-publica.datajud.cnj.jus.br/api_publica_trt21/_search",
+  TRT22: "https://api-publica.datajud.cnj.jus.br/api_publica_trt22/_search",
+  TRT23: "https://api-publica.datajud.cnj.jus.br/api_publica_trt23/_search",
+  TRT24: "https://api-publica.datajud.cnj.jus.br/api_publica_trt24/_search",
 };
 
 interface Movement {
@@ -39,9 +73,7 @@ async function fetchDataJudMovements(
     return [];
   }
 
-  // Clean process number - remove formatting but keep digits and dots as needed
   const cleanNumber = processNumber.replace(/[.\-\/]/g, "");
-
   console.log(`[fetch-movements] Querying DataJud for process ${cleanNumber} at ${endpoint}`);
 
   const body = {
