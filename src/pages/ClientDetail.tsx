@@ -27,7 +27,7 @@ const ClientDetail = () => {
   const [loadingMovements, setLoadingMovements] = useState<string | null>(null);
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", oab_number: "", new_password: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", new_password: "" });
   const [saving, setSaving] = useState(false);
 
   const fetchCases = async () => {
@@ -84,7 +84,6 @@ const ClientDetail = () => {
       full_name: client?.full_name || "",
       phone: client?.phone || "",
       cpf: client?.cpf || "",
-      oab_number: client?.oab_number || "",
       new_password: "",
     });
     setShowEdit(true);
@@ -103,7 +102,6 @@ const ClientDetail = () => {
             full_name: editForm.full_name.trim(),
             phone: editForm.phone.trim() || null,
             cpf: editForm.cpf.trim() || null,
-            oab_number: editForm.oab_number.trim() || null,
             new_password: editForm.new_password || undefined,
           },
         },
@@ -114,7 +112,6 @@ const ClientDetail = () => {
         full_name: editForm.full_name.trim(),
         phone: editForm.phone.trim() || null,
         cpf: editForm.cpf.trim() || null,
-        oab_number: editForm.oab_number.trim() || null,
       }));
       setShowEdit(false);
       toast({ title: "Cliente atualizado!", description: "Os dados foram salvos com sucesso." });
@@ -188,13 +185,6 @@ const ClientDetail = () => {
                 <div className="relative mt-1">
                   <CreditCard className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input type="text" value={editForm.cpf} onChange={(e) => setEditForm(f => ({ ...f, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) }))} placeholder="00000000000" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
-                <div className="relative mt-1">
-                  <Scale className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input type="text" value={editForm.oab_number} onChange={(e) => setEditForm(f => ({ ...f, oab_number: e.target.value }))} placeholder="RS 123456" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
               </div>
               <div>
