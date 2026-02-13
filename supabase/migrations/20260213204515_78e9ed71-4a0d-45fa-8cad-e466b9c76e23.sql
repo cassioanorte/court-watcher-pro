@@ -1,0 +1,1 @@
+ALTER TABLE public.movements ADD CONSTRAINT movements_unique_hash_key UNIQUE (unique_hash);
