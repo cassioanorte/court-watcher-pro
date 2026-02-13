@@ -307,6 +307,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cpf: string | null
           created_at: string
           full_name: string
           id: string
@@ -318,6 +319,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           full_name: string
           id?: string
@@ -329,6 +331,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           full_name?: string
           id?: string
@@ -430,6 +433,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_email_by_cpf: { Args: { _cpf: string }; Returns: string }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

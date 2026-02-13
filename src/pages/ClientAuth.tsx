@@ -6,19 +6,43 @@ import { Scale, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ClientAuth = () => {
-  const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const formatCpf = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const rawCpf = cpf.replace(/\D/g, "");
+      if (rawCpf.length !== 11) {
+        throw new Error("CPF deve ter 11 dígitos");
+      }
+
+      // Look up email by CPF using the database function
+      const { data: email, error: lookupError } = await supabase.rpc("get_email_by_cpf", { _cpf: rawCpf });
+
+      if (lookupError) throw lookupError;
+      if (!email) throw new Error("CPF não encontrado. Verifique com seu advogado.");
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("Invalid login")) {
+          throw new Error("Senha incorreta. Tente novamente.");
+        }
+        throw error;
+      }
       navigate("/portal");
     } catch (error: any) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -45,14 +69,15 @@ const ClientAuth = () => {
         <div className="bg-card rounded-xl p-6 shadow-card border">
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={cpf}
+                onChange={(e) => setCpf(formatCpf(e.target.value))}
                 required
+                inputMode="numeric"
                 className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
-                placeholder="seu@email.com"
+                placeholder="000.000.000-00"
               />
             </div>
             <div>

@@ -30,6 +30,7 @@ const TeamManagement = () => {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [oabNumber, setOabNumber] = useState("");
+  const [cpf, setCpf] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ tempPassword: string | null; alreadyExisted?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -66,7 +67,7 @@ const TeamManagement = () => {
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("invite-client", {
-        body: { email, fullName, phone: phone || undefined, role: formRole, oabNumber: oabNumber || undefined },
+        body: { email, fullName, phone: phone || undefined, role: formRole, oabNumber: oabNumber || undefined, cpf: cpf || undefined },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -97,6 +98,7 @@ const TeamManagement = () => {
     setEmail("");
     setPhone("");
     setOabNumber("");
+    setCpf("");
     setFormRole("staff");
     setResult(null);
   };
@@ -228,6 +230,13 @@ const TeamManagement = () => {
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email *</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
+
+                {formRole === "client" && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF *</label>
+                    <input type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" placeholder="000.000.000-00" />
+                  </div>
+                )}
 
                 {formRole === "staff" && (
                   <div>
