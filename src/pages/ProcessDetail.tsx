@@ -36,6 +36,8 @@ const ProcessDetail = () => {
   const [manualMovTitle, setManualMovTitle] = useState("");
   const [manualMovDetails, setManualMovDetails] = useState("");
   const [addingMovement, setAddingMovement] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [docCategory, setDocCategory] = useState("");
 
   const isLawyer = role === "owner" || role === "staff";
 
@@ -337,7 +339,7 @@ const ProcessDetail = () => {
 
       {activeTab === "documentos" && (
         <div className="space-y-4">
-          {documents.length === 0 && (
+          {documents.length === 0 && !isLawyer && (
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhum documento anexado a este processo.</p>
           )}
           {documents.map((doc) => (
@@ -353,7 +355,61 @@ const ProcessDetail = () => {
             </div>
           ))}
           {isLawyer && (
-            <p className="text-xs text-muted-foreground text-center">Upload de documentos será disponibilizado em breve.</p>
+            <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-3">
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">Arraste ou selecione arquivos para anexar</p>
+              <div className="flex items-center justify-center gap-2">
+                <select value={docCategory} onChange={(e) => setDocCategory(e.target.value)} className="h-9 px-3 rounded-lg bg-background border text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Sem categoria</option>
+                  <option value="Petição">Petição</option>
+                  <option value="Procuração">Procuração</option>
+                  <option value="Contrato">Contrato</option>
+                  <option value="Comprovante">Comprovante</option>
+                  <option value="Decisão">Decisão</option>
+                  <option value="Laudo">Laudo</option>
+                  <option value="Outro">Outro</option>
+                </select>
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  {uploading ? "Enviando..." : "Selecionar arquivo"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !id || !user) return;
+                      setUploading(true);
+                      try {
+                        const ext = file.name.split(".").pop();
+                        const path = `${id}/${Date.now()}.${ext}`;
+                        const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
+                        if (uploadError) throw uploadError;
+                        const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+                        const { data: docData, error: insertError } = await supabase.from("documents").insert({
+                          case_id: id,
+                          name: file.name,
+                          file_url: urlData.publicUrl,
+                          category: docCategory || null,
+                          uploaded_by: user.id,
+                        }).select("*").single();
+                        if (insertError) throw insertError;
+                        if (docData) setDocuments((prev) => [docData, ...prev]);
+                        toast({ title: "Documento anexado!" });
+                      } catch (err: any) {
+                        toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+                      } finally {
+                        setUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+          {documents.length === 0 && isLawyer && (
+            <p className="text-xs text-muted-foreground text-center">Nenhum documento anexado ainda.</p>
           )}
         </div>
       )}
