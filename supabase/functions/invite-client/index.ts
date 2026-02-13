@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     // Generate temporary password
     const tempPassword = crypto.randomUUID().slice(0, 12);
 
-    // Create user
+    // Try to create user
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
@@ -88,8 +88,60 @@ Deno.serve(async (req) => {
     if (createError) {
       const msg = createError.message;
       const isDuplicate = msg.includes("already been registered") || msg.includes("already exists");
-      return new Response(JSON.stringify({ error: isDuplicate ? "Já existe um usuário cadastrado com este email." : msg }), {
-        status: isDuplicate ? 409 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+
+      if (isDuplicate) {
+        // Email already exists — find the existing user and create a new profile for this person
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = listData?.users?.find((u: any) => u.email === email);
+
+        if (!existingUser) {
+          return new Response(JSON.stringify({ error: "Usuário não encontrado após detecção de duplicata." }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        // Create a new profile for this person linked to the existing auth user
+        const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+          user_id: existingUser.id,
+          tenant_id: callerProfile.tenant_id,
+          full_name: fullName,
+          phone: phone || null,
+          oab_number: oabNumber || null,
+        });
+
+        if (profileError) {
+          console.error("Profile insert error:", profileError);
+        }
+
+        // Ensure user_role exists for this role
+        const { data: existingRole } = await supabaseAdmin
+          .from("user_roles")
+          .select("id")
+          .eq("user_id", existingUser.id)
+          .eq("role", userRole)
+          .maybeSingle();
+
+        if (!existingRole) {
+          await supabaseAdmin.from("user_roles").insert({
+            user_id: existingUser.id,
+            role: userRole,
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            userId: existingUser.id,
+            tempPassword: null,
+            alreadyExisted: true,
+            message: `Usuário "${fullName}" vinculado com email já existente. Use a senha já cadastrada para acessar.`,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(JSON.stringify({ error: msg }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 

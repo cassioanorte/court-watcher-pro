@@ -31,7 +31,7 @@ const TeamManagement = () => {
   const [phone, setPhone] = useState("");
   const [oabNumber, setOabNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ tempPassword: string } | null>(null);
+  const [result, setResult] = useState<{ tempPassword: string | null; alreadyExisted?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const fetchMembers = async () => {
@@ -70,8 +70,11 @@ const TeamManagement = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setResult({ tempPassword: data.tempPassword });
-      toast({ title: "Usuário cadastrado!", description: `${fullName} foi adicionado como ${roleLabels[formRole].label}.` });
+      setResult({ tempPassword: data.tempPassword, alreadyExisted: data.alreadyExisted });
+      const desc = data.alreadyExisted
+        ? `${fullName} foi vinculado ao escritório. Utilize a senha já existente.`
+        : `${fullName} foi adicionado como ${roleLabels[formRole].label}.`;
+      toast({ title: "Usuário cadastrado!", description: desc });
       fetchMembers();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -246,15 +249,23 @@ const TeamManagement = () => {
               <div className="space-y-4">
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
                   <p className="text-sm font-semibold text-foreground mb-1">✅ Usuário cadastrado!</p>
-                  <p className="text-xs text-muted-foreground">Compartilhe a senha temporária abaixo:</p>
+                  <p className="text-xs text-muted-foreground">
+                    {result.alreadyExisted
+                      ? "Este email já possui cadastro. O usuário foi vinculado ao escritório com a senha existente."
+                      : "Compartilhe a senha temporária abaixo:"}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm font-mono text-foreground">{result.tempPassword}</code>
-                  <button onClick={handleCopy} className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">O usuário deve alterar a senha após o primeiro acesso.</p>
+                {result.tempPassword && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm font-mono text-foreground">{result.tempPassword}</code>
+                      <button onClick={handleCopy} className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                        {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">O usuário deve alterar a senha após o primeiro acesso.</p>
+                  </>
+                )}
                 <button onClick={handleCloseModal} className="w-full h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">
                   Fechar
                 </button>
