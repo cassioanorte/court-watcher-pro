@@ -26,6 +26,7 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
   const [processNumber, setProcessNumber] = useState("");
   const [source, setSource] = useState<ProcessSource>("TJRS_1G");
   const [subject, setSubject] = useState("");
+  const [caseSummary, setCaseSummary] = useState("");
   const [clientUserId, setClientUserId] = useState(defaultClientUserId || "");
   const [automationEnabled, setAutomationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -71,6 +72,7 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
         process_number: processNumber,
         source,
         subject: subject || null,
+        next_step: caseSummary || null,
         client_user_id: clientUserId || null,
         responsible_user_id: user?.id || null,
         automation_enabled: automationEnabled,
@@ -79,6 +81,7 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
       toast({ title: "Processo cadastrado!", description: processNumber });
       setProcessNumber("");
       setSubject("");
+      setCaseSummary("");
       setClientUserId("");
       onSuccess();
       onClose();
@@ -114,6 +117,10 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assunto</label>
             <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resumo do caso</label>
+            <textarea value={caseSummary} onChange={(e) => setCaseSummary(e.target.value)} placeholder="Descreva brevemente o caso, partes envolvidas, pedidos, etc." rows={3} className="w-full mt-1 px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cliente</label>
