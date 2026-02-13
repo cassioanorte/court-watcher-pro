@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus } from "lucide-react";
+import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus, Pencil, X, Save, User, CreditCard } from "lucide-react";
 import NewProcessModal from "@/components/NewProcessModal";
 
 const sourceLabels: Record<string, string> = {
@@ -17,6 +18,7 @@ const sourceLabels: Record<string, string> = {
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { tenantId } = useAuth();
+  const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,9 @@ const ClientDetail = () => {
   const [movements, setMovements] = useState<Record<string, any[]>>({});
   const [loadingMovements, setLoadingMovements] = useState<string | null>(null);
   const [showNewProcess, setShowNewProcess] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", oab_number: "" });
+  const [saving, setSaving] = useState(false);
 
   const fetchCases = async () => {
     if (!id) return;
@@ -74,6 +79,47 @@ const ClientDetail = () => {
     return `Há ${Math.floor(hours / 24)}d`;
   };
 
+  const openEdit = () => {
+    setEditForm({
+      full_name: client?.full_name || "",
+      phone: client?.phone || "",
+      cpf: client?.cpf || "",
+      oab_number: client?.oab_number || "",
+    });
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !editForm.full_name.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editForm.full_name.trim(),
+          phone: editForm.phone.trim() || null,
+          cpf: editForm.cpf.trim() || null,
+          oab_number: editForm.oab_number.trim() || null,
+        })
+        .eq("user_id", id);
+      if (error) throw error;
+      setClient((prev: any) => ({
+        ...prev,
+        full_name: editForm.full_name.trim(),
+        phone: editForm.phone.trim() || null,
+        cpf: editForm.cpf.trim() || null,
+        oab_number: editForm.oab_number.trim() || null,
+      }));
+      setShowEdit(false);
+      toast({ title: "Cliente atualizado!", description: "Os dados foram salvos com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
   if (!client) return <div className="text-muted-foreground text-sm p-4">Cliente não encontrado.</div>;
 
@@ -85,18 +131,68 @@ const ClientDetail = () => {
 
       {/* Client card */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-lg border p-5 shadow-card">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
-            {client.full_name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">{client.full_name}</h1>
-            <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-              {client.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {client.phone}</span>}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
+              {client.full_name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{client.full_name}</h1>
+              <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
+                {client.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {client.phone}</span>}
+                {client.cpf && <span className="flex items-center gap-1"><CreditCard className="w-3 h-3" /> {client.cpf}</span>}
+              </div>
             </div>
           </div>
+          <button
+            onClick={openEdit}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-foreground text-xs font-medium hover:bg-muted/80 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Editar
+          </button>
         </div>
       </motion.div>
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setShowEdit(false)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+            <button onClick={() => setShowEdit(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+            <h2 className="text-lg font-bold text-foreground mb-1">Editar Cliente</h2>
+            <p className="text-sm text-muted-foreground mb-5">Atualize os dados do cliente</p>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
+                <div className="relative mt-1">
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input type="text" value={editForm.full_name} onChange={(e) => setEditForm(f => ({ ...f, full_name: e.target.value }))} required className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
+                <div className="relative mt-1">
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input type="text" value={editForm.phone} onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
+                <div className="relative mt-1">
+                  <CreditCard className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input type="text" value={editForm.cpf} onChange={(e) => setEditForm(f => ({ ...f, cpf: e.target.value }))} placeholder="000.000.000-00" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              </div>
+              <button type="submit" disabled={saving} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" />
+                {saving ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Processes - expandable */}
       <div>
