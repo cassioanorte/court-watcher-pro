@@ -98,7 +98,7 @@ async function fetchProcessesFromDataJud(
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `ApiKey ${apiKey}`,
+        Authorization: `APIKey ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -119,7 +119,7 @@ async function fetchProcessesFromDataJud(
 
     for (const hit of hits) {
       const src = hit._source;
-      const assuntos = src.assuntos?.map((a: any) => a.nome).join(", ") || null;
+      const assuntos = src.assuntos?.flat()?.map((a: any) => a.nome).filter(Boolean).join(", ") || null;
       allProcesses.push({
         process_number: src.numeroProcesso,
         source,
