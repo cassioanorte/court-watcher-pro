@@ -86,8 +86,10 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      const msg = createError.message;
+      const isDuplicate = msg.includes("already been registered") || msg.includes("already exists");
+      return new Response(JSON.stringify({ error: isDuplicate ? "Já existe um usuário cadastrado com este email." : msg }), {
+        status: isDuplicate ? 409 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
