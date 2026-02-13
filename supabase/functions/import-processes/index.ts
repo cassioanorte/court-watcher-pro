@@ -74,48 +74,74 @@ async function fetchProcessesFromDataJud(
   const oabNumber = credentials.login;
   console.log(`[import-processes] Querying DataJud for OAB ${oabNumber} at ${endpoint}`);
 
-  const body = {
-    query: {
-      multi_match: {
-        query: oabNumber,
-        fields: ["*"],
+  const allProcesses: ImportedProcess[] = [];
+  let searchAfter: number[] | null = null;
+  const pageSize = 100;
+
+  while (true) {
+    const body: any = {
+      query: {
+        multi_match: {
+          query: oabNumber,
+          fields: ["*"],
+        },
       },
-    },
-    size: 50,
-    _source: ["numeroProcesso", "classe", "assuntos", "dataAjuizamento", "tribunal", "grau"],
-  };
+      size: pageSize,
+      _source: ["numeroProcesso", "classe", "assuntos", "dataAjuizamento", "tribunal", "grau"],
+      sort: [{ "@timestamp": { order: "asc" } }],
+    };
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `ApiKey ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+    if (searchAfter) {
+      body.search_after = searchAfter;
+    }
 
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`[import-processes] DataJud API error ${response.status}: ${text}`);
-    return [];
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `ApiKey ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[import-processes] DataJud API error ${response.status}: ${text}`);
+      break;
+    }
+
+    const data = await response.json();
+    const hits = data?.hits?.hits || [];
+
+    if (hits.length === 0) break;
+
+    console.log(`[import-processes] Page returned ${hits.length} processes (total so far: ${allProcesses.length + hits.length})`);
+
+    for (const hit of hits) {
+      const src = hit._source;
+      const assuntos = src.assuntos?.map((a: any) => a.nome).join(", ") || null;
+      allProcesses.push({
+        process_number: src.numeroProcesso,
+        source,
+        subject: assuntos,
+        simple_status: "Importado",
+      });
+    }
+
+    // Get sort value from last hit for search_after
+    const lastHit = hits[hits.length - 1];
+    if (lastHit?.sort) {
+      searchAfter = lastHit.sort;
+    } else {
+      break;
+    }
+
+    // Stop if we got fewer results than page size (last page)
+    if (hits.length < pageSize) break;
   }
 
-  const data = await response.json();
-  const hits = data?.hits?.hits || [];
-
-  console.log(`[import-processes] Found ${hits.length} processes for OAB ${oabNumber}`);
-
-  return hits.map((hit: any) => {
-    const src = hit._source;
-    const assuntos = src.assuntos?.map((a: any) => a.nome).join(", ") || null;
-
-    return {
-      process_number: src.numeroProcesso,
-      source,
-      subject: assuntos,
-      simple_status: "Importado",
-    };
-  });
+  console.log(`[import-processes] Total found: ${allProcesses.length} processes for OAB ${oabNumber}`);
+  return allProcesses;
 }
 
 Deno.serve(async (req) => {
