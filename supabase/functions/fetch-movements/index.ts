@@ -74,16 +74,20 @@ async function fetchDataJudMovements(
     return [];
   }
 
-  // Format number to CNJ pattern: NNNNNNN-DD.AAAA.J.TR.OOOO
+  // Try both formatted and raw number
   const digits = processNumber.replace(/\D/g, "");
-  let queryNumber = processNumber; // use as-is if already formatted
+  let formattedNumber = processNumber;
   if (digits.length === 20 && !processNumber.includes("-")) {
-    // Convert raw digits to CNJ format
-    queryNumber = `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14,16)}.${digits.slice(16,20)}`;
+    formattedNumber = `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14,16)}.${digits.slice(16,20)}`;
   }
-  console.log(`[fetch-movements] Querying DataJud for process "${queryNumber}" (input: ${processNumber}) at ${endpoint}`);
 
-  const body = {
+  // DataJud docs say to use "match" with the raw number (no formatting)
+  // But some tribunals index with formatting - try raw digits first
+  const queryNumber = digits;
+  console.log(`[fetch-movements] Trying raw digits: "${queryNumber}" and formatted: "${formattedNumber}" at ${endpoint}`);
+
+  // First try with raw digits
+  let body: Record<string, unknown> = {
     query: {
       match: {
         numeroProcesso: queryNumber,
@@ -92,7 +96,7 @@ async function fetchDataJudMovements(
     size: 1,
   };
 
-  const response = await fetch(endpoint, {
+  let response = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `APIKey ${apiKey}`,
@@ -107,19 +111,43 @@ async function fetchDataJudMovements(
     return [];
   }
 
-  const data = await response.json();
-  console.log(`[fetch-movements] DataJud response total hits: ${data?.hits?.total?.value ?? 'unknown'}`);
+  let data = await response.json();
+  let totalHits = data?.hits?.total?.value ?? 0;
+  console.log(`[fetch-movements] Raw digits query hits: ${totalHits}`);
+
+  // If no results with raw digits, retry with formatted CNJ number
+  if (totalHits === 0 && formattedNumber !== queryNumber) {
+    console.log(`[fetch-movements] Retrying with formatted number: "${formattedNumber}"`);
+    body = {
+      query: { match: { numeroProcesso: formattedNumber } },
+      size: 1,
+    };
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `APIKey ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (response.ok) {
+      data = await response.json();
+      totalHits = data?.hits?.total?.value ?? 0;
+      console.log(`[fetch-movements] Formatted query hits: ${totalHits}`);
+    }
+  }
+
   const hits = data?.hits?.hits || [];
 
   if (hits.length === 0) {
-    console.log(`[fetch-movements] No results found for process ${cleanNumber}. This may mean the process number is incorrect or not yet indexed by DataJud.`);
+    console.log(`[fetch-movements] No results for "${formattedNumber}". Process may not be indexed by DataJud yet.`);
     return [];
   }
 
   const processo = hits[0]._source;
   const movimentos = processo?.movimentos || [];
 
-  console.log(`[fetch-movements] Found ${movimentos.length} movements for process ${cleanNumber}`);
+  console.log(`[fetch-movements] Found ${movimentos.length} movements`);
 
   return movimentos.map((mov: any) => ({
     title: mov.nome || mov.complemento || "Movimentação",
