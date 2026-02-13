@@ -74,14 +74,19 @@ async function fetchDataJudMovements(
     return [];
   }
 
-  // DataJud expects the raw number without formatting
-  const cleanNumber = processNumber.replace(/[.\-\/]/g, "");
-  console.log(`[fetch-movements] Querying DataJud for process ${cleanNumber} (original: ${processNumber}) at ${endpoint}`);
+  // Format number to CNJ pattern: NNNNNNN-DD.AAAA.J.TR.OOOO
+  const digits = processNumber.replace(/\D/g, "");
+  let queryNumber = processNumber; // use as-is if already formatted
+  if (digits.length === 20 && !processNumber.includes("-")) {
+    // Convert raw digits to CNJ format
+    queryNumber = `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14,16)}.${digits.slice(16,20)}`;
+  }
+  console.log(`[fetch-movements] Querying DataJud for process "${queryNumber}" (input: ${processNumber}) at ${endpoint}`);
 
   const body = {
     query: {
       match: {
-        numeroProcesso: cleanNumber,
+        numeroProcesso: queryNumber,
       },
     },
     size: 1,
