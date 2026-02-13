@@ -6,6 +6,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Map source enum to DataJud API endpoints
+const DATAJUD_ENDPOINTS: Record<string, string> = {
+  TJRS_1G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
+  TJRS_2G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
+  TRF4_JFRS: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TRF4_JFSC: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+  TRF4_JFPR: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
+};
+
 interface ImportedProcess {
   process_number: string;
   source: string;
@@ -13,21 +22,102 @@ interface ImportedProcess {
   simple_status: string | null;
 }
 
-// Stub: In production, this queries the eproc API with the lawyer's credentials
-// to list all processes linked to their OAB number
-async function fetchProcessesFromTribunal(
+// Search DataJud for processes linked to a lawyer's OAB number
+async function fetchProcessesFromDataJud(
   source: string,
   credentials: { login: string; password: string }
 ): Promise<ImportedProcess[]> {
-  console.log(`[import-processes] Querying ${source} with login ${credentials.login}`);
-  
-  // This is a stub - replace with actual eproc API integration
-  // The eproc API endpoint would be something like:
-  // TJRS: https://eproc1g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_consultar
-  // TRF4: https://eproc.trf4.jus.br/eproc/externo_controlador.php?acao=processo_consultar
-  
-  // Return empty array - real processes would come from court API
-  return [];
+  const apiKey = Deno.env.get("DATAJUD_API_KEY");
+  if (!apiKey) {
+    console.error("[import-processes] DATAJUD_API_KEY not configured");
+    return [];
+  }
+
+  const endpoint = DATAJUD_ENDPOINTS[source];
+  if (!endpoint) {
+    console.error(`[import-processes] No DataJud endpoint for source: ${source}`);
+    return [];
+  }
+
+  // Use the OAB number (login) to search for processes where this lawyer is listed
+  const oabNumber = credentials.login;
+  console.log(`[import-processes] Querying DataJud for OAB ${oabNumber} at ${endpoint}`);
+
+  // Search by lawyer name/OAB in the parties field
+  const body = {
+    query: {
+      bool: {
+        should: [
+          { match: { "assuntos.nome": oabNumber } },
+          {
+            nested: {
+              path: "movimentos",
+              query: {
+                match_all: {},
+              },
+            },
+          },
+        ],
+        minimum_should_match: 0,
+        filter: [
+          {
+            match: {
+              "classe.nome": {
+                query: oabNumber,
+                operator: "or",
+              },
+            },
+          },
+        ],
+      },
+    },
+    size: 100,
+    _source: ["numeroProcesso", "classe", "assuntos", "dataAjuizamento", "tribunal", "grau"],
+  };
+
+  // Alternative: simpler search by text across all fields
+  const simpleBody = {
+    query: {
+      multi_match: {
+        query: oabNumber,
+        fields: ["*"],
+      },
+    },
+    size: 50,
+    _source: ["numeroProcesso", "classe", "assuntos", "dataAjuizamento", "tribunal", "grau"],
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(simpleBody),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`[import-processes] DataJud API error ${response.status}: ${text}`);
+    return [];
+  }
+
+  const data = await response.json();
+  const hits = data?.hits?.hits || [];
+
+  console.log(`[import-processes] Found ${hits.length} processes for OAB ${oabNumber}`);
+
+  return hits.map((hit: any) => {
+    const src = hit._source;
+    const assuntos = src.assuntos?.map((a: any) => a.nome).join(", ") || null;
+
+    return {
+      process_number: src.numeroProcesso,
+      source,
+      subject: assuntos,
+      simple_status: "Importado",
+    };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -65,13 +155,12 @@ Deno.serve(async (req) => {
     }
 
     const credentials = JSON.parse(credData.encrypted_credentials);
-    const processes = await fetchProcessesFromTribunal(source, credentials);
+    const processes = await fetchProcessesFromDataJud(source, credentials);
 
     let imported = 0;
     let skipped = 0;
 
     for (const proc of processes) {
-      // Check if process already exists for this tenant
       const { data: existing } = await supabase
         .from("cases")
         .select("id")
