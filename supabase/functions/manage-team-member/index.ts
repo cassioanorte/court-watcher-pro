@@ -87,10 +87,11 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      const updateData: Record<string, string> = {};
+      const updateData: Record<string, string | null> = {};
       if (updates.full_name) updateData.full_name = updates.full_name;
-      if (updates.phone !== undefined) updateData.phone = updates.phone;
-      if (updates.oab_number !== undefined) updateData.oab_number = updates.oab_number;
+      if (updates.phone !== undefined) updateData.phone = updates.phone || null;
+      if (updates.oab_number !== undefined) updateData.oab_number = updates.oab_number || null;
+      if (updates.cpf !== undefined) updateData.cpf = updates.cpf || null;
 
       const { error: updateError } = await supabase
         .from("profiles")
@@ -98,6 +99,14 @@ Deno.serve(async (req) => {
         .eq("user_id", target_user_id);
 
       if (updateError) throw updateError;
+
+      // Reset password if provided
+      if (updates.new_password && updates.new_password.length >= 6) {
+        const { error: pwError } = await supabase.auth.admin.updateUserById(target_user_id, {
+          password: updates.new_password,
+        });
+        if (pwError) throw pwError;
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
