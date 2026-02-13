@@ -1,0 +1,129 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Verify caller is owner
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check caller is owner
+    const { data: callerRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (callerRole?.role !== "owner") {
+      return new Response(JSON.stringify({ error: "Apenas o dono pode gerenciar a equipe" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get caller tenant
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!callerProfile) {
+      return new Response(JSON.stringify({ error: "Perfil não encontrado" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { action, target_user_id, updates } = await req.json();
+
+    // Verify target belongs to same tenant
+    const { data: targetProfile } = await supabase
+      .from("profiles")
+      .select("tenant_id, user_id")
+      .eq("user_id", target_user_id)
+      .single();
+
+    if (!targetProfile || targetProfile.tenant_id !== callerProfile.tenant_id) {
+      return new Response(JSON.stringify({ error: "Usuário não encontrado neste escritório" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Prevent owner from deleting/editing themselves
+    if (target_user_id === user.id) {
+      return new Response(JSON.stringify({ error: "Você não pode alterar seu próprio cadastro aqui" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "update") {
+      const updateData: Record<string, string> = {};
+      if (updates.full_name) updateData.full_name = updates.full_name;
+      if (updates.phone !== undefined) updateData.phone = updates.phone;
+      if (updates.oab_number !== undefined) updateData.oab_number = updates.oab_number;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update(updateData)
+        .eq("user_id", target_user_id);
+
+      if (updateError) throw updateError;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "delete") {
+      // Delete profile, role, and auth user
+      await supabase.from("user_roles").delete().eq("user_id", target_user_id);
+      await supabase.from("profiles").delete().eq("user_id", target_user_id);
+      await supabase.auth.admin.deleteUser(target_user_id);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Ação inválida" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("[manage-team-member] Error:", err);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { UserPlus, Users, X, Copy, Check, Shield, Briefcase, User } from "lucide-react";
+import { UserPlus, Users, X, Copy, Check, Shield, Briefcase, User, Pencil, Trash2 } from "lucide-react";
 
 interface TeamMember {
   user_id: string;
@@ -20,7 +20,8 @@ const roleLabels: Record<string, { label: string; icon: typeof Shield; color: st
 };
 
 const TeamManagement = () => {
-  const { tenantId } = useAuth();
+  const { tenantId, user } = useAuth();
+  const currentUserId = user?.id;
   const { toast } = useToast();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,17 @@ const TeamManagement = () => {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ tempPassword: string | null; alreadyExisted?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Edit state
+  const [editMember, setEditMember] = useState<TeamMember | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editOab, setEditOab] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Delete state
+  const [deleteMember, setDeleteMember] = useState<TeamMember | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const fetchMembers = async () => {
     if (!tenantId) return;
@@ -103,9 +115,99 @@ const TeamManagement = () => {
     setResult(null);
   };
 
+  const handleOpenEdit = (m: TeamMember) => {
+    setEditMember(m);
+    setEditName(m.full_name);
+    setEditPhone(m.phone || "");
+    setEditOab(m.oab_number || "");
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editMember) return;
+    setEditSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-team-member", {
+        body: {
+          action: "update",
+          target_user_id: editMember.user_id,
+          updates: { full_name: editName, phone: editPhone || null, oab_number: editOab || null },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Atualizado!", description: `${editName} foi atualizado com sucesso.` });
+      setEditMember(null);
+      fetchMembers();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteMember) return;
+    setDeleteSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-team-member", {
+        body: { action: "delete", target_user_id: deleteMember.user_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Removido!", description: `${deleteMember.full_name} foi removido do escritório.` });
+      setDeleteMember(null);
+      fetchMembers();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
+
   const grouped = {
     staff: members.filter((m) => m.role === "owner" || m.role === "staff"),
     clients: members.filter((m) => m.role === "client"),
+  };
+
+  const canManage = (m: TeamMember) => m.role !== "owner" && m.user_id !== currentUserId;
+
+  const renderMemberRow = (m: TeamMember) => {
+    const r = roleLabels[m.role] || roleLabels.staff;
+    const Icon = r.icon;
+    return (
+      <div key={m.user_id} className="flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted/50 transition-colors">
+        <div className={`w-8 h-8 rounded-full bg-muted flex items-center justify-center ${r.color}`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{m.full_name}</p>
+          {m.oab_number && <p className="text-xs text-muted-foreground">OAB {m.oab_number}</p>}
+          {m.phone && !m.oab_number && <p className="text-xs text-muted-foreground">{m.phone}</p>}
+        </div>
+        {canManage(m) && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleOpenEdit(m)}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Editar"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setDeleteMember(m)}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Excluir"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        {!canManage(m) && (
+          <span className={`text-[10px] font-semibold uppercase tracking-wide ${r.color}`}>{r.label}</span>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -127,52 +229,24 @@ const TeamManagement = () => {
           <p className="text-sm text-muted-foreground">Carregando...</p>
         ) : (
           <div className="space-y-4">
-            {/* Staff */}
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Equipe ({grouped.staff.length})</p>
               <div className="divide-y rounded-lg border overflow-hidden">
                 {grouped.staff.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-muted-foreground">Nenhum funcionário cadastrado.</p>
                 ) : (
-                  grouped.staff.map((m) => {
-                    const r = roleLabels[m.role] || roleLabels.staff;
-                    const Icon = r.icon;
-                    return (
-                      <div key={m.user_id} className="flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted/50 transition-colors">
-                        <div className={`w-8 h-8 rounded-full bg-muted flex items-center justify-center ${r.color}`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{m.full_name}</p>
-                          {m.oab_number && <p className="text-xs text-muted-foreground">OAB {m.oab_number}</p>}
-                        </div>
-                        <span className={`text-[10px] font-semibold uppercase tracking-wide ${r.color}`}>{r.label}</span>
-                      </div>
-                    );
-                  })
+                  grouped.staff.map(renderMemberRow)
                 )}
               </div>
             </div>
 
-            {/* Clients */}
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Clientes ({grouped.clients.length})</p>
               <div className="divide-y rounded-lg border overflow-hidden">
                 {grouped.clients.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-muted-foreground">Nenhum cliente cadastrado.</p>
                 ) : (
-                  grouped.clients.map((m) => (
-                    <div key={m.user_id} className="flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted/50 transition-colors">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-emerald-500">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{m.full_name}</p>
-                        {m.phone && <p className="text-xs text-muted-foreground">{m.phone}</p>}
-                      </div>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-500">Cliente</span>
-                    </div>
-                  ))
+                  grouped.clients.map(renderMemberRow)
                 )}
               </div>
             </div>
@@ -180,7 +254,7 @@ const TeamManagement = () => {
         )}
       </motion.div>
 
-      {/* Modal */}
+      {/* Create Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-foreground/30" onClick={handleCloseModal} />
@@ -194,34 +268,20 @@ const TeamManagement = () => {
 
             {!result ? (
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Role selector */}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de acesso *</label>
                   <div className="flex gap-2 mt-1">
-                    <button
-                      type="button"
-                      onClick={() => setFormRole("staff")}
-                      className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${formRole === "staff" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                    >
-                      <Briefcase className="w-3.5 h-3.5 inline mr-1.5" />
-                      Funcionário
+                    <button type="button" onClick={() => setFormRole("staff")} className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${formRole === "staff" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                      <Briefcase className="w-3.5 h-3.5 inline mr-1.5" /> Funcionário
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormRole("client")}
-                      className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${formRole === "client" ? "bg-emerald-500/15 border-emerald-500 text-emerald-600" : "bg-background text-muted-foreground hover:bg-muted"}`}
-                    >
-                      <User className="w-3.5 h-3.5 inline mr-1.5" />
-                      Cliente
+                    <button type="button" onClick={() => setFormRole("client")} className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${formRole === "client" ? "bg-emerald-500/15 border-emerald-500 text-emerald-600" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                      <User className="w-3.5 h-3.5 inline mr-1.5" /> Cliente
                     </button>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {formRole === "staff"
-                      ? "Funcionários têm acesso a todos os processos e clientes do escritório."
-                      : "Clientes só podem ver seus próprios processos no portal."}
+                    {formRole === "staff" ? "Funcionários têm acesso a todos os processos e clientes do escritório." : "Clientes só podem ver seus próprios processos no portal."}
                   </p>
                 </div>
-
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
                   <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
@@ -230,26 +290,22 @@ const TeamManagement = () => {
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email *</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
-
                 {formRole === "client" && (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF *</label>
                     <input type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" placeholder="000.000.000-00" />
                   </div>
                 )}
-
                 {formRole === "staff" && (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
                     <input type="text" value={oabNumber} onChange={(e) => setOabNumber(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                   </div>
                 )}
-
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
                   <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(51) 99999-0000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
-
                 <button type="submit" disabled={submitting} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
                   {submitting ? "Criando..." : "Cadastrar"}
                 </button>
@@ -259,9 +315,7 @@ const TeamManagement = () => {
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
                   <p className="text-sm font-semibold text-foreground mb-1">✅ Usuário cadastrado!</p>
                   <p className="text-xs text-muted-foreground">
-                    {result.alreadyExisted
-                      ? "Este email já possui cadastro. O usuário foi vinculado ao escritório com a senha existente."
-                      : "Compartilhe a senha temporária abaixo:"}
+                    {result.alreadyExisted ? "Este email já possui cadastro. O usuário foi vinculado ao escritório com a senha existente." : "Compartilhe a senha temporária abaixo:"}
                   </p>
                 </div>
                 {result.tempPassword && (
@@ -275,11 +329,65 @@ const TeamManagement = () => {
                     <p className="text-[10px] text-muted-foreground">O usuário deve alterar a senha após o primeiro acesso.</p>
                   </>
                 )}
-                <button onClick={handleCloseModal} className="w-full h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                  Fechar
-                </button>
+                <button onClick={handleCloseModal} className="w-full h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">Fechar</button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setEditMember(null)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+            <button onClick={() => setEditMember(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+
+            <h2 className="text-lg font-bold text-foreground mb-1">Editar Usuário</h2>
+            <p className="text-sm text-muted-foreground mb-5">Atualize os dados de {editMember.full_name}</p>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
+                <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="(51) 99999-0000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              {editMember.role === "staff" && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
+                  <input type="text" value={editOab} onChange={(e) => setEditOab(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              )}
+              <button type="submit" disabled={editSubmitting} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+                {editSubmitting ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setDeleteMember(null)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+            <h2 className="text-lg font-bold text-foreground mb-2">Confirmar exclusão</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Tem certeza que deseja remover <strong className="text-foreground">{deleteMember.full_name}</strong> do escritório? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteMember(null)} className="flex-1 h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleDeleteConfirm} disabled={deleteSubmitting} className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+                {deleteSubmitting ? "Removendo..." : "Excluir"}
+              </button>
+            </div>
           </div>
         </div>
       )}
