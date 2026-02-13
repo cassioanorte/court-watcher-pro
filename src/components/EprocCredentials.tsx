@@ -97,11 +97,26 @@ const EprocCredentials = () => {
         if (error) throw error;
       }
 
-      toast({ title: "Credencial salva!", description: `Acesso ao ${cred.source} configurado.` });
-      // Reload
+      toast({ title: "Credencial salva!", description: `Acesso ao ${cred.source} configurado. Importando processos...` });
+      // Reload credentials state
       setCredentials((prev) =>
         prev.map((c) => (c.source === cred.source ? { ...c, saved: true, login: "", password: "" } : c))
       );
+
+      // Auto-import processes from this tribunal
+      try {
+        const { data: importData } = await supabase.functions.invoke("import-processes", {
+          body: { tenant_id: tenantId, source: cred.source },
+        });
+        if (importData?.imported > 0) {
+          toast({ title: "Processos importados!", description: `${importData.imported} processo(s) importado(s) do ${cred.source}.` });
+        } else {
+          toast({ title: "Importação concluída", description: `Nenhum processo novo encontrado no ${cred.source}.` });
+        }
+      } catch {
+        // Import failure shouldn't block credential save success
+        console.error("Auto-import failed");
+      }
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
