@@ -101,18 +101,26 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
     if (!tenantId) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("cases").insert({
+      const { data: inserted, error } = await supabase.from("cases").insert({
         tenant_id: tenantId,
         process_number: processNumber,
         source,
         subject: subject || null,
-        next_step: caseSummary || null,
+        case_summary: caseSummary || null,
         client_user_id: clientUserId || null,
         responsible_user_id: user?.id || null,
         automation_enabled: automationEnabled,
-      });
+      }).select("id").single();
       if (error) throw error;
       toast({ title: "Processo cadastrado!", description: processNumber });
+
+      // Auto-fetch movements after creation
+      if (inserted?.id) {
+        supabase.functions.invoke("fetch-movements", {
+          body: { case_id: inserted.id },
+        }).catch(err => console.error("Auto-fetch movements failed:", err));
+      }
+
       setProcessNumber("");
       setSubject("");
       setCaseSummary("");

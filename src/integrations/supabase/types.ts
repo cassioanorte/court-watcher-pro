@@ -52,6 +52,7 @@ export type Database = {
       cases: {
         Row: {
           automation_enabled: boolean | null
+          case_summary: string | null
           client_user_id: string | null
           created_at: string
           id: string
@@ -68,6 +69,7 @@ export type Database = {
         }
         Insert: {
           automation_enabled?: boolean | null
+          case_summary?: string | null
           client_user_id?: string | null
           created_at?: string
           id?: string
@@ -84,6 +86,7 @@ export type Database = {
         }
         Update: {
           automation_enabled?: boolean | null
+          case_summary?: string | null
           client_user_id?: string | null
           created_at?: string
           id?: string
