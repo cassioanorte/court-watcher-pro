@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import NewProcessModal from "@/components/NewProcessModal";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -21,7 +22,9 @@ const Processes = () => {
   const [processes, setProcesses] = useState<Tables<"cases">[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [importing, setImporting] = useState(false);
   const { tenantId } = useAuth();
+  const { toast } = useToast();
 
   const fetchProcesses = async () => {
     if (!tenantId) return;
@@ -60,12 +63,48 @@ const Processes = () => {
           <h1 className="text-2xl font-bold text-foreground">Processos</h1>
           <p className="text-sm text-muted-foreground mt-1">{processes.length} processo{processes.length !== 1 ? "s" : ""} cadastrado{processes.length !== 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={() => setShowNew(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-4 h-4" /> Novo Processo
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              if (!tenantId) return;
+              setImporting(true);
+              try {
+                const { data: creds } = await supabase
+                  .from("eproc_credentials")
+                  .select("source")
+                  .eq("tenant_id", tenantId);
+                if (!creds || creds.length === 0) {
+                  toast({ title: "Sem credenciais", description: "Cadastre suas credenciais em Configurações primeiro.", variant: "destructive" });
+                  return;
+                }
+                let totalImported = 0;
+                for (const c of creds) {
+                  const { data } = await supabase.functions.invoke("import-processes", {
+                    body: { tenant_id: tenantId, source: c.source },
+                  });
+                  totalImported += data?.imported || 0;
+                }
+                toast({ title: "Importação concluída!", description: `${totalImported} processo(s) importado(s).` });
+                fetchProcesses();
+              } catch (err: any) {
+                toast({ title: "Erro", description: err.message, variant: "destructive" });
+              } finally {
+                setImporting(false);
+              }
+            }}
+            disabled={importing}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-card border text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {importing ? "Importando..." : "Importar do tribunal"}
+          </button>
+          <button
+            onClick={() => setShowNew(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" /> Novo Processo
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
