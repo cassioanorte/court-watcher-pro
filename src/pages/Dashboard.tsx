@@ -10,6 +10,7 @@ const Dashboard = () => {
   const [casesCount, setCasesCount] = useState(0);
   const [clientsCount, setClientsCount] = useState(0);
   const [recentMovements, setRecentMovements] = useState<any[]>([]);
+  const [clientNames, setClientNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const sourceLabels: Record<string, string> = {
@@ -23,7 +24,7 @@ const Dashboard = () => {
       const [casesRes, profilesRes, movementsRes] = await Promise.all([
         supabase.from("cases").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id").eq("tenant_id", tenantId),
-        supabase.from("movements").select("*, cases!inner(process_number, source, tenant_id, id)").eq("cases.tenant_id", tenantId).order("occurred_at", { ascending: false }).limit(8),
+        supabase.from("movements").select("*, cases!inner(process_number, source, tenant_id, id, client_user_id)").eq("cases.tenant_id", tenantId).order("occurred_at", { ascending: false }).limit(8),
       ]);
 
       setCasesCount(casesRes.count || 0);
@@ -34,7 +35,18 @@ const Dashboard = () => {
         setClientsCount((roles || []).filter(r => r.role === "client").length);
       }
 
-      setRecentMovements(movementsRes.data || []);
+      const movements = movementsRes.data || [];
+      setRecentMovements(movements);
+
+      // Fetch client names for movements
+      const clientIds = [...new Set(movements.map((m: any) => m.cases?.client_user_id).filter(Boolean))];
+      if (clientIds.length > 0) {
+        const { data: clientProfiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", clientIds);
+        const names: Record<string, string> = {};
+        (clientProfiles || []).forEach((p: any) => { names[p.user_id] = p.full_name; });
+        setClientNames(names);
+      }
+
       setLoading(false);
     };
     load();
@@ -102,10 +114,18 @@ const Dashboard = () => {
                   className="flex items-start gap-4 px-5 py-3.5 hover:bg-muted/50 transition-colors"
                 >
                   <div className="w-2 h-2 rounded-full mt-1.5 shrink-0 bg-accent" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{mov.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 font-mono">{mov.cases?.process_number}</p>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{mov.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-muted-foreground font-mono truncate">{mov.cases?.process_number}</p>
+                        {clientNames[mov.cases?.client_user_id] && (
+                          <>
+                            <span className="text-xs text-muted-foreground">·</span>
+                            <p className="text-xs text-accent font-medium truncate">{clientNames[mov.cases?.client_user_id]}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   <div className="text-right shrink-0">
                     <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                       {sourceLabels[mov.cases?.source] || ""}
