@@ -37,11 +37,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserData = async (userId: string) => {
     try {
       const [roleRes, profileRes] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", userId).single(),
+        supabase.from("user_roles").select("role").eq("user_id", userId),
         supabase.from("profiles").select("full_name, avatar_url, oab_number, tenant_id").eq("user_id", userId).single(),
       ]);
 
-      if (roleRes.data) setRole(roleRes.data.role as AppRole);
+      if (roleRes.data && roleRes.data.length > 0) {
+        const priority: AppRole[] = ["owner", "staff", "client"];
+        const bestRole = priority.find(r => roleRes.data.some(row => row.role === r)) || roleRes.data[0].role;
+        setRole(bestRole as AppRole);
+      }
       if (profileRes.data) {
         setTenantId(profileRes.data.tenant_id);
         setProfile({
