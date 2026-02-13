@@ -27,7 +27,7 @@ const ClientDetail = () => {
   const [loadingMovements, setLoadingMovements] = useState<string | null>(null);
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", oab_number: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", oab_number: "", new_password: "" });
   const [saving, setSaving] = useState(false);
 
   const fetchCases = async () => {
@@ -85,6 +85,7 @@ const ClientDetail = () => {
       phone: client?.phone || "",
       cpf: client?.cpf || "",
       oab_number: client?.oab_number || "",
+      new_password: "",
     });
     setShowEdit(true);
   };
@@ -94,15 +95,19 @@ const ClientDetail = () => {
     if (!id || !editForm.full_name.trim()) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: editForm.full_name.trim(),
-          phone: editForm.phone.trim() || null,
-          cpf: editForm.cpf.trim() || null,
-          oab_number: editForm.oab_number.trim() || null,
-        })
-        .eq("user_id", id);
+      const { error } = await supabase.functions.invoke("manage-team-member", {
+        body: {
+          action: "update",
+          target_user_id: id,
+          updates: {
+            full_name: editForm.full_name.trim(),
+            phone: editForm.phone.trim() || null,
+            cpf: editForm.cpf.trim() || null,
+            oab_number: editForm.oab_number.trim() || null,
+            new_password: editForm.new_password || undefined,
+          },
+        },
+      });
       if (error) throw error;
       setClient((prev: any) => ({
         ...prev,
@@ -182,8 +187,20 @@ const ClientDetail = () => {
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
                 <div className="relative mt-1">
                   <CreditCard className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input type="text" value={editForm.cpf} onChange={(e) => setEditForm(f => ({ ...f, cpf: e.target.value }))} placeholder="000.000.000-00" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                  <input type="text" value={editForm.cpf} onChange={(e) => setEditForm(f => ({ ...f, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) }))} placeholder="00000000000" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
+                <div className="relative mt-1">
+                  <Scale className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input type="text" value={editForm.oab_number} onChange={(e) => setEditForm(f => ({ ...f, oab_number: e.target.value }))} placeholder="RS 123456" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nova senha (opcional)</label>
+                <input type="text" value={editForm.new_password} onChange={(e) => setEditForm(f => ({ ...f, new_password: e.target.value }))} placeholder="Mínimo 6 caracteres" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter a senha atual.</p>
               </div>
               <button type="submit" disabled={saving} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2">
                 <Save className="w-4 h-4" />
