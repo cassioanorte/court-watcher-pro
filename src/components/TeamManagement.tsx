@@ -10,6 +10,7 @@ interface TeamMember {
   full_name: string;
   phone: string | null;
   oab_number: string | null;
+  cpf: string | null;
   role: string;
 }
 
@@ -41,6 +42,8 @@ const TeamManagement = () => {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editOab, setEditOab] = useState("");
+  const [editCpf, setEditCpf] = useState("");
+  const [editNewPassword, setEditNewPassword] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Delete state
@@ -51,7 +54,7 @@ const TeamManagement = () => {
     if (!tenantId) return;
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, phone, oab_number")
+      .select("user_id, full_name, phone, oab_number, cpf")
       .eq("tenant_id", tenantId);
 
     if (profiles && profiles.length > 0) {
@@ -120,6 +123,8 @@ const TeamManagement = () => {
     setEditName(m.full_name);
     setEditPhone(m.phone || "");
     setEditOab(m.oab_number || "");
+    setEditCpf(m.cpf || "");
+    setEditNewPassword("");
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -131,7 +136,13 @@ const TeamManagement = () => {
         body: {
           action: "update",
           target_user_id: editMember.user_id,
-          updates: { full_name: editName, phone: editPhone || null, oab_number: editOab || null },
+          updates: {
+            full_name: editName,
+            phone: editPhone || null,
+            oab_number: editOab || null,
+            cpf: editCpf || null,
+            new_password: editNewPassword || undefined,
+          },
         },
       });
       if (error) throw error;
@@ -363,6 +374,17 @@ const TeamManagement = () => {
                   <input type="text" value={editOab} onChange={(e) => setEditOab(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
               )}
+              {editMember.role === "client" && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
+                  <input type="text" value={editCpf} onChange={(e) => setEditCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="00000000000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              )}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nova senha (opcional)</label>
+                <input type="text" value={editNewPassword} onChange={(e) => setEditNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter a senha atual.</p>
+              </div>
               <button type="submit" disabled={editSubmitting} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
                 {editSubmitting ? "Salvando..." : "Salvar alterações"}
               </button>
