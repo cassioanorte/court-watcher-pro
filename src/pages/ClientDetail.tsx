@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText } from "lucide-react";
+import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus } from "lucide-react";
+import NewProcessModal from "@/components/NewProcessModal";
 
 const sourceLabels: Record<string, string> = {
   TJRS_1G: "TJRS - 1º Grau",
@@ -22,16 +23,22 @@ const ClientDetail = () => {
   const [expandedCase, setExpandedCase] = useState<string | null>(null);
   const [movements, setMovements] = useState<Record<string, any[]>>({});
   const [loadingMovements, setLoadingMovements] = useState<string | null>(null);
+  const [showNewProcess, setShowNewProcess] = useState(false);
+
+  const fetchCases = async () => {
+    if (!id) return;
+    const { data } = await supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false });
+    setCases(data || []);
+  };
 
   useEffect(() => {
     if (!id) return;
     const load = async () => {
-      const [profileRes, casesRes] = await Promise.all([
+      const [profileRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", id).single(),
-        supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false }),
       ]);
       setClient(profileRes.data);
-      setCases(casesRes.data || []);
+      await fetchCases();
       setLoading(false);
     };
     load();
@@ -93,7 +100,15 @@ const ClientDetail = () => {
 
       {/* Processes - expandable */}
       <div>
-        <h2 className="text-base font-semibold text-foreground mb-3">Processos ({cases.length})</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-foreground">Processos ({cases.length})</h2>
+          <button
+            onClick={() => setShowNewProcess(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-3.5 h-3.5" /> Novo Processo
+          </button>
+        </div>
         {cases.length === 0 ? (
           <p className="text-sm text-muted-foreground bg-card rounded-lg border p-4">Nenhum processo vinculado a este cliente.</p>
         ) : (
@@ -215,6 +230,12 @@ const ClientDetail = () => {
           </div>
         )}
       </div>
+      <NewProcessModal
+        open={showNewProcess}
+        onClose={() => setShowNewProcess(false)}
+        onSuccess={fetchCases}
+        defaultClientUserId={id}
+      />
     </div>
   );
 };

@@ -19,18 +19,25 @@ interface NewProcessModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  defaultClientUserId?: string;
 }
 
-const NewProcessModal = ({ open, onClose, onSuccess }: NewProcessModalProps) => {
+const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewProcessModalProps) => {
   const [processNumber, setProcessNumber] = useState("");
   const [source, setSource] = useState<ProcessSource>("TJRS_1G");
   const [subject, setSubject] = useState("");
-  const [clientUserId, setClientUserId] = useState("");
+  const [clientUserId, setClientUserId] = useState(defaultClientUserId || "");
   const [automationEnabled, setAutomationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open && defaultClientUserId) {
+      setClientUserId(defaultClientUserId);
+    }
+  }, [open, defaultClientUserId]);
 
   useEffect(() => {
     if (!open || !tenantId) return;
