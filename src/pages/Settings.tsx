@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Save, Palette } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
+import EprocCredentials from "@/components/EprocCredentials";
 
 const Settings = () => {
   const { tenantId, profile } = useAuth();
@@ -128,6 +129,9 @@ const Settings = () => {
       >
         <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar configurações"}
       </button>
+
+      {/* Eproc Credentials */}
+      <EprocCredentials />
 
       {/* Team Management */}
       <TeamManagement />

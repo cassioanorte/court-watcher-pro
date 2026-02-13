@@ -1,1 +1,4 @@
 project_id = "yaeujscpcjhkclvhtoaq"
+
+[functions.fetch-movements]
+verify_jwt = false
