@@ -14,16 +14,439 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          automation_enabled: boolean | null
+          client_user_id: string | null
+          created_at: string
+          id: string
+          last_checked_at: string | null
+          next_step: string | null
+          process_number: string
+          responsible_user_id: string | null
+          simple_status: string | null
+          source: Database["public"]["Enums"]["process_source"]
+          subject: string | null
+          tags: string[] | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          automation_enabled?: boolean | null
+          client_user_id?: string | null
+          created_at?: string
+          id?: string
+          last_checked_at?: string | null
+          next_step?: string | null
+          process_number: string
+          responsible_user_id?: string | null
+          simple_status?: string | null
+          source: Database["public"]["Enums"]["process_source"]
+          subject?: string | null
+          tags?: string[] | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          automation_enabled?: boolean | null
+          client_user_id?: string | null
+          created_at?: string
+          id?: string
+          last_checked_at?: string | null
+          next_step?: string | null
+          process_number?: string
+          responsible_user_id?: string | null
+          simple_status?: string | null
+          source?: Database["public"]["Enums"]["process_source"]
+          subject?: string | null
+          tags?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cases_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          case_id: string
+          category: string | null
+          created_at: string
+          file_url: string
+          id: string
+          name: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          case_id: string
+          category?: string | null
+          created_at?: string
+          file_url: string
+          id?: string
+          name: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          case_id?: string
+          category?: string | null
+          created_at?: string
+          file_url?: string
+          id?: string
+          name?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eproc_credentials: {
+        Row: {
+          created_at: string
+          encrypted_credentials: string | null
+          id: string
+          mode: string
+          source: Database["public"]["Enums"]["process_source"]
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_credentials?: string | null
+          id?: string
+          mode?: string
+          source: Database["public"]["Enums"]["process_source"]
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_credentials?: string | null
+          id?: string
+          mode?: string
+          source?: Database["public"]["Enums"]["process_source"]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eproc_credentials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          case_id: string
+          content: string
+          created_at: string
+          id: string
+          is_internal: boolean | null
+          sender_id: string
+        }
+        Insert: {
+          case_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          sender_id: string
+        }
+        Update: {
+          case_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movements: {
+        Row: {
+          case_id: string
+          created_at: string
+          details: string | null
+          id: string
+          is_manual: boolean | null
+          occurred_at: string
+          source_label: string | null
+          source_raw: string | null
+          title: string
+          translation: string | null
+          unique_hash: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_manual?: boolean | null
+          occurred_at: string
+          source_label?: string | null
+          source_raw?: string | null
+          title: string
+          translation?: string | null
+          unique_hash: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_manual?: boolean | null
+          occurred_at?: string
+          source_label?: string | null
+          source_raw?: string | null
+          title?: string
+          translation?: string | null
+          unique_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movements_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          case_id: string | null
+          created_at: string
+          id: string
+          read: boolean | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string
+          id: string
+          oab_number: string | null
+          phone: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          oab_number?: string | null
+          phone?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          oab_number?: string | null
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          primary_color?: string | null
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          slug?: string
+        }
+        Relationships: []
+      }
+      translation_dictionary: {
+        Row: {
+          created_at: string
+          id: string
+          original_term: string
+          simplified_term: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_term: string
+          simplified_term: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_term?: string
+          simplified_term?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translation_dictionary_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "staff" | "client"
+      process_source:
+        | "TJRS_1G"
+        | "TJRS_2G"
+        | "TRF4_JFRS"
+        | "TRF4_JFSC"
+        | "TRF4_JFPR"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +573,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "staff", "client"],
+      process_source: [
+        "TJRS_1G",
+        "TJRS_2G",
+        "TRF4_JFRS",
+        "TRF4_JFSC",
+        "TRF4_JFPR",
+      ],
+    },
   },
 } as const
