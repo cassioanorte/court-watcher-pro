@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Processes from "./pages/Processes";
 import ProcessDetail from "./pages/ProcessDetail";
 import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
+import Settings from "./pages/Settings";
 import ClientPortal from "./pages/ClientPortal";
 import ClientProcessDetail from "./pages/ClientProcessDetail";
 import Auth from "./pages/Auth";
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="processos" element={<Processes />} />
               <Route path="processos/:id" element={<ProcessDetail />} />
               <Route path="clientes" element={<Clients />} />
+              <Route path="clientes/:id" element={<ClientDetail />} />
+              <Route path="configuracoes" element={<Settings />} />
             </Route>
 
             {/* Client portal routes */}
