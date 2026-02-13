@@ -55,11 +55,18 @@ interface ImportedProcess {
   simple_status: string | null;
 }
 
+function getApiKey(): string {
+  const raw = Deno.env.get("DATAJUD_API_KEY") || "";
+  // Remove any "APIKey " prefix if user accidentally included it
+  const cleaned = raw.replace(/^APIKey\s+/i, "").trim();
+  return cleaned;
+}
+
 async function fetchProcessesFromDataJud(
   source: string,
   credentials: { login: string; password: string }
 ): Promise<ImportedProcess[]> {
-  const apiKey = Deno.env.get("DATAJUD_API_KEY");
+  const apiKey = getApiKey();
   if (!apiKey) {
     console.error("[import-processes] DATAJUD_API_KEY not configured");
     return [];
@@ -73,13 +80,14 @@ async function fetchProcessesFromDataJud(
 
   const oabNumber = credentials.login;
   console.log(`[import-processes] Querying DataJud for OAB ${oabNumber} at ${endpoint}`);
+  console.log(`[import-processes] API Key (first 10 chars): ${apiKey.substring(0, 10)}...`);
 
   const allProcesses: ImportedProcess[] = [];
   let searchAfter: number[] | null = null;
   const pageSize = 100;
 
   while (true) {
-    const body: any = {
+    const body: Record<string, unknown> = {
       query: {
         multi_match: {
           query: oabNumber,
@@ -95,10 +103,14 @@ async function fetchProcessesFromDataJud(
       body.search_after = searchAfter;
     }
 
+    // The correct format per CNJ docs: "Authorization: APIKey <key>"
+    const authHeader = `APIKey ${apiKey}`;
+    console.log(`[import-processes] Auth header prefix: ${authHeader.substring(0, 20)}...`);
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `APIKey ${apiKey}`,
+        "Authorization": authHeader,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -119,7 +131,7 @@ async function fetchProcessesFromDataJud(
 
     for (const hit of hits) {
       const src = hit._source;
-      const assuntos = src.assuntos?.flat()?.map((a: any) => a.nome).filter(Boolean).join(", ") || null;
+      const assuntos = src.assuntos?.flat()?.map((a: Record<string, string>) => a.nome).filter(Boolean).join(", ") || null;
       allProcesses.push({
         process_number: src.numeroProcesso,
         source,
@@ -128,7 +140,6 @@ async function fetchProcessesFromDataJud(
       });
     }
 
-    // Get sort value from last hit for search_after
     const lastHit = hits[hits.length - 1];
     if (lastHit?.sort) {
       searchAfter = lastHit.sort;
@@ -136,7 +147,6 @@ async function fetchProcessesFromDataJud(
       break;
     }
 
-    // Stop if we got fewer results than page size (last page)
     if (hits.length < pageSize) break;
   }
 
@@ -220,7 +230,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("[import-processes] Error:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: (err as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
