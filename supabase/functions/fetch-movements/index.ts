@@ -6,48 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Map source enum to DataJud API endpoints
-const DATAJUD_ENDPOINTS: Record<string, string> = {
-  TJRS_1G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
-  TJRS_2G: "https://api-publica.datajud.cnj.jus.br/api_publica_tjrs/_search",
-  TRF4_JFRS: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
-  TRF4_JFSC: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
-  TRF4_JFPR: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
-  TST: "https://api-publica.datajud.cnj.jus.br/api_publica_tst/_search",
-  TSE: "https://api-publica.datajud.cnj.jus.br/api_publica_tse/_search",
-  STJ: "https://api-publica.datajud.cnj.jus.br/api_publica_stj/_search",
-  STM: "https://api-publica.datajud.cnj.jus.br/api_publica_stm/_search",
-  TRF1: "https://api-publica.datajud.cnj.jus.br/api_publica_trf1/_search",
-  TRF2: "https://api-publica.datajud.cnj.jus.br/api_publica_trf2/_search",
-  TRF3: "https://api-publica.datajud.cnj.jus.br/api_publica_trf3/_search",
-  TRF4: "https://api-publica.datajud.cnj.jus.br/api_publica_trf4/_search",
-  TRF5: "https://api-publica.datajud.cnj.jus.br/api_publica_trf5/_search",
-  TRF6: "https://api-publica.datajud.cnj.jus.br/api_publica_trf6/_search",
-  TRT1: "https://api-publica.datajud.cnj.jus.br/api_publica_trt1/_search",
-  TRT2: "https://api-publica.datajud.cnj.jus.br/api_publica_trt2/_search",
-  TRT3: "https://api-publica.datajud.cnj.jus.br/api_publica_trt3/_search",
-  TRT4: "https://api-publica.datajud.cnj.jus.br/api_publica_trt4/_search",
-  TRT5: "https://api-publica.datajud.cnj.jus.br/api_publica_trt5/_search",
-  TRT6: "https://api-publica.datajud.cnj.jus.br/api_publica_trt6/_search",
-  TRT7: "https://api-publica.datajud.cnj.jus.br/api_publica_trt7/_search",
-  TRT8: "https://api-publica.datajud.cnj.jus.br/api_publica_trt8/_search",
-  TRT9: "https://api-publica.datajud.cnj.jus.br/api_publica_trt9/_search",
-  TRT10: "https://api-publica.datajud.cnj.jus.br/api_publica_trt10/_search",
-  TRT11: "https://api-publica.datajud.cnj.jus.br/api_publica_trt11/_search",
-  TRT12: "https://api-publica.datajud.cnj.jus.br/api_publica_trt12/_search",
-  TRT13: "https://api-publica.datajud.cnj.jus.br/api_publica_trt13/_search",
-  TRT14: "https://api-publica.datajud.cnj.jus.br/api_publica_trt14/_search",
-  TRT15: "https://api-publica.datajud.cnj.jus.br/api_publica_trt15/_search",
-  TRT16: "https://api-publica.datajud.cnj.jus.br/api_publica_trt16/_search",
-  TRT17: "https://api-publica.datajud.cnj.jus.br/api_publica_trt17/_search",
-  TRT18: "https://api-publica.datajud.cnj.jus.br/api_publica_trt18/_search",
-  TRT19: "https://api-publica.datajud.cnj.jus.br/api_publica_trt19/_search",
-  TRT20: "https://api-publica.datajud.cnj.jus.br/api_publica_trt20/_search",
-  TRT21: "https://api-publica.datajud.cnj.jus.br/api_publica_trt21/_search",
-  TRT22: "https://api-publica.datajud.cnj.jus.br/api_publica_trt22/_search",
-  TRT23: "https://api-publica.datajud.cnj.jus.br/api_publica_trt23/_search",
-  TRT24: "https://api-publica.datajud.cnj.jus.br/api_publica_trt24/_search",
+// Map source to public consultation URLs
+const CONSULTATION_URLS: Record<string, (processNumber: string) => string> = {
+  TRF4_JFRS: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&txtValor=${encodeURIComponent(n)}&selOrigem=RS&chkMostrarBaixados=&txtDataFase=`,
+  TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&txtValor=${encodeURIComponent(n)}&selOrigem=SC&chkMostrarBaixados=&txtDataFase=`,
+  TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&txtValor=${encodeURIComponent(n)}&selOrigem=PR&chkMostrarBaixados=&txtDataFase=`,
+  TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&txtValor=${encodeURIComponent(n)}&selOrigem=TRF&chkMostrarBaixados=&txtDataFase=`,
+  TJRS_1G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(n)}`,
+  TJRS_2G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(n)}`,
 };
+
+function getFallbackUrl(processNumber: string): string {
+  return `https://www.jusbrasil.com.br/consulta-processual/busca?q=${encodeURIComponent(processNumber)}`;
+}
 
 interface Movement {
   title: string;
@@ -57,105 +28,196 @@ interface Movement {
   source_raw: string | null;
 }
 
-async function fetchDataJudMovements(
+function formatProcessNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 20 && !raw.includes("-")) {
+    return `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14,16)}.${digits.slice(16,20)}`;
+  }
+  return raw;
+}
+
+async function scrapeMovementsWithFirecrawl(
   processNumber: string,
   source: string
 ): Promise<Movement[]> {
-  const raw = Deno.env.get("DATAJUD_API_KEY") || "";
-  const apiKey = raw.replace(/^APIKey\s+/i, "").trim();
+  const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
   if (!apiKey) {
-    console.error("[fetch-movements] DATAJUD_API_KEY not configured");
+    console.error("[fetch-movements] FIRECRAWL_API_KEY not configured");
     return [];
   }
 
-  const endpoint = DATAJUD_ENDPOINTS[source];
-  if (!endpoint) {
-    console.error(`[fetch-movements] No DataJud endpoint for source: ${source}`);
-    return [];
+  // Try both raw and formatted process number
+  const formatted = formatProcessNumber(processNumber);
+  const urlBuilder = CONSULTATION_URLS[source];
+  
+  // Try formatted first, then raw
+  const urlsToTry = urlBuilder 
+    ? [urlBuilder(formatted), urlBuilder(processNumber)]
+    : [getFallbackUrl(formatted)];
+
+  for (const consultUrl of urlsToTry) {
+    console.log(`[fetch-movements] Scraping: ${consultUrl}`);
+    
+    const movements = await doScrape(consultUrl, source, apiKey);
+    if (movements.length > 0) return movements;
   }
 
-  // Try both formatted and raw number
-  const digits = processNumber.replace(/\D/g, "");
-  let formattedNumber = processNumber;
-  if (digits.length === 20 && !processNumber.includes("-")) {
-    formattedNumber = `${digits.slice(0,7)}-${digits.slice(7,9)}.${digits.slice(9,13)}.${digits.slice(13,14)}.${digits.slice(14,16)}.${digits.slice(16,20)}`;
-  }
+  return [];
+}
 
-  // DataJud docs say to use "match" with the raw number (no formatting)
-  // But some tribunals index with formatting - try raw digits first
-  const queryNumber = digits;
-  console.log(`[fetch-movements] Trying raw digits: "${queryNumber}" and formatted: "${formattedNumber}" at ${endpoint}`);
-
-  // First try with raw digits
-  let body: Record<string, unknown> = {
-    query: {
-      match: {
-        numeroProcesso: queryNumber,
-      },
-    },
-    size: 1,
-  };
-
-  let response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `APIKey ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`[fetch-movements] DataJud API error ${response.status}: ${text}`);
-    return [];
-  }
-
-  let data = await response.json();
-  let totalHits = data?.hits?.total?.value ?? 0;
-  console.log(`[fetch-movements] Raw digits query hits: ${totalHits}`);
-
-  // If no results with raw digits, retry with formatted CNJ number
-  if (totalHits === 0 && formattedNumber !== queryNumber) {
-    console.log(`[fetch-movements] Retrying with formatted number: "${formattedNumber}"`);
-    body = {
-      query: { match: { numeroProcesso: formattedNumber } },
-      size: 1,
-    };
-    response = await fetch(endpoint, {
+async function doScrape(url: string, source: string, apiKey: string): Promise<Movement[]> {
+  try {
+    // Step 1: Scrape with markdown
+    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: {
-        Authorization: `APIKey ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        url,
+        formats: ["markdown"],
+        waitFor: 1000,
+        onlyMainContent: true,
+        timeout: 15000,
+      }),
     });
-    if (response.ok) {
-      data = await response.json();
-      totalHits = data?.hits?.total?.value ?? 0;
-      console.log(`[fetch-movements] Formatted query hits: ${totalHits}`);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[fetch-movements] Firecrawl error ${response.status}: ${errText}`);
+      return [];
     }
-  }
 
-  const hits = data?.hits?.hits || [];
+    const data = await response.json();
+    const markdown = data?.data?.markdown || data?.markdown || "";
 
-  if (hits.length === 0) {
-    console.log(`[fetch-movements] No results for "${formattedNumber}". Process may not be indexed by DataJud yet.`);
+    if (!markdown || markdown.length < 50) {
+      console.log(`[fetch-movements] No useful content (${markdown.length} chars)`);
+      return [];
+    }
+
+    console.log(`[fetch-movements] Got ${markdown.length} chars of markdown`);
+
+    // Parse movements from markdown
+    const movements = parseMovementsFromMarkdown(markdown, source);
+    
+    if (movements.length > 0) {
+      console.log(`[fetch-movements] Parsed ${movements.length} movements from markdown`);
+      return movements;
+    }
+
+    // If regex didn't find anything, try AI extraction
+    console.log("[fetch-movements] Regex found nothing, trying extract endpoint...");
+    return await extractWithAI(url, source, apiKey);
+  } catch (err) {
+    console.error(`[fetch-movements] Scrape error:`, err);
     return [];
   }
+}
 
-  const processo = hits[0]._source;
-  const movimentos = processo?.movimentos || [];
+async function extractWithAI(url: string, source: string, apiKey: string): Promise<Movement[]> {
+  try {
+    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        formats: ["extract"],
+        extract: {
+          prompt: "Extract all court movements (movimentações processuais) from this page. Each movement has a date and a title/description.",
+          schema: {
+            type: "object",
+            properties: {
+              movements: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    date: { type: "string", description: "Date in DD/MM/YYYY or ISO format" },
+                    title: { type: "string", description: "Movement title/name" },
+                    details: { type: "string", description: "Additional details" },
+                  },
+                  required: ["date", "title"],
+                },
+              },
+            },
+            required: ["movements"],
+          },
+        },
+        waitFor: 1000,
+        timeout: 15000,
+      }),
+    });
 
-  console.log(`[fetch-movements] Found ${movimentos.length} movements`);
+    if (!response.ok) {
+      console.error(`[fetch-movements] Extract API error: ${response.status}`);
+      return [];
+    }
 
-  return movimentos.map((mov: any) => ({
-    title: mov.nome || mov.complemento || "Movimentação",
-    details: mov.complemento || null,
-    occurred_at: mov.dataHora || new Date().toISOString(),
-    source_label: source,
-    source_raw: JSON.stringify(mov),
-  }));
+    const data = await response.json();
+    const extracted = data?.data?.extract || data?.extract || {};
+    const movements = extracted?.movements || [];
+
+    console.log(`[fetch-movements] AI extracted ${movements.length} movements`);
+
+    return movements.map((mov: any) => {
+      let occurredAt = mov.date || new Date().toISOString();
+      // Parse DD/MM/YYYY to ISO if needed
+      const brMatch = occurredAt.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      if (brMatch) {
+        const [, d, m, y] = brMatch;
+        occurredAt = new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toISOString();
+      }
+
+      return {
+        title: mov.title || "Movimentação",
+        details: mov.details || null,
+        occurred_at: occurredAt,
+        source_label: source,
+        source_raw: JSON.stringify(mov),
+      };
+    });
+  } catch (err) {
+    console.error(`[fetch-movements] Extract error:`, err);
+    return [];
+  }
+}
+
+function parseMovementsFromMarkdown(markdown: string, source: string): Movement[] {
+  const movements: Movement[] = [];
+
+  // Pattern: DD/MM/YYYY [HH:MM] - Title
+  const datePattern = /(\d{2}\/\d{2}\/\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)\s*[-–|]\s*(.+?)(?:\n|$)/g;
+
+  let match;
+  while ((match = datePattern.exec(markdown)) !== null) {
+    const dateStr = match[1].trim();
+    const title = match[2].trim();
+
+    if (title.length < 3) continue;
+
+    const parts = dateStr.split(/[\s/:]/).map(Number);
+    const day = parts[0], month = parts[1], year = parts[2];
+    const hour = parts[3] || 0, min = parts[4] || 0;
+
+    if (year < 1990 || year > 2030 || month < 1 || month > 12 || day < 1 || day > 31) continue;
+
+    const isoDate = new Date(year, month - 1, day, hour, min).toISOString();
+
+    movements.push({
+      title,
+      details: null,
+      occurred_at: isoDate,
+      source_label: source,
+      source_raw: match[0],
+    });
+  }
+
+  return movements;
 }
 
 function generateHash(caseId: string, title: string, occurredAt: string): string {
@@ -204,7 +266,7 @@ Deno.serve(async (req) => {
 
     for (const c of cases) {
       try {
-        const movements = await fetchDataJudMovements(c.process_number, c.source);
+        const movements = await scrapeMovementsWithFirecrawl(c.process_number, c.source);
 
         for (const mov of movements) {
           const uniqueHash = generateHash(c.id, mov.title, mov.occurred_at);
@@ -248,7 +310,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("[fetch-movements] Error:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: (err as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
