@@ -31,19 +31,39 @@ import AdminReports from "./pages/admin/AdminReports";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
+const TenantBlockedScreen = () => {
+  const { tenantBlockReason, signOut } = useAuth();
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="max-w-md mx-auto p-8 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+          <span className="text-3xl">🔒</span>
+        </div>
+        <h1 className="text-xl font-bold text-foreground">Acesso Bloqueado</h1>
+        <p className="text-muted-foreground text-sm">{tenantBlockReason}</p>
+        <button onClick={signOut} className="mt-4 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+          Sair
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role, tenantBlocked } = useAuth();
   if (loading) return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
   if (role === "client") return <Navigate to="/portal" replace />;
   if (role === "superadmin") return <Navigate to="/admin" replace />;
+  if (tenantBlocked) return <TenantBlockedScreen />;
   return <>{children}</>;
 };
 
 const ProtectedClientRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, tenantBlocked } = useAuth();
   if (loading) return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Carregando...</div>;
   if (!user) return <Navigate to="/portal/login" replace />;
+  if (tenantBlocked) return <TenantBlockedScreen />;
   return <>{children}</>;
 };
 
