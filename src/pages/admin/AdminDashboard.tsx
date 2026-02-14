@@ -19,11 +19,18 @@ interface TenantSummary {
   caseCount: number;
 }
 
+interface TenantUser {
+  full_name: string;
+  role: string;
+}
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState<Stats>({ tenants: 0, users: 0, recentLogs: 0 });
   const [topTenants, setTopTenants] = useState<TenantSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState<TenantSummary | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +70,43 @@ const AdminDashboard = () => {
     };
     fetchData();
   }, []);
+
+  const handleSelectTenant = async (tenant: TenantSummary) => {
+    setSelectedTenant(tenant);
+    setLoadingUsers(true);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, full_name")
+      .eq("tenant_id", tenant.id);
+
+    if (profiles && profiles.length > 0) {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", profiles.map((p) => p.user_id));
+
+      const roleMap: Record<string, string> = {};
+      (roles || []).forEach((r) => { roleMap[r.user_id] = r.role; });
+
+      setTenantUsers(
+        profiles.map((p) => ({
+          full_name: p.full_name,
+          role: roleMap[p.user_id] || "unknown",
+        }))
+      );
+    } else {
+      setTenantUsers([]);
+    }
+    setLoadingUsers(false);
+  };
+
+  const staff = tenantUsers.filter((u) => u.role === "owner" || u.role === "staff");
+  const clients = tenantUsers.filter((u) => u.role === "client");
+
+  const roleLabel = (role: string) => {
+    const map: Record<string, string> = { owner: "Proprietário", staff: "Equipe", client: "Cliente" };
+    return map[role] || role;
+  };
 
   const cards = [
     { label: "Escritórios", value: stats.tenants, icon: Building2, color: "from-violet-500 to-indigo-600" },
@@ -116,7 +160,7 @@ const AdminDashboard = () => {
               {topTenants.map((t) => (
                 <tr
                   key={t.id}
-                  onClick={() => setSelectedTenant(t)}
+                  onClick={() => handleSelectTenant(t)}
                   className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
                 >
                   <td className="py-3 text-white font-medium">{t.name}</td>
@@ -131,22 +175,58 @@ const AdminDashboard = () => {
       </div>
 
       <Dialog open={!!selectedTenant} onOpenChange={() => setSelectedTenant(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
           <DialogHeader>
             <DialogTitle>{selectedTenant?.name}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
-              <Users className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold">{selectedTenant?.userCount}</p>
-              <p className="text-xs text-slate-400 mt-1">Usuários</p>
+
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="bg-slate-800/60 rounded-lg p-3 text-center">
+              <Users className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
+              <p className="text-xl font-bold">{selectedTenant?.userCount}</p>
+              <p className="text-xs text-slate-400">Usuários</p>
             </div>
-            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
-              <Scale className="w-6 h-6 text-amber-400 mx-auto mb-2" />
-              <p className="text-2xl font-bold">{selectedTenant?.caseCount}</p>
-              <p className="text-xs text-slate-400 mt-1">Processos</p>
+            <div className="bg-slate-800/60 rounded-lg p-3 text-center">
+              <Scale className="w-5 h-5 text-amber-400 mx-auto mb-1" />
+              <p className="text-xl font-bold">{selectedTenant?.caseCount}</p>
+              <p className="text-xs text-slate-400">Processos</p>
             </div>
           </div>
+
+          {loadingUsers ? (
+            <p className="text-slate-400 text-sm mt-4">Carregando usuários...</p>
+          ) : (
+            <div className="mt-4 space-y-4 max-h-72 overflow-y-auto">
+              {staff.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Equipe ({staff.length})</h3>
+                  <ul className="space-y-1">
+                    {staff.map((u, i) => (
+                      <li key={i} className="flex items-center justify-between bg-slate-800/40 rounded-md px-3 py-2 text-sm">
+                        <span className="text-white">{u.full_name}</span>
+                        <span className="text-xs text-emerald-400">{roleLabel(u.role)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {clients.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Clientes ({clients.length})</h3>
+                  <ul className="space-y-1">
+                    {clients.map((u, i) => (
+                      <li key={i} className="bg-slate-800/40 rounded-md px-3 py-2 text-sm text-white">
+                        {u.full_name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {staff.length === 0 && clients.length === 0 && (
+                <p className="text-sm text-slate-500">Nenhum usuário encontrado.</p>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
