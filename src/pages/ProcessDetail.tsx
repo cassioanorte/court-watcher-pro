@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +38,12 @@ const ProcessDetail = () => {
   const [addingMovement, setAddingMovement] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [docCategory, setDocCategory] = useState("");
+
+  // Edit movement
+  const [editingMovId, setEditingMovId] = useState<string | null>(null);
+  const [editMovTitle, setEditMovTitle] = useState("");
+  const [editMovDetails, setEditMovDetails] = useState("");
+  const [savingMov, setSavingMov] = useState(false);
 
   const isLawyer = role === "owner" || role === "staff";
 
@@ -152,6 +158,25 @@ const ProcessDetail = () => {
       toast({ title: "Movimentação adicionada!" });
     }
     setAddingMovement(false);
+  };
+
+  const handleEditMovement = async () => {
+    if (!editingMovId || !editMovTitle.trim()) return;
+    setSavingMov(true);
+    const { error } = await supabase
+      .from("movements")
+      .update({ title: editMovTitle.trim(), details: editMovDetails.trim() || null })
+      .eq("id", editingMovId);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      setMovements((prev) =>
+        prev.map((m) => m.id === editingMovId ? { ...m, title: editMovTitle.trim(), details: editMovDetails.trim() || null } : m)
+      );
+      setEditingMovId(null);
+      toast({ title: "Movimentação atualizada!" });
+    }
+    setSavingMov(false);
   };
 
   if (loading) return <div className="text-sm text-muted-foreground">Carregando...</div>;
@@ -320,20 +345,67 @@ const ProcessDetail = () => {
                 <div className={cn("w-2 h-2 rounded-full", i < 2 ? "bg-accent" : "bg-muted-foreground/40")} />
               </div>
               <div className="bg-card rounded-lg border p-4 shadow-card">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">{mov.title}</h3>
-                  <span className="text-[10px] text-muted-foreground shrink-0">{new Date(mov.occurred_at).toLocaleString("pt-BR")}</span>
-                </div>
-                {mov.details && <p className="text-xs text-muted-foreground">{mov.details}</p>}
-                {mov.source_label && <p className="text-[10px] text-muted-foreground mt-1">Fonte: {mov.source_label}</p>}
-                {mov.translation && (
-                  <div className="mt-3 p-3 bg-accent/5 rounded-md border border-accent/15">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Info className="w-3 h-3 text-accent" />
-                      <span className="text-[10px] font-semibold text-accent uppercase tracking-wide">Entenda a movimentação</span>
+                {editingMovId === mov.id ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={editMovTitle}
+                      onChange={(e) => setEditMovTitle(e.target.value)}
+                      className="w-full h-9 px-3 rounded-md bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                      placeholder="Título"
+                    />
+                    <textarea
+                      value={editMovDetails}
+                      onChange={(e) => setEditMovDetails(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-md bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
+                      placeholder="Detalhes (opcional)"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleEditMovement}
+                        disabled={savingMov || !editMovTitle.trim()}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md gradient-accent text-accent-foreground text-xs font-semibold disabled:opacity-50"
+                      >
+                        {savingMov ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Salvar
+                      </button>
+                      <button
+                        onClick={() => setEditingMovId(null)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-3 h-3" /> Cancelar
+                      </button>
                     </div>
-                    <p className="text-xs text-foreground/80">{mov.translation}</p>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="text-sm font-semibold text-foreground">{mov.title}</h3>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isLawyer && (
+                          <button
+                            onClick={() => { setEditingMovId(mov.id); setEditMovTitle(mov.title); setEditMovDetails(mov.details || ""); }}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Editar movimentação"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">{new Date(mov.occurred_at).toLocaleString("pt-BR")}</span>
+                      </div>
+                    </div>
+                    {mov.details && <p className="text-xs text-muted-foreground">{mov.details}</p>}
+                    {mov.source_label && <p className="text-[10px] text-muted-foreground mt-1">Fonte: {mov.source_label}</p>}
+                    {mov.translation && (
+                      <div className="mt-3 p-3 bg-accent/5 rounded-md border border-accent/15">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Info className="w-3 h-3 text-accent" />
+                          <span className="text-[10px] font-semibold text-accent uppercase tracking-wide">Entenda a movimentação</span>
+                        </div>
+                        <p className="text-xs text-foreground/80">{mov.translation}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </motion.div>
