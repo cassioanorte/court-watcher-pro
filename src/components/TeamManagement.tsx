@@ -303,18 +303,14 @@ const TeamManagement = () => {
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email *</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
                 </div>
-                {formRole === "client" && (
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF *</label>
-                    <input type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" placeholder="000.000.000-00" />
-                  </div>
-                )}
-                {formRole === "staff" && (
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
-                    <input type="text" value={oabNumber} onChange={(e) => setOabNumber(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
-                  </div>
-                )}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
+                  <input type="text" value={cpf} onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" placeholder="00000000000" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
+                  <input type="text" value={oabNumber} onChange={(e) => setOabNumber(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
                   <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(51) 99999-0000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
