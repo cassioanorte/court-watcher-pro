@@ -8,3 +8,12 @@ verify_jwt = false
 
 [functions.capture-movements]
 verify_jwt = false
+
+[functions.manage-team-member]
+verify_jwt = false
+
+[functions.invite-client]
+verify_jwt = false
+
+[functions.signup-owner]
+verify_jwt = false
