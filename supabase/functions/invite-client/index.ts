@@ -27,18 +27,20 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: callerUser }, error: authError } = await anonClient.auth.getUser(token);
-    if (authError || !callerUser) {
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error("Claims error:", claimsError);
       return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
+    const callerUserId = claimsData.claims.sub as string;
 
     // Verify caller is owner
     const { data: callerRole } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", callerUser.id)
+      .eq("user_id", callerUserId)
       .single();
 
     if (!callerRole || callerRole.role !== "owner") {
@@ -51,7 +53,7 @@ Deno.serve(async (req) => {
     const { data: callerProfile } = await supabaseAdmin
       .from("profiles")
       .select("tenant_id")
-      .eq("user_id", callerUser.id)
+      .eq("user_id", callerUserId)
       .single();
 
     if (!callerProfile) {
