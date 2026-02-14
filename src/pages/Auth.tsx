@@ -7,7 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loginMethod, setLoginMethod] = useState<"email" | "cpf">("email");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [firmName, setFirmName] = useState("");
@@ -22,11 +24,21 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        let loginEmail = email;
+
+        if (loginMethod === "cpf") {
+          const cleanCpf = cpf.replace(/\D/g, "");
+          const { data, error } = await supabase.rpc("get_email_by_cpf", { _cpf: cleanCpf });
+          if (error || !data) {
+            throw new Error("CPF não encontrado no sistema.");
+          }
+          loginEmail = data;
+        }
+
+        const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
         if (error) throw error;
         navigate("/");
       } else {
-        // Use edge function to create tenant + user with service role
         const { data, error } = await supabase.functions.invoke("signup-owner", {
           body: { email, password, fullName, firmName },
         });
@@ -34,7 +46,6 @@ const Auth = () => {
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        // Now sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
 
@@ -95,17 +106,42 @@ const Auth = () => {
                 </div>
               </>
             )}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
-                placeholder="email@escritorio.com"
-              />
-            </div>
+            {isLogin && (
+              <div className="flex gap-2 mb-1">
+                <button type="button" onClick={() => setLoginMethod("email")} className={`flex-1 h-9 rounded-lg border text-xs font-medium transition-colors ${loginMethod === "email" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                  Email
+                </button>
+                <button type="button" onClick={() => setLoginMethod("cpf")} className={`flex-1 h-9 rounded-lg border text-xs font-medium transition-colors ${loginMethod === "cpf" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                  CPF
+                </button>
+              </div>
+            )}
+
+            {(loginMethod === "email" || !isLogin) ? (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  placeholder="email@escritorio.com"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  required
+                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  placeholder="00000000000"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Senha</label>
               <div className="relative">
