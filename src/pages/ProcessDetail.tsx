@@ -189,12 +189,12 @@ const ProcessDetail = () => {
   };
 
   const tribunalUrls: Record<string, (n: string) => string> = {
-    TRF4_JFRS: (n) => `https://eproc.jfrs.jus.br/eprocV2/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
-    TRF4_JFSC: (n) => `https://eproc.jfsc.jus.br/eprocV2/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
-    TRF4_JFPR: (n) => `https://eproc.jfpr.jus.br/eprocV2/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
-    TRF4: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
-    TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
-    TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
+    TRF4_JFRS: (n) => `https://eproc.jfrs.jus.br/eprocV2/externo_controlador.php?acao=processo_consulta_publica&txtNumProcesso=${encodeURIComponent(n)}`,
+    TRF4_JFSC: (n) => `https://eproc.jfsc.jus.br/eprocV2/externo_controlador.php?acao=processo_consulta_publica&txtNumProcesso=${encodeURIComponent(n)}`,
+    TRF4_JFPR: (n) => `https://eproc.jfpr.jus.br/eprocV2/externo_controlador.php?acao=processo_consulta_publica&txtNumProcesso=${encodeURIComponent(n)}`,
+    TRF4: (n) => `https://eproc.trf4.jus.br/eproc2trf4/externo_controlador.php?acao=processo_consulta_publica&txtNumProcesso=${encodeURIComponent(n)}`,
+    TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica&txtNumProcesso=${encodeURIComponent(n)}`,
+    TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica&txtNumProcesso=${encodeURIComponent(n)}`,
   };
 
   const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
