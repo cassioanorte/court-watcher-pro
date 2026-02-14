@@ -13,6 +13,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Agenda from "./pages/Agenda";
 import Financeiro from "./pages/Financeiro";
+import Cobranca from "./pages/Cobranca";
 import Settings from "./pages/Settings";
 import ClientPortal from "./pages/ClientPortal";
 import ClientProcessDetail from "./pages/ClientProcessDetail";
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="clientes/:id" element={<ClientDetail />} />
               <Route path="agenda" element={<Agenda />} />
               <Route path="financeiro" element={<Financeiro />} />
+              <Route path="cobranca" element={<Cobranca />} />
               <Route path="configuracoes" element={<Settings />} />
             </Route>
 
