@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useThemeLoader } from "@/hooks/useTheme";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -12,6 +13,7 @@ const navItems = [
 const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useThemeLoader();
 
   return (
     <div className="flex h-screen overflow-hidden">

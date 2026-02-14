@@ -3,28 +3,54 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Save, Palette, Upload, X, Eye } from "lucide-react";
+import { Save, Palette, Upload, X, Eye, RotateCcw } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
+import { type ThemeColors, DEFAULT_THEME, applyTheme } from "@/hooks/useTheme";
 
-const COLOR_PRESETS = [
-  { label: "Dourado", value: "#c8972e" },
-  { label: "Azul Marinho", value: "#1e3a5f" },
-  { label: "Bordô", value: "#722f37" },
-  { label: "Verde Escuro", value: "#2d5a3d" },
-  { label: "Roxo", value: "#5b3a7a" },
-  { label: "Cinza", value: "#4a5568" },
-  { label: "Vermelho", value: "#c0392b" },
-  { label: "Teal", value: "#1a7a6d" },
+const THEME_PRESETS: { label: string; colors: ThemeColors }[] = [
+  {
+    label: "Clássico Jurídico",
+    colors: { sidebar: "#1a2332", sidebarText: "#d4d8e0", accent: "#c8972e", background: "#f5f6f8", card: "#ffffff", foreground: "#1a2332" },
+  },
+  {
+    label: "Azul Corporativo",
+    colors: { sidebar: "#1e3a5f", sidebarText: "#e0e8f0", accent: "#3b82f6", background: "#f0f4f8", card: "#ffffff", foreground: "#1e293b" },
+  },
+  {
+    label: "Bordô Elegante",
+    colors: { sidebar: "#3b1220", sidebarText: "#f0d0d8", accent: "#b91c4a", background: "#fdf2f4", card: "#ffffff", foreground: "#2a0a14" },
+  },
+  {
+    label: "Verde Natureza",
+    colors: { sidebar: "#14352a", sidebarText: "#c8e6d8", accent: "#16a34a", background: "#f0faf4", card: "#ffffff", foreground: "#14352a" },
+  },
+  {
+    label: "Escuro Moderno",
+    colors: { sidebar: "#0f0f12", sidebarText: "#a8a8b0", accent: "#8b5cf6", background: "#18181b", card: "#27272a", foreground: "#e4e4e7" },
+  },
+  {
+    label: "Cinza Minimalista",
+    colors: { sidebar: "#374151", sidebarText: "#d1d5db", accent: "#6b7280", background: "#f9fafb", card: "#ffffff", foreground: "#111827" },
+  },
+];
+
+const COLOR_FIELDS: { key: keyof ThemeColors; label: string; description: string }[] = [
+  { key: "sidebar", label: "Barra lateral", description: "Fundo da navegação" },
+  { key: "sidebarText", label: "Texto da barra lateral", description: "Cor dos links" },
+  { key: "accent", label: "Cor de destaque", description: "Botões, ícones, links ativos" },
+  { key: "background", label: "Fundo da página", description: "Área principal" },
+  { key: "card", label: "Cor dos cards", description: "Painéis e caixas" },
+  { key: "foreground", label: "Texto principal", description: "Títulos e parágrafos" },
 ];
 
 const Settings = () => {
-  const { tenantId, profile, user } = useAuth();
+  const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [firmName, setFirmName] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#c8972e");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [themeColors, setThemeColors] = useState<ThemeColors>(DEFAULT_THEME);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [oabNumber, setOabNumber] = useState("");
@@ -42,8 +68,13 @@ const Settings = () => {
       ]);
       if (tenantRes.data) {
         setFirmName(tenantRes.data.name);
-        setPrimaryColor(tenantRes.data.primary_color || "#c8972e");
         setLogoUrl(tenantRes.data.logo_url || null);
+        const saved = tenantRes.data.theme_colors as unknown as Partial<ThemeColors> | null;
+        if (saved && Object.keys(saved).length > 0) {
+          setThemeColors({ ...DEFAULT_THEME, ...saved });
+        } else if (tenantRes.data.primary_color) {
+          setThemeColors({ ...DEFAULT_THEME, accent: tenantRes.data.primary_color });
+        }
       }
       if (profileRes.data) {
         setFullName(profileRes.data.full_name);
@@ -55,10 +86,13 @@ const Settings = () => {
     load();
   }, [tenantId, user?.id]);
 
+  const updateColor = (key: keyof ThemeColors, value: string) => {
+    setThemeColors((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !tenantId) return;
-
     if (!file.type.startsWith("image/")) {
       toast({ title: "Erro", description: "Selecione um arquivo de imagem.", variant: "destructive" });
       return;
@@ -67,18 +101,15 @@ const Settings = () => {
       toast({ title: "Erro", description: "Imagem deve ter no máximo 2MB.", variant: "destructive" });
       return;
     }
-
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
       const path = `logos/${tenantId}/logo.${ext}`;
       const { error: uploadErr } = await supabase.storage.from("case-documents").upload(path, file, { upsert: true });
       if (uploadErr) throw uploadErr;
-
       const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
       setLogoUrl(publicUrl);
-
       await supabase.from("tenants").update({ logo_url: publicUrl }).eq("id", tenantId);
       toast({ title: "Logo atualizado!" });
     } catch (err: any) {
@@ -95,20 +126,42 @@ const Settings = () => {
     toast({ title: "Logo removido" });
   };
 
-  const handleSave = async () => {
+  const handleApply = () => {
+    applyTheme(themeColors);
+    toast({ title: "Aplicado!", description: "Cores alteradas na visualização. Clique em Salvar para persistir." });
+  };
+
+  const handleSaveBranding = async () => {
+    if (!tenantId) return;
     setSaving(true);
     try {
-      if (!user || !tenantId) throw new Error("Não autenticado");
+      const { error } = await supabase.from("tenants").update({
+        name: firmName,
+        primary_color: themeColors.accent,
+        logo_url: logoUrl,
+        theme_colors: themeColors as unknown as Record<string, string>,
+      }).eq("id", tenantId);
+      if (error) throw error;
+      applyTheme(themeColors);
+      toast({ title: "Salvo!", description: "Identidade visual salva com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      const [tenantRes, profileRes] = await Promise.all([
-        supabase.from("tenants").update({ name: firmName, primary_color: primaryColor }).eq("id", tenantId),
-        supabase.from("profiles").update({ full_name: fullName, phone: phone || null, oab_number: oabNumber || null }).eq("user_id", user.id),
-      ]);
-
-      if (tenantRes.error) throw tenantRes.error;
-      if (profileRes.error) throw profileRes.error;
-
-      toast({ title: "Salvo!", description: "Configurações atualizadas com sucesso." });
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      if (!user) throw new Error("Não autenticado");
+      const { error } = await supabase.from("profiles").update({
+        full_name: fullName,
+        phone: phone || null,
+        oab_number: oabNumber || null,
+      }).eq("user_id", user.id);
+      if (error) throw error;
+      toast({ title: "Perfil salvo!" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -144,11 +197,7 @@ const Settings = () => {
             </div>
             <div className="space-y-2">
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="text-sm font-medium text-accent hover:underline"
-              >
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="text-sm font-medium text-accent hover:underline">
                 {uploading ? "Enviando..." : logoUrl ? "Alterar logo" : "Enviar logo"}
               </button>
               {logoUrl && (
@@ -172,35 +221,50 @@ const Settings = () => {
           />
         </div>
 
-        {/* Color picker */}
+        {/* Theme presets */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor primária da marca</label>
-          <div className="flex items-center gap-3 mt-2">
-            <input
-              type="color"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              className="w-10 h-10 rounded-lg border cursor-pointer"
-            />
-            <input
-              type="text"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              className="h-10 px-3 rounded-lg bg-background border text-sm text-foreground w-32 focus:outline-none focus:ring-2 focus:ring-accent/40 font-mono"
-            />
-          </div>
-          {/* Color presets */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {COLOR_PRESETS.map((preset) => (
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temas prontos</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+            {THEME_PRESETS.map((preset) => (
               <button
-                key={preset.value}
-                onClick={() => setPrimaryColor(preset.value)}
-                className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
-                  primaryColor === preset.value ? "border-foreground ring-2 ring-accent/40" : "border-transparent"
-                }`}
-                style={{ backgroundColor: preset.value }}
-                title={preset.label}
-              />
+                key={preset.label}
+                onClick={() => setThemeColors(preset.colors)}
+                className="rounded-lg border p-2 hover:border-accent/60 transition-all text-left"
+              >
+                <div className="flex gap-1 mb-1.5">
+                  {[preset.colors.sidebar, preset.colors.accent, preset.colors.background, preset.colors.card].map((c, i) => (
+                    <div key={i} className="w-5 h-5 rounded-full border border-border/50" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <p className="text-[11px] font-medium text-foreground truncate">{preset.label}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Individual color fields */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cores personalizadas</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+            {COLOR_FIELDS.map((field) => (
+              <div key={field.key} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border">
+                <input
+                  type="color"
+                  value={themeColors[field.key]}
+                  onChange={(e) => updateColor(field.key, e.target.value)}
+                  className="w-9 h-9 rounded-md border cursor-pointer shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-foreground">{field.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{field.description}</p>
+                </div>
+                <input
+                  type="text"
+                  value={themeColors[field.key]}
+                  onChange={(e) => updateColor(field.key, e.target.value)}
+                  className="w-20 h-7 px-2 rounded bg-background border text-[11px] font-mono text-foreground focus:outline-none"
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -211,25 +275,39 @@ const Settings = () => {
             <Eye className="w-3 h-3" /> Pré-visualização
           </label>
           <div className="mt-2 rounded-lg border overflow-hidden">
-            <div className="h-12 flex items-center px-4 gap-3" style={{ backgroundColor: primaryColor }}>
-              {logoUrl && (
-                <img src={logoUrl} alt="Logo" className="h-8 w-8 object-contain rounded bg-white/20 p-0.5" />
-              )}
-              <span className="text-sm font-semibold" style={{ color: isLightColor(primaryColor) ? "#1a1a2e" : "#ffffff" }}>
-                {firmName || "Nome do Escritório"}
-              </span>
-            </div>
-            <div className="p-4 bg-background space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: primaryColor }} />
-                <span className="text-xs text-muted-foreground">Exemplo de destaque com a cor da marca</span>
+            {/* Simulated sidebar */}
+            <div className="flex">
+              <div className="w-40 p-3 space-y-1.5" style={{ backgroundColor: themeColors.sidebar }}>
+                <div className="flex items-center gap-2">
+                  {logoUrl && <img src={logoUrl} alt="Logo" className="h-5 w-5 object-contain rounded" />}
+                  <span className="text-[10px] font-bold truncate" style={{ color: themeColors.sidebarText }}>
+                    {firmName || "Escritório"}
+                  </span>
+                </div>
+                <div className="rounded px-2 py-1" style={{ backgroundColor: themeColors.accent + "30" }}>
+                  <span className="text-[10px] font-medium" style={{ color: themeColors.accent }}>Dashboard</span>
+                </div>
+                <div className="px-2 py-1">
+                  <span className="text-[10px]" style={{ color: themeColors.sidebarText + "99" }}>Processos</span>
+                </div>
               </div>
-              <button
-                className="text-xs font-semibold px-4 py-1.5 rounded-md text-white"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Botão exemplo
-              </button>
+              {/* Simulated main area */}
+              <div className="flex-1 p-3 space-y-2" style={{ backgroundColor: themeColors.background }}>
+                <p className="text-xs font-bold" style={{ color: themeColors.foreground }}>Dashboard</p>
+                <div className="flex gap-2">
+                  <div className="flex-1 p-2 rounded-md" style={{ backgroundColor: themeColors.card }}>
+                    <p className="text-[10px]" style={{ color: themeColors.foreground + "80" }}>Processos</p>
+                    <p className="text-sm font-bold" style={{ color: themeColors.foreground }}>42</p>
+                  </div>
+                  <div className="flex-1 p-2 rounded-md" style={{ backgroundColor: themeColors.card }}>
+                    <p className="text-[10px]" style={{ color: themeColors.foreground + "80" }}>Clientes</p>
+                    <p className="text-sm font-bold" style={{ color: themeColors.foreground }}>18</p>
+                  </div>
+                </div>
+                <button className="text-[10px] font-semibold px-3 py-1 rounded text-white" style={{ backgroundColor: themeColors.accent }}>
+                  Botão exemplo
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -237,49 +315,23 @@ const Settings = () => {
         {/* Branding action buttons */}
         <div className="flex items-center gap-3 pt-2 border-t">
           <button
-            onClick={() => {
-              const hsl = hexToHsl(primaryColor);
-              const vars = ["--accent", "--sidebar-primary", "--sidebar-ring", "--ring"];
-              vars.forEach((v) => document.documentElement.style.setProperty(v, hsl));
-              // Update gradients
-              document.documentElement.style.setProperty(
-                "--gradient-accent",
-                `linear-gradient(135deg, hsl(${hsl}), hsl(${hsl} / 0.8))`
-              );
-              document.documentElement.style.setProperty(
-                "--shadow-accent",
-                `0 4px 20px hsl(${hsl} / 0.25)`
-              );
-              toast({ title: "Aplicado!", description: "Cor aplicada na visualização. Clique em Salvar para persistir." });
-            }}
+            onClick={() => { setThemeColors(DEFAULT_THEME); applyTheme(DEFAULT_THEME); toast({ title: "Tema restaurado ao padrão." }); }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <RotateCcw className="w-4 h-4" /> Restaurar padrão
+          </button>
+          <button
+            onClick={handleApply}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
           >
             <Eye className="w-4 h-4" /> Aplicar
           </button>
           <button
-            onClick={async () => {
-              if (!tenantId) return;
-              setSaving(true);
-              try {
-                const { error } = await supabase.from("tenants").update({ name: firmName, primary_color: primaryColor, logo_url: logoUrl }).eq("id", tenantId);
-                if (error) throw error;
-                const hsl = hexToHsl(primaryColor);
-                ["--accent", "--sidebar-primary", "--sidebar-ring", "--ring"].forEach((v) =>
-                  document.documentElement.style.setProperty(v, hsl)
-                );
-                document.documentElement.style.setProperty("--gradient-accent", `linear-gradient(135deg, hsl(${hsl}), hsl(${hsl} / 0.8))`);
-                document.documentElement.style.setProperty("--shadow-accent", `0 4px 20px hsl(${hsl} / 0.25)`);
-                toast({ title: "Salvo!", description: "Identidade visual salva com sucesso." });
-              } catch (err: any) {
-                toast({ title: "Erro", description: err.message, variant: "destructive" });
-              } finally {
-                setSaving(false);
-              }
-            }}
+            onClick={handleSaveBranding}
             disabled={saving}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar identidade"}
+            <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </motion.div>
@@ -301,56 +353,18 @@ const Settings = () => {
             <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(51) 99999-0000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
           </div>
         </div>
+        <div className="pt-2 border-t">
+          <button onClick={handleSaveProfile} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+            <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar perfil"}
+          </button>
+        </div>
       </motion.div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-      >
-        <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar configurações"}
-      </button>
-
-      {/* Bookmarklet Setup */}
       <BookmarkletSetup />
-
-      {/* Eproc Credentials */}
       <EprocCredentials />
-
-      {/* Team Management */}
       <TeamManagement />
     </div>
   );
 };
-
-/** Returns true if a hex color is "light" (for contrast text) */
-function isLightColor(hex: string): boolean {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
-}
-
-/** Converts hex to HSL string (e.g. "38 80% 55%") for CSS custom properties */
-function hexToHsl(hex: string): string {
-  const c = hex.replace("#", "");
-  let r = parseInt(c.substring(0, 2), 16) / 255;
-  let g = parseInt(c.substring(2, 4), 16) / 255;
-  let b = parseInt(c.substring(4, 6), 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-}
 
 export default Settings;
