@@ -202,8 +202,8 @@ const ProcessDetail = () => {
     TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
     TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
     TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
-    TJRS_1G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(formatCNJ(n))}`,
-    TJRS_2G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(formatCNJ(n))}`,
+    TJRS_1G: (n) => `https://www.tjrs.jus.br/novo/processos-e-servicos/consultas-processuais/acompanhamento-processual/?numero_processo=${encodeURIComponent(formatCNJ(n))}&comarca=Tribunal+de+Justi%C3%A7a&aba=processos`,
+    TJRS_2G: (n) => `https://www.tjrs.jus.br/novo/processos-e-servicos/consultas-processuais/acompanhamento-processual/?numero_processo=${encodeURIComponent(formatCNJ(n))}&comarca=Tribunal+de+Justi%C3%A7a&aba=processos`,
   };
 
   const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
