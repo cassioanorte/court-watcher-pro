@@ -78,13 +78,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Prevent owner from deleting/editing themselves
-    if (target_user_id === user.id) {
-      return new Response(JSON.stringify({ error: "Você não pode alterar seu próprio cadastro aqui" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Owner can edit anyone including themselves
 
     if (action === "update") {
       const updateData: Record<string, string | null> = {};
