@@ -238,8 +238,18 @@ const Settings = () => {
         <div className="flex items-center gap-3 pt-2 border-t">
           <button
             onClick={() => {
-              // Apply visually (CSS custom property override)
-              document.documentElement.style.setProperty("--accent", hexToHsl(primaryColor));
+              const hsl = hexToHsl(primaryColor);
+              const vars = ["--accent", "--sidebar-primary", "--sidebar-ring", "--ring"];
+              vars.forEach((v) => document.documentElement.style.setProperty(v, hsl));
+              // Update gradients
+              document.documentElement.style.setProperty(
+                "--gradient-accent",
+                `linear-gradient(135deg, hsl(${hsl}), hsl(${hsl} / 0.8))`
+              );
+              document.documentElement.style.setProperty(
+                "--shadow-accent",
+                `0 4px 20px hsl(${hsl} / 0.25)`
+              );
               toast({ title: "Aplicado!", description: "Cor aplicada na visualização. Clique em Salvar para persistir." });
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
@@ -253,7 +263,12 @@ const Settings = () => {
               try {
                 const { error } = await supabase.from("tenants").update({ name: firmName, primary_color: primaryColor, logo_url: logoUrl }).eq("id", tenantId);
                 if (error) throw error;
-                document.documentElement.style.setProperty("--accent", hexToHsl(primaryColor));
+                const hsl = hexToHsl(primaryColor);
+                ["--accent", "--sidebar-primary", "--sidebar-ring", "--ring"].forEach((v) =>
+                  document.documentElement.style.setProperty(v, hsl)
+                );
+                document.documentElement.style.setProperty("--gradient-accent", `linear-gradient(135deg, hsl(${hsl}), hsl(${hsl} / 0.8))`);
+                document.documentElement.style.setProperty("--shadow-accent", `0 4px 20px hsl(${hsl} / 0.25)`);
                 toast({ title: "Salvo!", description: "Identidade visual salva com sucesso." });
               } catch (err: any) {
                 toast({ title: "Erro", description: err.message, variant: "destructive" });
