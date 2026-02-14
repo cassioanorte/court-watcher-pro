@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -43,13 +43,15 @@ type Tab = "timeline" | "messages" | "documents";
 
 const ClientProcessDetail = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("timeline");
+  const initialTab = (searchParams.get("tab") as Tab) || "timeline";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

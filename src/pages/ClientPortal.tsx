@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Scale, Bell, Clock, ArrowRight, MessageSquare, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ type ClientCase = {
 
 const ClientPortal = () => {
   const { user, profile, tenantId, signOut } = useAuth();
+  const navigate = useNavigate();
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [tenantName, setTenantName] = useState("Portal Jurídico");
@@ -147,10 +148,18 @@ const ClientPortal = () => {
 
         {/* Quick actions */}
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow">
+          <button
+            onClick={() => cases.length > 0 && navigate(`/portal/processo/${cases[0].id}?tab=messages`)}
+            disabled={cases.length === 0}
+            className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow disabled:opacity-50"
+          >
             <MessageSquare className="w-5 h-5 text-accent" /> Mensagens
           </button>
-          <button className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow">
+          <button
+            onClick={() => cases.length > 0 && navigate(`/portal/processo/${cases[0].id}?tab=documents`)}
+            disabled={cases.length === 0}
+            className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow disabled:opacity-50"
+          >
             <FileText className="w-5 h-5 text-accent" /> Documentos
           </button>
         </div>
