@@ -92,6 +92,8 @@ Deno.serve(async (req) => {
       if (updates.phone !== undefined) updateData.phone = updates.phone || null;
       if (updates.oab_number !== undefined) updateData.oab_number = updates.oab_number || null;
       if (updates.cpf !== undefined) updateData.cpf = updates.cpf || null;
+      if (updates.address !== undefined) updateData.address = updates.address || null;
+      if (updates.origin !== undefined) updateData.origin = updates.origin || null;
 
       const { error: updateError } = await supabase
         .from("profiles")
