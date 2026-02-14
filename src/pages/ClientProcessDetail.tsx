@@ -214,16 +214,6 @@ const ClientProcessDetail = () => {
           </Link>
           <h1 className="text-base font-bold">{caseData.subject || "Sem assunto"}</h1>
           <p className="text-[11px] opacity-60 font-mono mt-1">{caseData.process_number}</p>
-          {tribunalUrl && (
-            <a
-              href={tribunalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-medium opacity-80 hover:opacity-100 transition-opacity"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> Consultar no tribunal
-            </a>
-          )}
         </div>
       </header>
 
@@ -248,6 +238,17 @@ const ClientProcessDetail = () => {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-muted/50 rounded-lg p-1 mb-4 shrink-0">
+          {tribunalUrl && (
+            <a
+              href={tribunalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-accent hover:bg-card hover:shadow-sm transition-all"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Tribunal
+            </a>
+          )}
           {tabs.map((tab) => (
             <button
               key={tab.key}
