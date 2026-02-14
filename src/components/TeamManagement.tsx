@@ -53,6 +53,7 @@ const TeamManagement = () => {
   const [editPhone, setEditPhone] = useState("");
   const [editOab, setEditOab] = useState("");
   const [editCpf, setEditCpf] = useState("");
+  const [editPosition, setEditPosition] = useState("");
   const [editNewPassword, setEditNewPassword] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
@@ -135,6 +136,7 @@ const TeamManagement = () => {
     setEditPhone(m.phone || "");
     setEditOab(m.oab_number || "");
     setEditCpf(m.cpf || "");
+    setEditPosition(m.position || "");
     setEditNewPassword("");
   };
 
@@ -152,6 +154,7 @@ const TeamManagement = () => {
             phone: editPhone || null,
             oab_number: editOab || null,
             cpf: editCpf || null,
+            position: editPosition || null,
             new_password: editNewPassword || undefined,
           },
         },
@@ -359,25 +362,36 @@ const TeamManagement = () => {
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cargo</label>
+                <select
+                  value={editPosition}
+                  onChange={(e) => setEditPosition(e.target.value)}
+                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                >
+                  <option value="">Selecione o cargo</option>
+                  <option value="socio">Sócio</option>
+                  <option value="advogado_associado">Advogado Associado</option>
+                  <option value="advogado_parceiro">Advogado Parceiro</option>
+                  <option value="funcionario">Funcionário</option>
+                  <option value="estagiario">Estagiário</option>
+                </select>
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
+                <input type="text" value={editCpf} onChange={(e) => setEditCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="00000000000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
+                <input type="text" value={editOab} onChange={(e) => setEditOab(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
                 <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="(51) 99999-0000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
               </div>
-              {editMember.role === "staff" && (
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">OAB</label>
-                  <input type="text" value={editOab} onChange={(e) => setEditOab(e.target.value)} placeholder="RS 123456" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
-                </div>
-              )}
-              {editMember.role === "client" && (
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
-                  <input type="text" value={editCpf} onChange={(e) => setEditCpf(e.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="00000000000" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
-                </div>
-              )}
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nova senha (opcional)</label>
                 <input type="text" value={editNewPassword} onChange={(e) => setEditNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
