@@ -1,8 +1,10 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useThemeLoader } from "@/hooks/useTheme";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -13,7 +15,20 @@ const navItems = [
 const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { tenantId } = useAuth();
+  const [tenantName, setTenantName] = useState("Portal Jurídico");
+  const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   useThemeLoader();
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single().then(({ data }) => {
+      if (data) {
+        setTenantName(data.name || "Portal Jurídico");
+        setTenantLogo(data.logo_url || null);
+      }
+    });
+  }, [tenantId]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -26,11 +41,15 @@ const AdminLayout = () => {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg gradient-accent flex items-center justify-center">
-            <Scale className="w-5 h-5 text-accent-foreground" />
+          <div className="w-9 h-9 rounded-lg gradient-accent flex items-center justify-center overflow-hidden shrink-0">
+            {tenantLogo ? (
+              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <Scale className="w-5 h-5 text-accent-foreground" />
+            )}
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide">Portal Jurídico</h1>
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide truncate">{tenantName}</h1>
             <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Escritório</p>
           </div>
           <button
