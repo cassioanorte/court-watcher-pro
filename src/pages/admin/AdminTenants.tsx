@@ -22,7 +22,8 @@ const AdminTenants = () => {
   const [loading, setLoading] = useState(true);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", website: "", whatsapp: "" });
+  const [form, setForm] = useState({ name: "", slug: "", website: "", whatsapp: "", ownerName: "", ownerEmail: "", ownerPassword: "" });
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
   const fetchTenants = async () => {
@@ -51,21 +52,46 @@ const AdminTenants = () => {
 
   useEffect(() => { fetchTenants(); }, []);
 
+  const defaultForm = { name: "", slug: "", website: "", whatsapp: "", ownerName: "", ownerEmail: "", ownerPassword: "" };
+
   const handleCreate = async () => {
-    if (!form.name || !form.slug) return;
-    const { error } = await supabase.from("tenants").insert({
-      name: form.name,
-      slug: form.slug.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-      website: form.website || null,
-      whatsapp: form.whatsapp || null,
-    });
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Escritório criado!" });
+    if (!form.name || !form.ownerName || !form.ownerEmail || !form.ownerPassword) {
+      toast({ title: "Erro", description: "Preencha todos os campos obrigatórios.", variant: "destructive" });
+      return;
+    }
+    if (form.ownerPassword.length < 6) {
+      toast({ title: "Erro", description: "A senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("signup-owner", {
+        body: {
+          email: form.ownerEmail,
+          password: form.ownerPassword,
+          fullName: form.ownerName,
+          firmName: form.name,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Update optional fields on the tenant
+      if (data?.tenantId && (form.website || form.whatsapp)) {
+        await supabase.from("tenants").update({
+          website: form.website || null,
+          whatsapp: form.whatsapp || null,
+        }).eq("id", data.tenantId);
+      }
+
+      toast({ title: "Escritório criado!", description: `${form.name} foi criado com o dono ${form.ownerName}.` });
       setShowCreate(false);
-      setForm({ name: "", slug: "", website: "", whatsapp: "" });
+      setForm(defaultForm);
       fetchTenants();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -98,24 +124,62 @@ const AdminTenants = () => {
 
   const filtered = tenants.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
-  const FormModal = ({ title, onSubmit, onClose }: { title: string; onSubmit: () => void; onClose: () => void }) => (
+  const CreateModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Novo Escritório</h3>
+          <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Dados do escritório</p>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Nome do escritório *</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Silva & Associados" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Website</label>
+            <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="https://www.escritorio.com.br" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">WhatsApp</label>
+            <input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="(51) 99999-0000" />
+          </div>
+          <div className="border-t border-slate-700 pt-3 mt-3">
+            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Dados do dono (login)</p>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Nome completo do dono *</label>
+            <input value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Dr. João Silva" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Email do dono *</label>
+            <input type="email" value={form.ownerEmail} onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="joao@escritorio.com" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Senha *</label>
+            <input type="password" value={form.ownerPassword} onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Mínimo 6 caracteres" />
+          </div>
+        </div>
+        <button onClick={handleCreate} disabled={submitting} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+          {submitting ? "Criando..." : "Criar escritório"}
+        </button>
+      </motion.div>
+    </div>
+  );
+
+  const EditModal = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+          <h3 className="text-lg font-semibold text-white">Editar Escritório</h3>
+          <button onClick={() => setEditingTenant(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-slate-400 uppercase">Nome</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
           </div>
-          {showCreate && (
-            <div>
-              <label className="text-xs text-slate-400 uppercase">Slug</label>
-              <input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="meu-escritorio" />
-            </div>
-          )}
           <div>
             <label className="text-xs text-slate-400 uppercase">Website</label>
             <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
@@ -125,8 +189,8 @@ const AdminTenants = () => {
             <input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
           </div>
         </div>
-        <button onClick={onSubmit} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity">
-          {showCreate ? "Criar" : "Salvar"}
+        <button onClick={handleUpdate} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity">
+          Salvar
         </button>
       </motion.div>
     </div>
@@ -139,7 +203,7 @@ const AdminTenants = () => {
           <h1 className="text-2xl font-bold text-white font-display">Escritórios</h1>
           <p className="text-sm text-slate-400 mt-1">{tenants.length} escritório{tenants.length !== 1 ? "s" : ""} registrado{tenants.length !== 1 ? "s" : ""}</p>
         </div>
-        <button onClick={() => { setShowCreate(true); setForm({ name: "", slug: "", website: "", whatsapp: "" }); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold shadow-lg shadow-violet-500/25 hover:opacity-90 transition-opacity">
+        <button onClick={() => { setShowCreate(true); setForm(defaultForm); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold shadow-lg shadow-violet-500/25 hover:opacity-90 transition-opacity">
           <Plus className="w-4 h-4" /> Novo Escritório
         </button>
       </div>
@@ -181,7 +245,7 @@ const AdminTenants = () => {
                   <td className="px-5 py-3 text-right text-slate-400">{new Date(t.created_at).toLocaleDateString("pt-BR")}</td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingTenant(t); setForm({ name: t.name, slug: t.slug, website: t.website || "", whatsapp: t.whatsapp || "" }); }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
+                      <button onClick={() => { setEditingTenant(t); setForm({ ...defaultForm, name: t.name, slug: t.slug, website: t.website || "", whatsapp: t.whatsapp || "" }); }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDelete(t.id, t.name)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
@@ -197,8 +261,8 @@ const AdminTenants = () => {
         </div>
       )}
 
-      {showCreate && <FormModal title="Novo Escritório" onSubmit={handleCreate} onClose={() => setShowCreate(false)} />}
-      {editingTenant && <FormModal title="Editar Escritório" onSubmit={handleUpdate} onClose={() => setEditingTenant(null)} />}
+      {showCreate && <CreateModal />}
+      {editingTenant && <EditModal />}
     </div>
   );
 };
