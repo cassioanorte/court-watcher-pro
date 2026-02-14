@@ -9,6 +9,7 @@ export interface ThemeColors {
   background: string;    // page background
   card: string;          // card background
   foreground: string;    // main text
+  logoBg?: string;       // logo background in sidebar
   logoHue?: number;      // logo hue-rotate (0-360)
   logoBrightness?: number; // logo brightness (0-200)
   logoSaturate?: number; // logo saturation (0-200)
