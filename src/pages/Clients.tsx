@@ -65,7 +65,7 @@ const Clients = () => {
           onClick={() => setShowInvite(true)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity"
         >
-          <Plus className="w-4 h-4" /> Convidar Cliente
+          <Plus className="w-4 h-4" /> Cadastrar Cliente
         </button>
       </div>
 
