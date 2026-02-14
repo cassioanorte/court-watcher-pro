@@ -11,8 +11,17 @@ interface TeamMember {
   phone: string | null;
   oab_number: string | null;
   cpf: string | null;
+  position: string | null;
   role: string;
 }
+
+const positionLabels: Record<string, string> = {
+  socio: "Sócio",
+  advogado_associado: "Advogado Associado",
+  advogado_parceiro: "Advogado Parceiro",
+  funcionario: "Funcionário",
+  estagiario: "Estagiário",
+};
 
 const roleLabels: Record<string, { label: string; icon: typeof Shield; color: string }> = {
   owner: { label: "Dono", icon: Shield, color: "text-accent" },
@@ -33,6 +42,7 @@ const TeamManagement = () => {
   const [phone, setPhone] = useState("");
   const [oabNumber, setOabNumber] = useState("");
   const [cpf, setCpf] = useState("");
+  const [position, setPosition] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ tempPassword: string | null; alreadyExisted?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -54,7 +64,7 @@ const TeamManagement = () => {
     if (!tenantId) return;
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, phone, oab_number, cpf")
+      .select("user_id, full_name, phone, oab_number, cpf, position")
       .eq("tenant_id", tenantId);
 
     if (profiles && profiles.length > 0) {
@@ -82,7 +92,7 @@ const TeamManagement = () => {
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("invite-client", {
-        body: { email, fullName, phone: phone || undefined, role: formRole, oabNumber: oabNumber || undefined, cpf: cpf || undefined },
+        body: { email, fullName, phone: phone || undefined, role: formRole, oabNumber: oabNumber || undefined, cpf: cpf || undefined, position: position || undefined },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -114,6 +124,7 @@ const TeamManagement = () => {
     setPhone("");
     setOabNumber("");
     setCpf("");
+    setPosition("");
     setFormRole("staff");
     setResult(null);
   };
@@ -193,8 +204,8 @@ const TeamManagement = () => {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground truncate">{m.full_name}</p>
+          {m.position && <p className="text-xs text-muted-foreground">{positionLabels[m.position] || m.position}</p>}
           {m.oab_number && <p className="text-xs text-muted-foreground">OAB {m.oab_number}</p>}
-          {m.phone && !m.oab_number && <p className="text-xs text-muted-foreground">{m.phone}</p>}
         </div>
         {canManage(m) && (
           <div className="flex items-center gap-1">
@@ -268,6 +279,22 @@ const TeamManagement = () => {
 
             {!result ? (
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cargo *</label>
+                  <select
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    required
+                    className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  >
+                    <option value="">Selecione o cargo</option>
+                    <option value="socio">Sócio</option>
+                    <option value="advogado_associado">Advogado Associado</option>
+                    <option value="advogado_parceiro">Advogado Parceiro</option>
+                    <option value="funcionario">Funcionário</option>
+                    <option value="estagiario">Estagiário</option>
+                  </select>
+                </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
                   <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />

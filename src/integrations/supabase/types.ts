@@ -501,6 +501,7 @@ export type Database = {
           oab_number: string | null
           origin: string | null
           phone: string | null
+          position: string | null
           tenant_id: string
           updated_at: string
           user_id: string
@@ -515,6 +516,7 @@ export type Database = {
           oab_number?: string | null
           origin?: string | null
           phone?: string | null
+          position?: string | null
           tenant_id: string
           updated_at?: string
           user_id: string
@@ -529,6 +531,7 @@ export type Database = {
           oab_number?: string | null
           origin?: string | null
           phone?: string | null
+          position?: string | null
           tenant_id?: string
           updated_at?: string
           user_id?: string
