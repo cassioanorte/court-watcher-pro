@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Plus, Search, Pencil, Trash2, X } from "lucide-react";
+import { Building2, Plus, Search, Pencil, Trash2, X, Clock, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,6 +11,10 @@ interface Tenant {
   logo_url: string | null;
   website: string | null;
   whatsapp: string | null;
+  monthly_fee: number;
+  trial_ends_at: string | null;
+  trial_duration_days: number | null;
+  subscription_status: string;
   created_at: string;
   userCount: number;
   caseCount: number;
@@ -19,13 +23,46 @@ interface Tenant {
   ownerEmail?: string;
 }
 
+interface TenantForm {
+  name: string;
+  slug: string;
+  website: string;
+  whatsapp: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPassword: string;
+  monthly_fee: string;
+  trial_duration_days: string;
+}
+
+const defaultForm: TenantForm = {
+  name: "", slug: "", website: "", whatsapp: "",
+  ownerName: "", ownerEmail: "", ownerPassword: "",
+  monthly_fee: "0", trial_duration_days: "",
+};
+
+const trialOptions = [
+  { label: "7 dias", value: 7 },
+  { label: "15 dias", value: 15 },
+  { label: "30 dias", value: 30 },
+];
+
+const getTrialStatus = (tenant: Tenant) => {
+  if (!tenant.trial_ends_at) return null;
+  const now = new Date();
+  const end = new Date(tenant.trial_ends_at);
+  const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff <= 0) return { label: "Expirado", color: "text-red-400 bg-red-500/10 border-red-500/30" };
+  return { label: `${diff}d restantes`, color: "text-amber-400 bg-amber-500/10 border-amber-500/30" };
+};
+
 const AdminTenants = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", website: "", whatsapp: "", ownerName: "", ownerEmail: "", ownerPassword: "" });
+  const [form, setForm] = useState<TenantForm>(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -45,7 +82,6 @@ const AdminTenants = () => {
     profiles.forEach((p) => { usersByTenant[p.tenant_id] = (usersByTenant[p.tenant_id] || 0) + 1; });
     cases.forEach((c) => { casesByTenant[c.tenant_id] = (casesByTenant[c.tenant_id] || 0) + 1; });
 
-    // Find owner for each tenant
     const ownerUserIds = new Set(roles.filter((r) => r.role === "owner").map((r) => r.user_id));
     const ownerByTenant: Record<string, { userId: string; name: string }> = {};
     profiles.forEach((p) => {
@@ -55,8 +91,10 @@ const AdminTenants = () => {
     });
 
     setTenants(
-      (tenantsRes.data || []).map((t) => ({
+      (tenantsRes.data || []).map((t: any) => ({
         ...t,
+        monthly_fee: t.monthly_fee || 0,
+        subscription_status: t.subscription_status || "active",
         userCount: usersByTenant[t.id] || 0,
         caseCount: casesByTenant[t.id] || 0,
         ownerUserId: ownerByTenant[t.id]?.userId,
@@ -67,8 +105,6 @@ const AdminTenants = () => {
   };
 
   useEffect(() => { fetchTenants(); }, []);
-
-  const defaultForm = { name: "", slug: "", website: "", whatsapp: "", ownerName: "", ownerEmail: "", ownerPassword: "" };
 
   const handleCreate = async () => {
     if (!form.name || !form.ownerName || !form.ownerEmail || !form.ownerPassword) {
@@ -92,12 +128,20 @@ const AdminTenants = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Update optional fields on the tenant
-      if (data?.tenantId && (form.website || form.whatsapp)) {
-        await supabase.from("tenants").update({
-          website: form.website || null,
-          whatsapp: form.whatsapp || null,
-        }).eq("id", data.tenantId);
+      if (data?.tenantId) {
+        const updates: any = {};
+        if (form.website) updates.website = form.website;
+        if (form.whatsapp) updates.whatsapp = form.whatsapp;
+        updates.monthly_fee = parseFloat(form.monthly_fee) || 0;
+        updates.subscription_status = form.trial_duration_days ? "trial" : "active";
+        if (form.trial_duration_days) {
+          const days = parseInt(form.trial_duration_days);
+          const trialEnd = new Date();
+          trialEnd.setDate(trialEnd.getDate() + days);
+          updates.trial_ends_at = trialEnd.toISOString();
+          updates.trial_duration_days = days;
+        }
+        await supabase.from("tenants").update(updates).eq("id", data.tenantId);
       }
 
       toast({ title: "Escritório criado!", description: `${form.name} foi criado com o dono ${form.ownerName}.` });
@@ -115,28 +159,32 @@ const AdminTenants = () => {
     if (!editingTenant) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("tenants").update({
+      const updates: any = {
         name: form.name,
         website: form.website || null,
         whatsapp: form.whatsapp || null,
-      }).eq("id", editingTenant.id);
-      if (error) throw error;
+        monthly_fee: parseFloat(form.monthly_fee) || 0,
+      };
 
-      // Update owner profile if changed
-      if (editingTenant.ownerUserId && form.ownerName) {
-        await supabase.from("profiles").update({
-          full_name: form.ownerName,
-        }).eq("user_id", editingTenant.ownerUserId);
+      if (form.trial_duration_days) {
+        const days = parseInt(form.trial_duration_days);
+        const trialEnd = new Date();
+        trialEnd.setDate(trialEnd.getDate() + days);
+        updates.trial_ends_at = trialEnd.toISOString();
+        updates.trial_duration_days = days;
+        updates.subscription_status = "trial";
       }
 
-      // Update owner password if provided
+      const { error } = await supabase.from("tenants").update(updates).eq("id", editingTenant.id);
+      if (error) throw error;
+
+      if (editingTenant.ownerUserId && form.ownerName) {
+        await supabase.from("profiles").update({ full_name: form.ownerName }).eq("user_id", editingTenant.ownerUserId);
+      }
+
       if (editingTenant.ownerUserId && form.ownerPassword && form.ownerPassword.length >= 6) {
         await supabase.functions.invoke("manage-team-member", {
-          body: {
-            action: "update",
-            target_user_id: editingTenant.ownerUserId,
-            updates: { new_password: form.ownerPassword },
-          },
+          body: { action: "update", target_user_id: editingTenant.ownerUserId, updates: { new_password: form.ownerPassword } },
         });
       }
 
@@ -147,6 +195,36 @@ const AdminTenants = () => {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleActivateTrial = async (tenantId: string, days: number) => {
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + days);
+    const { error } = await supabase.from("tenants").update({
+      trial_ends_at: trialEnd.toISOString(),
+      trial_duration_days: days,
+      subscription_status: "trial",
+    }).eq("id", tenantId);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Teste ativado!", description: `Período de teste de ${days} dias ativado.` });
+      fetchTenants();
+    }
+  };
+
+  const handleCancelTrial = async (tenantId: string) => {
+    const { error } = await supabase.from("tenants").update({
+      trial_ends_at: null,
+      trial_duration_days: null,
+      subscription_status: "active",
+    }).eq("id", tenantId);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Teste cancelado!" });
+      fetchTenants();
     }
   };
 
@@ -163,93 +241,99 @@ const AdminTenants = () => {
 
   const filtered = tenants.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
 
-  const CreateModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Novo Escritório</h3>
-          <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+  const inputClass = "w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none";
+  const disabledInputClass = "w-full mt-1 h-9 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-sm text-slate-500 cursor-not-allowed focus:outline-none";
+
+  const BillingFields = ({ isEdit }: { isEdit?: boolean }) => (
+    <>
+      <div className="border-t border-slate-700 pt-3 mt-3">
+        <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Cobrança e Teste</p>
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Mensalidade (R$)</label>
+        <div className="relative">
+          <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.monthly_fee}
+            onChange={(e) => setForm({ ...form, monthly_fee: e.target.value })}
+            className="w-full mt-1 h-9 pl-9 pr-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+            placeholder="0.00"
+          />
         </div>
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Dados do escritório</p>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Nome do escritório *</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Silva & Associados" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Website</label>
-            <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="https://www.escritorio.com.br" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">WhatsApp</label>
-            <input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="(51) 99999-0000" />
-          </div>
-          <div className="border-t border-slate-700 pt-3 mt-3">
-            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Dados do dono (login)</p>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Nome completo do dono *</label>
-            <input value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Dr. João Silva" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Email do dono *</label>
-            <input type="email" value={form.ownerEmail} onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="joao@escritorio.com" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Senha *</label>
-            <input type="password" value={form.ownerPassword} onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Mínimo 6 caracteres" />
-          </div>
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Período de teste</label>
+        <div className="flex gap-2 mt-1">
+          {trialOptions.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setForm({ ...form, trial_duration_days: form.trial_duration_days === String(opt.value) ? "" : String(opt.value) })}
+              className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all ${
+                form.trial_duration_days === String(opt.value)
+                  ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
+                  : "bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-        <button onClick={handleCreate} disabled={submitting} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-          {submitting ? "Criando..." : "Criar escritório"}
-        </button>
-      </motion.div>
-    </div>
+        {isEdit && editingTenant?.trial_ends_at && (
+          <p className="text-[10px] text-slate-500 mt-1">
+            Selecionar um período reiniciará o teste a partir de hoje.
+          </p>
+        )}
+      </div>
+    </>
   );
 
-  const EditModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Editar Escritório</h3>
-          <button onClick={() => setEditingTenant(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Dados do escritório</p>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Nome do escritório</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Website</label>
-            <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">WhatsApp</label>
-            <input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
-          </div>
-          <div className="border-t border-slate-700 pt-3 mt-3">
-            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Dados do dono</p>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Nome completo do dono</label>
-            <input value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Email do dono</label>
-            <input type="email" value={form.ownerEmail} disabled className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-sm text-slate-500 cursor-not-allowed focus:outline-none" />
+  const OwnerFields = ({ isEdit }: { isEdit?: boolean }) => (
+    <>
+      <div className="border-t border-slate-700 pt-3 mt-3">
+        <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Dados do dono (login)</p>
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Nome completo do dono {!isEdit && "*"}</label>
+        <input value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} className={inputClass} placeholder="Dr. João Silva" />
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Email do dono {!isEdit && "*"}</label>
+        {isEdit ? (
+          <>
+            <input type="email" value={form.ownerEmail} disabled className={disabledInputClass} />
             <p className="text-[10px] text-slate-600 mt-1">O email não pode ser alterado.</p>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 uppercase">Nova senha (opcional)</label>
-            <input type="password" value={form.ownerPassword} onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Deixe em branco para manter" />
-          </div>
-        </div>
-        <button onClick={handleUpdate} disabled={submitting} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-          {submitting ? "Salvando..." : "Salvar alterações"}
-        </button>
-      </motion.div>
-    </div>
+          </>
+        ) : (
+          <input type="email" value={form.ownerEmail} onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })} className={inputClass} placeholder="joao@escritorio.com" />
+        )}
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">{isEdit ? "Nova senha (opcional)" : "Senha *"}</label>
+        <input type="password" value={form.ownerPassword} onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })} className={inputClass} placeholder={isEdit ? "Deixe em branco para manter" : "Mínimo 6 caracteres"} />
+      </div>
+    </>
+  );
+
+  const TenantFields = () => (
+    <>
+      <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Dados do escritório</p>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Nome do escritório *</label>
+        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} placeholder="Silva & Associados" />
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Website</label>
+        <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className={inputClass} placeholder="https://www.escritorio.com.br" />
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">WhatsApp</label>
+        <input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className={inputClass} placeholder="(51) 99999-0000" />
+      </div>
+    </>
   );
 
   return (
@@ -273,52 +357,132 @@ const AdminTenants = () => {
         <p className="text-sm text-slate-400">Carregando...</p>
       ) : (
         <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden backdrop-blur">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-400 border-b border-slate-800">
-                <th className="px-5 py-3 font-medium">Escritório</th>
-                <th className="px-5 py-3 font-medium">Slug</th>
-                <th className="px-5 py-3 font-medium text-right">Usuários</th>
-                <th className="px-5 py-3 font-medium text-right">Processos</th>
-                <th className="px-5 py-3 font-medium text-right">Criado em</th>
-                <th className="px-5 py-3 font-medium text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t, i) => (
-                <motion.tr key={t.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/30 flex items-center justify-center">
-                        <Building2 className="w-4 h-4 text-violet-400" />
-                      </div>
-                      <span className="text-white font-medium">{t.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-slate-400">{t.slug}</td>
-                  <td className="px-5 py-3 text-right text-slate-300">{t.userCount}</td>
-                  <td className="px-5 py-3 text-right text-slate-300">{t.caseCount}</td>
-                  <td className="px-5 py-3 text-right text-slate-400">{new Date(t.created_at).toLocaleDateString("pt-BR")}</td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingTenant(t); setForm({ ...defaultForm, name: t.name, slug: t.slug, website: t.website || "", whatsapp: t.whatsapp || "", ownerName: t.ownerName || "", ownerEmail: t.ownerEmail || "" }); }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(t.id, t.name)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-400 border-b border-slate-800">
+                  <th className="px-5 py-3 font-medium">Escritório</th>
+                  <th className="px-5 py-3 font-medium text-right">Usuários</th>
+                  <th className="px-5 py-3 font-medium text-right">Processos</th>
+                  <th className="px-5 py-3 font-medium text-right">Mensalidade</th>
+                  <th className="px-5 py-3 font-medium">Teste</th>
+                  <th className="px-5 py-3 font-medium text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((t, i) => {
+                  const trial = getTrialStatus(t);
+                  return (
+                    <motion.tr key={t.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/30 flex items-center justify-center">
+                            <Building2 className="w-4 h-4 text-violet-400" />
+                          </div>
+                          <div>
+                            <span className="text-white font-medium block">{t.name}</span>
+                            <span className="text-xs text-slate-500">{t.slug}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right text-slate-300">{t.userCount}</td>
+                      <td className="px-5 py-3 text-right text-slate-300">{t.caseCount}</td>
+                      <td className="px-5 py-3 text-right">
+                        <span className="text-emerald-400 font-medium">
+                          R$ {Number(t.monthly_fee).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        {trial ? (
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${trial.color}`}>
+                              <Clock className="w-3 h-3" />
+                              {trial.label}
+                            </span>
+                            <button onClick={() => handleCancelTrial(t.id)} className="text-xs text-slate-500 hover:text-red-400 transition-colors">✕</button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1">
+                            {trialOptions.map((opt) => (
+                              <button key={opt.value} onClick={() => handleActivateTrial(t.id, opt.value)} className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-400 hover:border-violet-500/40 hover:text-violet-300 transition-all">
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => {
+                            setEditingTenant(t);
+                            setForm({
+                              ...defaultForm,
+                              name: t.name,
+                              slug: t.slug,
+                              website: t.website || "",
+                              whatsapp: t.whatsapp || "",
+                              ownerName: t.ownerName || "",
+                              ownerEmail: t.ownerEmail || "",
+                              monthly_fee: String(t.monthly_fee || 0),
+                              trial_duration_days: "",
+                            });
+                          }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(t.id, t.name)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {filtered.length === 0 && <p className="text-center py-8 text-slate-500 text-sm">Nenhum escritório encontrado.</p>}
         </div>
       )}
 
-      {showCreate && <CreateModal />}
-      {editingTenant && <EditModal />}
+      {/* Create Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Novo Escritório</h3>
+              <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <TenantFields />
+              <BillingFields />
+              <OwnerFields />
+            </div>
+            <button onClick={handleCreate} disabled={submitting} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+              {submitting ? "Criando..." : "Criar escritório"}
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Editar Escritório</h3>
+              <button onClick={() => setEditingTenant(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <TenantFields />
+              <BillingFields isEdit />
+              <OwnerFields isEdit />
+            </div>
+            <button onClick={handleUpdate} disabled={submitting} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+              {submitting ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
