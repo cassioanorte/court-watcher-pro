@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Building2, Users, Activity, BarChart3, Shield, LogOut, Settings } from "lucide-react";
+import { LayoutDashboard, Building2, Users, Activity, BarChart3, Shield, LogOut, Settings, DollarSign, Clock } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,8 @@ const navItems = [
   { to: "/admin/tenants", icon: Building2, label: "Escritórios" },
   { to: "/admin/usuarios", icon: Users, label: "Usuários" },
   { to: "/admin/atividade", icon: Activity, label: "Atividade" },
+  { to: "/admin/cobranca", icon: DollarSign, label: "Cobrança" },
+  { to: "/admin/testes", icon: Clock, label: "Testes" },
   { to: "/admin/relatorios", icon: BarChart3, label: "Relatórios" },
 ];
 

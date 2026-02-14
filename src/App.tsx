@@ -25,6 +25,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminBilling from "./pages/admin/AdminBilling";
+import AdminTrials from "./pages/admin/AdminTrials";
 import AdminReports from "./pages/admin/AdminReports";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
@@ -90,6 +92,8 @@ const App = () => (
               <Route path="tenants" element={<AdminTenants />} />
               <Route path="usuarios" element={<AdminUsers />} />
               <Route path="atividade" element={<AdminActivity />} />
+              <Route path="cobranca" element={<AdminBilling />} />
+              <Route path="testes" element={<AdminTrials />} />
               <Route path="relatorios" element={<AdminReports />} />
             </Route>
 
