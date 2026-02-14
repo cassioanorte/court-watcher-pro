@@ -60,6 +60,7 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [logoPresets, setLogoPresets] = useState<{ label: string; colors: { sidebar: string; sidebarText: string; accent: string; background: string; card: string; foreground: string } }[] | null>(null);
+  const [editingPreset, setEditingPreset] = useState<{ sidebar: string; sidebarText: string; accent: string; background: string; card: string; foreground: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -313,17 +314,13 @@ const Settings = () => {
               </button>
 
               {logoPresets && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temas baseados no logo</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {logoPresets.map((preset) => (
                       <button
                         key={preset.label}
-                        onClick={() => {
-                          setThemeColors((prev) => ({ ...prev, ...preset.colors }));
-                          applyTheme({ ...themeColors, ...preset.colors });
-                          toast({ title: `Tema "${preset.label}" aplicado!` });
-                        }}
+                        onClick={() => setEditingPreset({ ...preset.colors })}
                         className="rounded-lg border p-3 hover:border-accent/60 transition-all text-left"
                       >
                         <div className="flex gap-1 mb-2">
@@ -335,6 +332,62 @@ const Settings = () => {
                       </button>
                     ))}
                   </div>
+
+                  {/* Editable preset colors */}
+                  {editingPreset && (
+                    <div className="p-3 rounded-lg bg-muted/30 border space-y-3">
+                      <p className="text-xs font-semibold text-foreground">Ajuste as cores antes de aplicar</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {COLOR_FIELDS.map((field) => (
+                          <div key={field.key} className="flex items-center gap-2 p-2 rounded-lg bg-background border">
+                            <input
+                              type="color"
+                              value={editingPreset[field.key as keyof typeof editingPreset] || "#000000"}
+                              onChange={(e) => setEditingPreset((prev) => prev ? { ...prev, [field.key]: e.target.value } : prev)}
+                              className="w-8 h-8 rounded-md border cursor-pointer shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-semibold text-foreground">{field.label}</p>
+                            </div>
+                            <input
+                              type="text"
+                              value={editingPreset[field.key as keyof typeof editingPreset] || ""}
+                              onChange={(e) => setEditingPreset((prev) => prev ? { ...prev, [field.key]: e.target.value } : prev)}
+                              className="w-20 h-7 px-2 rounded bg-background border text-[11px] font-mono text-foreground focus:outline-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingPreset(null)}
+                          className="text-[11px] text-muted-foreground hover:text-foreground"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => {
+                            applyTheme({ ...themeColors, ...editingPreset });
+                            toast({ title: "Pré-visualização aplicada!" });
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline"
+                        >
+                          <Eye className="w-3 h-3" /> Pré-visualizar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setThemeColors((prev) => ({ ...prev, ...editingPreset }));
+                            applyTheme({ ...themeColors, ...editingPreset });
+                            setEditingPreset(null);
+                            toast({ title: "Cores aplicadas!", description: "Clique em Salvar para persistir." });
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg gradient-accent text-accent-foreground text-[11px] font-semibold hover:opacity-90"
+                        >
+                          <Save className="w-3 h-3" /> Usar estas cores
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
