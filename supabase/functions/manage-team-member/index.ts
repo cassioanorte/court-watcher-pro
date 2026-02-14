@@ -34,14 +34,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller is owner
-    const { data: callerRole } = await supabase
+    // Check caller is owner (user may have multiple roles)
+    const { data: callerRoles } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
-      .single();
+      .eq("user_id", user.id);
 
-    if (callerRole?.role !== "owner") {
+    const isOwner = (callerRoles || []).some((r: { role: string }) => r.role === "owner");
+    if (!isOwner) {
       return new Response(JSON.stringify({ error: "Apenas o dono pode gerenciar a equipe" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
