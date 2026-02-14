@@ -47,9 +47,9 @@ const AdminLayout = () => {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0" style={{ backgroundColor: logoBg || undefined, background: logoBg ? undefined : 'var(--gradient-accent)' }}>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container">
             {tenantLogo ? (
-              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain" style={{ filter: logoFilter }} />
+              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
             ) : (
               <Scale className="w-5 h-5 text-accent-foreground" />
             )}

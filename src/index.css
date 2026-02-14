@@ -142,4 +142,10 @@
   .gradient-hero {
     background: var(--gradient-hero);
   }
+  .logo-bg-container {
+    background: var(--logo-bg, var(--gradient-accent));
+  }
+  .logo-img {
+    filter: var(--logo-filter, none);
+  }
 }
