@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Plus, Search, Pencil, Trash2, X, Clock, DollarSign } from "lucide-react";
+import { Building2, Plus, Search, Pencil, Trash2, X, Clock, DollarSign, Users, Scale } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -64,7 +65,39 @@ const AdminTenants = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<TenantForm>(defaultForm);
   const [submitting, setSubmitting] = useState(false);
+  const [detailTenant, setDetailTenant] = useState<Tenant | null>(null);
+  const [detailUsers, setDetailUsers] = useState<{ full_name: string; role: string }[]>([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const { toast } = useToast();
+
+  const handleViewDetail = async (tenant: Tenant) => {
+    setDetailTenant(tenant);
+    setLoadingDetail(true);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, full_name")
+      .eq("tenant_id", tenant.id);
+
+    if (profiles && profiles.length > 0) {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", profiles.map((p) => p.user_id));
+
+      const roleMap: Record<string, string> = {};
+      (roles || []).forEach((r) => { roleMap[r.user_id] = r.role; });
+
+      setDetailUsers(
+        profiles.map((p) => ({
+          full_name: p.full_name,
+          role: roleMap[p.user_id] || "unknown",
+        }))
+      );
+    } else {
+      setDetailUsers([]);
+    }
+    setLoadingDetail(false);
+  };
 
   const fetchTenants = async () => {
     const [tenantsRes, profilesRes, casesRes, rolesRes] = await Promise.all([
@@ -375,12 +408,12 @@ const AdminTenants = () => {
                   return (
                     <motion.tr key={t.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                       <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleViewDetail(t)}>
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/30 flex items-center justify-center">
                             <Building2 className="w-4 h-4 text-violet-400" />
                           </div>
                           <div>
-                            <span className="text-white font-medium block">{t.name}</span>
+                            <span className="text-white font-medium block hover:text-violet-300 transition-colors">{t.name}</span>
                             <span className="text-xs text-slate-500">{t.slug}</span>
                           </div>
                         </div>
@@ -483,6 +516,73 @@ const AdminTenants = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Detail Modal */}
+      <Dialog open={!!detailTenant} onOpenChange={() => setDetailTenant(null)}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>{detailTenant?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="bg-slate-800/60 rounded-lg p-3 text-center">
+              <Users className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
+              <p className="text-xl font-bold">{detailTenant?.userCount}</p>
+              <p className="text-xs text-slate-400">Usuários</p>
+            </div>
+            <div className="bg-slate-800/60 rounded-lg p-3 text-center">
+              <Scale className="w-5 h-5 text-amber-400 mx-auto mb-1" />
+              <p className="text-xl font-bold">{detailTenant?.caseCount}</p>
+              <p className="text-xs text-slate-400">Processos</p>
+            </div>
+          </div>
+          {loadingDetail ? (
+            <p className="text-slate-400 text-sm mt-4">Carregando usuários...</p>
+          ) : (
+            <div className="mt-4 space-y-4 max-h-72 overflow-y-auto">
+              {(() => {
+                const staff = detailUsers.filter((u) => u.role === "owner" || u.role === "staff");
+                const clients = detailUsers.filter((u) => u.role === "client");
+                const roleLabel = (role: string) => {
+                  const map: Record<string, string> = { owner: "Proprietário", staff: "Equipe", client: "Cliente" };
+                  return map[role] || role;
+                };
+                return (
+                  <>
+                    {staff.length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Equipe ({staff.length})</h3>
+                        <ul className="space-y-1">
+                          {staff.map((u, i) => (
+                            <li key={i} className="flex items-center justify-between bg-slate-800/40 rounded-md px-3 py-2 text-sm">
+                              <span className="text-white">{u.full_name}</span>
+                              <span className="text-xs text-emerald-400">{roleLabel(u.role)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {clients.length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Clientes ({clients.length})</h3>
+                        <ul className="space-y-1">
+                          {clients.map((u, i) => (
+                            <li key={i} className="bg-slate-800/40 rounded-md px-3 py-2 text-sm text-white">
+                              {u.full_name}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {staff.length === 0 && clients.length === 0 && (
+                      <p className="text-sm text-slate-500">Nenhum usuário encontrado.</p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
