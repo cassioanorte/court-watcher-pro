@@ -19,6 +19,7 @@ const AdminLayout = () => {
   const [tenantName, setTenantName] = useState("Portal Jurídico");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
+  const [logoBg, setLogoBg] = useState("");
   useThemeLoader();
 
   useEffect(() => {
@@ -30,6 +31,7 @@ const AdminLayout = () => {
         const tc = data.theme_colors as unknown as Partial<ThemeColors> | null;
         const merged = { ...DEFAULT_THEME, ...tc };
         setLogoFilter(getLogoFilter(merged));
+        setLogoBg(merged.logoBg || "");
       }
     });
   }, [tenantId]);
@@ -45,7 +47,7 @@ const AdminLayout = () => {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg gradient-accent flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0" style={{ backgroundColor: logoBg || undefined, background: logoBg ? undefined : 'var(--gradient-accent)' }}>
             {tenantLogo ? (
               <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain" style={{ filter: logoFilter }} />
             ) : (

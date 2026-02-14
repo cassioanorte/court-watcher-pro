@@ -188,7 +188,7 @@ const Settings = () => {
         <div>
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Logotipo</label>
           <div className="flex items-center gap-4 mt-2">
-            <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30 shrink-0">
+            <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden shrink-0" style={{ backgroundColor: themeColors.logoBg || undefined, background: themeColors.logoBg ? undefined : 'var(--gradient-accent)' }}>
               {logoUrl ? (
                 <img src={logoUrl} alt="Logo do escritório" className="w-full h-full object-contain" style={{ filter: getLogoFilter(themeColors) }} />
               ) : (
@@ -210,41 +210,68 @@ const Settings = () => {
           </div>
           {/* Logo color adjustments */}
           {logoUrl && (
-            <div className="mt-3 space-y-2 p-3 rounded-lg bg-muted/30 border">
-              <p className="text-xs font-semibold text-foreground">Ajustar cores do logo</p>
+            <div className="mt-3 space-y-3 p-3 rounded-lg bg-muted/30 border">
+              <p className="text-xs font-semibold text-foreground">Ajustar logo</p>
+              {/* Logo background color */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={themeColors.logoBg || "#c8972e"}
+                  onChange={(e) => updateColor("logoBg", e.target.value)}
+                  className="w-9 h-9 rounded-md border cursor-pointer shrink-0"
+                />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-foreground">Fundo do logo</p>
+                  <p className="text-[10px] text-muted-foreground">Cor atrás do logotipo na sidebar</p>
+                </div>
+                <input
+                  type="text"
+                  value={themeColors.logoBg || ""}
+                  onChange={(e) => updateColor("logoBg", e.target.value)}
+                  placeholder="Padrão"
+                  className="w-20 h-7 px-2 rounded bg-background border text-[11px] font-mono text-foreground focus:outline-none"
+                />
+                <button
+                  onClick={() => updateColor("logoBg", "transparent")}
+                  className="text-[10px] text-accent hover:underline shrink-0"
+                >
+                  Transparente
+                </button>
+              </div>
+              {/* Filters */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] text-muted-foreground">Matiz ({themeColors.logoHue ?? 0}°)</label>
                   <input type="range" min="0" max="360" value={themeColors.logoHue ?? 0}
-                    onChange={(e) => updateColor("logoHue" as any, Number(e.target.value) as any)}
+                    onChange={(e) => updateColor("logoHue", Number(e.target.value))}
                     className="w-full h-1.5 accent-accent cursor-pointer" />
                 </div>
                 <div>
                   <label className="text-[10px] text-muted-foreground">Brilho ({themeColors.logoBrightness ?? 100}%)</label>
                   <input type="range" min="0" max="200" value={themeColors.logoBrightness ?? 100}
-                    onChange={(e) => updateColor("logoBrightness" as any, Number(e.target.value) as any)}
+                    onChange={(e) => updateColor("logoBrightness", Number(e.target.value))}
                     className="w-full h-1.5 accent-accent cursor-pointer" />
                 </div>
                 <div>
                   <label className="text-[10px] text-muted-foreground">Saturação ({themeColors.logoSaturate ?? 100}%)</label>
                   <input type="range" min="0" max="200" value={themeColors.logoSaturate ?? 100}
-                    onChange={(e) => updateColor("logoSaturate" as any, Number(e.target.value) as any)}
+                    onChange={(e) => updateColor("logoSaturate", Number(e.target.value))}
                     className="w-full h-1.5 accent-accent cursor-pointer" />
                 </div>
                 <div>
                   <label className="text-[10px] text-muted-foreground">Inverter ({themeColors.logoInvert ?? 0}%)</label>
                   <input type="range" min="0" max="100" value={themeColors.logoInvert ?? 0}
-                    onChange={(e) => updateColor("logoInvert" as any, Number(e.target.value) as any)}
+                    onChange={(e) => updateColor("logoInvert", Number(e.target.value))}
                     className="w-full h-1.5 accent-accent cursor-pointer" />
                 </div>
               </div>
               <button
                 onClick={() => {
-                  setThemeColors((prev) => ({ ...prev, logoHue: 0, logoBrightness: 100, logoSaturate: 100, logoInvert: 0 }));
+                  setThemeColors((prev) => ({ ...prev, logoBg: undefined, logoHue: 0, logoBrightness: 100, logoSaturate: 100, logoInvert: 0 }));
                 }}
                 className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1"
               >
-                <RotateCcw className="w-3 h-3" /> Resetar filtros do logo
+                <RotateCcw className="w-3 h-3" /> Resetar tudo
               </button>
             </div>
           )}
