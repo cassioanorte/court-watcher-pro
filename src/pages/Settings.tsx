@@ -265,14 +265,22 @@ const Settings = () => {
                     className="w-full h-1.5 accent-accent cursor-pointer" />
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setThemeColors((prev) => ({ ...prev, logoBg: undefined, logoHue: 0, logoBrightness: 100, logoSaturate: 100, logoInvert: 0 }));
-                }}
-                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1"
-              >
-                <RotateCcw className="w-3 h-3" /> Resetar tudo
-              </button>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  onClick={() => {
+                    setThemeColors((prev) => ({ ...prev, logoBg: undefined, logoHue: 0, logoBrightness: 100, logoSaturate: 100, logoInvert: 0 }));
+                  }}
+                  className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" /> Resetar
+                </button>
+                <button
+                  onClick={() => applyTheme(themeColors)}
+                  className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1"
+                >
+                  <Eye className="w-3 h-3" /> Aplicar no site
+                </button>
+              </div>
             </div>
           )}
         </div>
