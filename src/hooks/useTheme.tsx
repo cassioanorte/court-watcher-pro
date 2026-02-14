@@ -131,6 +131,12 @@ export function applyTheme(colors: ThemeColors) {
   el.style.setProperty("--logo-filter", getLogoFilter(colors));
 }
 
+export function applyLogoOnly(colors: ThemeColors) {
+  const el = document.documentElement;
+  el.style.setProperty("--logo-bg", colors.logoBg || "");
+  el.style.setProperty("--logo-filter", getLogoFilter(colors));
+}
+
 export function useThemeLoader() {
   const { tenantId } = useAuth();
 
