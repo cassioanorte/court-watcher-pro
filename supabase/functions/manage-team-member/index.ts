@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       if (updates.cpf !== undefined) updateData.cpf = updates.cpf || null;
       if (updates.address !== undefined) updateData.address = updates.address || null;
       if (updates.origin !== undefined) updateData.origin = updates.origin || null;
-
+      if (updates.position !== undefined) updateData.position = updates.position || null;
       const { error: updateError } = await supabase
         .from("profiles")
         .update(updateData)
