@@ -34,6 +34,12 @@ interface CaseOption {
   id: string;
   process_number: string;
   subject: string | null;
+  client_user_id: string | null;
+}
+
+interface ClientOption {
+  user_id: string;
+  full_name: string;
 }
 
 const REVENUE_CATEGORIES = ["Honorários", "Consultoria", "Acordo", "Êxito", "Outros"];
@@ -44,6 +50,7 @@ const Financeiro = () => {
   const { tenantId, user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
@@ -54,17 +61,24 @@ const Financeiro = () => {
     date: format(new Date(), "yyyy-MM-dd"),
     status: "confirmed",
     case_id: "",
+    client_user_id: "",
   });
 
   useEffect(() => {
     if (!tenantId) return;
     const load = async () => {
-      const [txRes, casesRes] = await Promise.all([
+      const [txRes, casesRes, profilesRes] = await Promise.all([
         supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
-        supabase.from("cases").select("id, process_number, subject").eq("tenant_id", tenantId),
+        supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
+        supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
       setCases(casesRes.data || []);
+      // Filter only clients by checking user_roles
+      const allProfiles = profilesRes.data || [];
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", allProfiles.map(p => p.user_id));
+      const clientIds = new Set((roles || []).filter(r => r.role === "client").map(r => r.user_id));
+      setClients(allProfiles.filter(p => clientIds.has(p.user_id)));
       setLoading(false);
     };
     load();
@@ -82,10 +96,11 @@ const Financeiro = () => {
       date: form.date,
       status: form.status,
       case_id: form.case_id || null,
-    }).select().single();
+      client_user_id: form.client_user_id || null,
+    } as any).select().single();
     if (error) { toast.error("Erro ao criar transação"); return; }
     setTransactions((prev) => [data as Transaction, ...prev]);
-    setForm({ type: "revenue", category: "", description: "", amount: "", date: format(new Date(), "yyyy-MM-dd"), status: "confirmed", case_id: "" });
+    setForm({ type: "revenue", category: "", description: "", amount: "", date: format(new Date(), "yyyy-MM-dd"), status: "confirmed", case_id: "", client_user_id: "" });
     setShowModal(false);
     toast.success("Transação adicionada!");
   };
@@ -394,11 +409,22 @@ const Financeiro = () => {
               </Select>
             </div>
             <div>
+              <label className="text-sm font-medium text-foreground">Cliente</label>
+              <Select value={form.client_user_id} onValueChange={(v) => setForm({ ...form, client_user_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Nenhum (opcional)" /></SelectTrigger>
+                <SelectContent>
+                  {clients.map((cl) => (
+                    <SelectItem key={cl.user_id} value={cl.user_id}>{cl.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <label className="text-sm font-medium text-foreground">Processo vinculado</label>
               <Select value={form.case_id} onValueChange={(v) => setForm({ ...form, case_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Nenhum (opcional)" /></SelectTrigger>
                 <SelectContent>
-                  {cases.map((c) => (
+                  {(form.client_user_id ? cases.filter(c => c.client_user_id === form.client_user_id) : cases).map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.process_number}{c.subject ? ` — ${c.subject}` : ""}</SelectItem>
                   ))}
                 </SelectContent>

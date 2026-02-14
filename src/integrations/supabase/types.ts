@@ -246,6 +246,7 @@ export type Database = {
           amount: number
           case_id: string | null
           category: string
+          client_user_id: string | null
           created_at: string
           created_by: string | null
           date: string
@@ -261,6 +262,7 @@ export type Database = {
           amount: number
           case_id?: string | null
           category: string
+          client_user_id?: string | null
           created_at?: string
           created_by?: string | null
           date?: string
@@ -276,6 +278,7 @@ export type Database = {
           amount?: number
           case_id?: string | null
           category?: string
+          client_user_id?: string | null
           created_at?: string
           created_by?: string | null
           date?: string
