@@ -221,6 +221,29 @@ const Settings = () => {
           />
         </div>
 
+        {/* Logo & name save button */}
+        <div className="pt-2 border-t">
+          <button
+            onClick={async () => {
+              if (!tenantId) return;
+              setSaving(true);
+              try {
+                const { error } = await supabase.from("tenants").update({ name: firmName, logo_url: logoUrl }).eq("id", tenantId);
+                if (error) throw error;
+                toast({ title: "Salvo!", description: "Logo e nome atualizados com sucesso." });
+              } catch (err: any) {
+                toast({ title: "Erro", description: err.message, variant: "destructive" });
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar logo e nome"}
+          </button>
+        </div>
+
         {/* Theme presets */}
         <div>
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temas prontos</label>
