@@ -233,6 +233,40 @@ const Settings = () => {
             </div>
           </div>
         </div>
+
+        {/* Branding action buttons */}
+        <div className="flex items-center gap-3 pt-2 border-t">
+          <button
+            onClick={() => {
+              // Apply visually (CSS custom property override)
+              document.documentElement.style.setProperty("--accent", hexToHsl(primaryColor));
+              toast({ title: "Aplicado!", description: "Cor aplicada na visualização. Clique em Salvar para persistir." });
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Eye className="w-4 h-4" /> Aplicar
+          </button>
+          <button
+            onClick={async () => {
+              if (!tenantId) return;
+              setSaving(true);
+              try {
+                const { error } = await supabase.from("tenants").update({ name: firmName, primary_color: primaryColor, logo_url: logoUrl }).eq("id", tenantId);
+                if (error) throw error;
+                document.documentElement.style.setProperty("--accent", hexToHsl(primaryColor));
+                toast({ title: "Salvo!", description: "Identidade visual salva com sucesso." });
+              } catch (err: any) {
+                toast({ title: "Erro", description: err.message, variant: "destructive" });
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar identidade"}
+          </button>
+        </div>
       </motion.div>
 
       {/* Profile settings */}
@@ -281,6 +315,27 @@ function isLightColor(hex: string): boolean {
   const g = parseInt(c.substring(2, 4), 16);
   const b = parseInt(c.substring(4, 6), 16);
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+}
+
+/** Converts hex to HSL string (e.g. "38 80% 55%") for CSS custom properties */
+function hexToHsl(hex: string): string {
+  const c = hex.replace("#", "");
+  let r = parseInt(c.substring(0, 2), 16) / 255;
+  let g = parseInt(c.substring(2, 4), 16) / 255;
+  let b = parseInt(c.substring(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
 export default Settings;
