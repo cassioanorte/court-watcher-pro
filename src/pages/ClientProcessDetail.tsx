@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -179,6 +179,25 @@ const ClientProcessDetail = () => {
     );
   }
 
+  const formatCNJ = (n: string): string => {
+    const digits = n.replace(/\D/g, "");
+    if (digits.length === 20) {
+      return `${digits.slice(0, 7)}-${digits.slice(7, 9)}.${digits.slice(9, 13)}.${digits.slice(13, 14)}.${digits.slice(14, 16)}.${digits.slice(16, 20)}`;
+    }
+    return n;
+  };
+
+  const tribunalUrls: Record<string, (n: string) => string> = {
+    TRF4_JFRS: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=RS&chkMostrarBaixados=S`,
+    TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
+    TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
+    TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
+    TJRS_1G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
+    TJRS_2G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
+  };
+
+  const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
+
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: "timeline", label: "Timeline", icon: <Clock className="w-4 h-4" /> },
     { key: "messages", label: "Chat", icon: <MessageSquare className="w-4 h-4" />, count: messages.length },
@@ -195,6 +214,16 @@ const ClientProcessDetail = () => {
           </Link>
           <h1 className="text-base font-bold">{caseData.subject || "Sem assunto"}</h1>
           <p className="text-[11px] opacity-60 font-mono mt-1">{caseData.process_number}</p>
+          {tribunalUrl && (
+            <a
+              href={tribunalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-medium opacity-80 hover:opacity-100 transition-opacity"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Consultar no tribunal
+            </a>
+          )}
         </div>
       </header>
 
