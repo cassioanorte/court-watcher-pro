@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download } from "lucide-react";
+import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +53,8 @@ const ClientProcessDetail = () => {
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -112,6 +114,47 @@ const ClientProcessDetail = () => {
       setNewMessage("");
     }
     setSending(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id || !user) return;
+    setUploading(true);
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${id}/${Date.now()}_${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("case-documents")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("case-documents")
+      .getPublicUrl(filePath);
+
+    const { data: docData } = await supabase
+      .from("documents")
+      .insert({
+        case_id: id,
+        uploaded_by: user.id,
+        name: file.name,
+        file_url: urlData.publicUrl,
+        category: "Enviado pelo cliente",
+      })
+      .select()
+      .single();
+
+    if (docData) {
+      setDocuments((prev) => [docData, ...prev]);
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("pt-BR");
@@ -290,8 +333,28 @@ const ClientProcessDetail = () => {
 
           {activeTab === "documents" && (
             <div className="pb-6 space-y-3">
-              {documents.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum documento disponível.</p>
+              {/* Upload button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full flex items-center justify-center gap-2 bg-card rounded-xl border border-dashed border-accent/40 p-4 text-sm font-medium text-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+              >
+                {uploading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</>
+                ) : (
+                  <><Upload className="w-4 h-4" /> Enviar documento</>
+                )}
+              </button>
+
+              {documents.length === 0 && !uploading ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento disponível.</p>
               ) : (
                 documents.map((doc, i) => (
                   <motion.a
