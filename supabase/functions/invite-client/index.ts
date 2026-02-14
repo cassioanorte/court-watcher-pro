@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, fullName, phone, role, oabNumber, cpf } = await req.json();
+    const { email, fullName, phone, role, oabNumber, cpf, address, origin } = await req.json();
     if (!email || !fullName) {
       return new Response(JSON.stringify({ error: "Email e nome são obrigatórios" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -108,6 +108,8 @@ Deno.serve(async (req) => {
           phone: phone || null,
           oab_number: oabNumber || null,
           cpf: cpf || null,
+          address: address || null,
+          origin: origin || null,
         });
 
         if (profileError) {
@@ -146,11 +148,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update phone/oab/cpf if provided
+    // Update extra fields if provided
     const updates: Record<string, string> = {};
     if (phone) updates.phone = phone;
     if (oabNumber) updates.oab_number = oabNumber;
     if (cpf) updates.cpf = cpf;
+    if (address) updates.address = address;
+    if (origin) updates.origin = origin;
     if (Object.keys(updates).length > 0) {
       await supabaseAdmin
         .from("profiles")
