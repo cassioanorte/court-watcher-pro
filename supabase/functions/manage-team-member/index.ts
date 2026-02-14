@@ -29,19 +29,20 @@ Deno.serve(async (req) => {
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
-    if (authError || !user) {
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = claimsData.claims.sub as string;
 
     // Check caller is owner (user may have multiple roles)
     const { data: callerRoles } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     const isOwner = (callerRoles || []).some((r: { role: string }) => r.role === "owner");
     if (!isOwner) {
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: callerProfile } = await supabase
       .from("profiles")
       .select("tenant_id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     if (!callerProfile) {
