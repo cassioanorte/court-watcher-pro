@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { Search, Plus, Mail, Phone } from "lucide-react";
+import { Search, Plus, Phone, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import InviteClientModal from "@/components/InviteClientModal";
 
 type ClientProfile = {
@@ -18,7 +19,10 @@ const Clients = () => {
   const [clients, setClients] = useState<ClientProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
+  const [deleteClient, setDeleteClient] = useState<ClientProfile | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const { tenantId } = useAuth();
+  const { toast } = useToast();
 
   const fetchClients = async () => {
     if (!tenantId) return;
@@ -111,10 +115,60 @@ const Clients = () => {
               </div>
               <div className="mt-4 pt-3 border-t flex items-center justify-between">
                 <span className="text-[10px] text-muted-foreground">Desde {new Date(client.created_at).toLocaleDateString("pt-BR")}</span>
-                <Link to={`/clientes/${client.user_id}`} className="text-xs text-accent hover:underline">Ver detalhes</Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.preventDefault(); setDeleteClient(client); }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Excluir cliente"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <Link to={`/clientes/${client.user_id}`} className="text-xs text-accent hover:underline">Ver detalhes</Link>
+                </div>
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setDeleteClient(null)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+            <h2 className="text-lg font-bold text-foreground mb-2">Confirmar exclusão</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Tem certeza que deseja remover <strong className="text-foreground">{deleteClient.full_name}</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteClient(null)} className="flex-1 h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setDeleteSubmitting(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("manage-team-member", {
+                      body: { action: "delete", target_user_id: deleteClient.user_id },
+                    });
+                    if (error) throw error;
+                    if (data?.error) throw new Error(data.error);
+                    toast({ title: "Removido!", description: `${deleteClient.full_name} foi removido.` });
+                    setDeleteClient(null);
+                    fetchClients();
+                  } catch (err: any) {
+                    toast({ title: "Erro", description: err.message, variant: "destructive" });
+                  } finally {
+                    setDeleteSubmitting(false);
+                  }
+                }}
+                disabled={deleteSubmitting}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deleteSubmitting ? "Removendo..." : "Excluir"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
