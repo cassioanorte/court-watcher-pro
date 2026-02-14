@@ -7,7 +7,7 @@ import { Save, Palette, Upload, X, Eye, RotateCcw } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
-import { type ThemeColors, DEFAULT_THEME, applyTheme } from "@/hooks/useTheme";
+import { type ThemeColors, DEFAULT_THEME, applyTheme, getLogoFilter } from "@/hooks/useTheme";
 
 const THEME_PRESETS: { label: string; colors: ThemeColors }[] = [
   {
@@ -86,7 +86,7 @@ const Settings = () => {
     load();
   }, [tenantId, user?.id]);
 
-  const updateColor = (key: keyof ThemeColors, value: string) => {
+  const updateColor = (key: keyof ThemeColors, value: string | number) => {
     setThemeColors((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -190,7 +190,7 @@ const Settings = () => {
           <div className="flex items-center gap-4 mt-2">
             <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30 shrink-0">
               {logoUrl ? (
-                <img src={logoUrl} alt="Logo do escritório" className="w-full h-full object-contain" />
+                <img src={logoUrl} alt="Logo do escritório" className="w-full h-full object-contain" style={{ filter: getLogoFilter(themeColors) }} />
               ) : (
                 <Upload className="w-6 h-6 text-muted-foreground" />
               )}
@@ -208,6 +208,46 @@ const Settings = () => {
               <p className="text-xs text-muted-foreground">PNG, JPG ou SVG. Máx. 2MB.</p>
             </div>
           </div>
+          {/* Logo color adjustments */}
+          {logoUrl && (
+            <div className="mt-3 space-y-2 p-3 rounded-lg bg-muted/30 border">
+              <p className="text-xs font-semibold text-foreground">Ajustar cores do logo</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Matiz ({themeColors.logoHue ?? 0}°)</label>
+                  <input type="range" min="0" max="360" value={themeColors.logoHue ?? 0}
+                    onChange={(e) => updateColor("logoHue" as any, Number(e.target.value) as any)}
+                    className="w-full h-1.5 accent-accent cursor-pointer" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Brilho ({themeColors.logoBrightness ?? 100}%)</label>
+                  <input type="range" min="0" max="200" value={themeColors.logoBrightness ?? 100}
+                    onChange={(e) => updateColor("logoBrightness" as any, Number(e.target.value) as any)}
+                    className="w-full h-1.5 accent-accent cursor-pointer" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Saturação ({themeColors.logoSaturate ?? 100}%)</label>
+                  <input type="range" min="0" max="200" value={themeColors.logoSaturate ?? 100}
+                    onChange={(e) => updateColor("logoSaturate" as any, Number(e.target.value) as any)}
+                    className="w-full h-1.5 accent-accent cursor-pointer" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Inverter ({themeColors.logoInvert ?? 0}%)</label>
+                  <input type="range" min="0" max="100" value={themeColors.logoInvert ?? 0}
+                    onChange={(e) => updateColor("logoInvert" as any, Number(e.target.value) as any)}
+                    className="w-full h-1.5 accent-accent cursor-pointer" />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setThemeColors((prev) => ({ ...prev, logoHue: 0, logoBrightness: 100, logoSaturate: 100, logoInvert: 0 }));
+                }}
+                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1"
+              >
+                <RotateCcw className="w-3 h-3" /> Resetar filtros do logo
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Firm name */}
