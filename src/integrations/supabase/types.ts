@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          case_id: string | null
+          color: string | null
+          created_at: string
+          description: string | null
+          end_at: string
+          id: string
+          start_at: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          case_id?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_at: string
+          id?: string
+          start_at: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_at?: string
+          id?: string
+          start_at?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
