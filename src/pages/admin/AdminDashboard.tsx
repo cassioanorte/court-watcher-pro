@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Users, Scale, TrendingUp, Activity } from "lucide-react";
+import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Stats {
   tenants: number;
   users: number;
-  cases: number;
   recentLogs: number;
 }
 
@@ -20,9 +20,10 @@ interface TenantSummary {
 }
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState<Stats>({ tenants: 0, users: 0, cases: 0, recentLogs: 0 });
+  const [stats, setStats] = useState<Stats>({ tenants: 0, users: 0, recentLogs: 0 });
   const [topTenants, setTopTenants] = useState<TenantSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTenant, setSelectedTenant] = useState<TenantSummary | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,11 +41,9 @@ const AdminDashboard = () => {
       setStats({
         tenants: tenants.length,
         users: profiles.length,
-        cases: cases.length,
         recentLogs: logsRes.count || 0,
       });
 
-      // Build tenant summaries
       const usersByTenant: Record<string, number> = {};
       const casesByTenant: Record<string, number> = {};
       profiles.forEach((p) => { usersByTenant[p.tenant_id] = (usersByTenant[p.tenant_id] || 0) + 1; });
@@ -68,7 +67,6 @@ const AdminDashboard = () => {
   const cards = [
     { label: "Escritórios", value: stats.tenants, icon: Building2, color: "from-violet-500 to-indigo-600" },
     { label: "Usuários", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600" },
-    { label: "Processos", value: stats.cases, icon: Scale, color: "from-amber-500 to-orange-600" },
     { label: "Logs de Atividade", value: stats.recentLogs, icon: Activity, color: "from-rose-500 to-pink-600" },
   ];
 
@@ -81,7 +79,7 @@ const AdminDashboard = () => {
         <p className="text-sm text-slate-400 mt-1">Visão geral do sistema</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {cards.map((card, i) => (
           <motion.div
             key={card.label}
@@ -110,25 +108,47 @@ const AdminDashboard = () => {
               <tr className="text-left text-slate-400 border-b border-slate-800">
                 <th className="pb-3 font-medium">Escritório</th>
                 <th className="pb-3 font-medium">Slug</th>
-                <th className="pb-3 font-medium text-right">Usuários</th>
-                <th className="pb-3 font-medium text-right">Processos</th>
                 <th className="pb-3 font-medium text-right">Criado em</th>
+                <th className="pb-3 font-medium text-right"></th>
               </tr>
             </thead>
             <tbody>
               {topTenants.map((t) => (
-                <tr key={t.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                <tr
+                  key={t.id}
+                  onClick={() => setSelectedTenant(t)}
+                  className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
+                >
                   <td className="py-3 text-white font-medium">{t.name}</td>
                   <td className="py-3 text-slate-400">{t.slug}</td>
-                  <td className="py-3 text-right text-slate-300">{t.userCount}</td>
-                  <td className="py-3 text-right text-slate-300">{t.caseCount}</td>
                   <td className="py-3 text-right text-slate-400">{new Date(t.created_at).toLocaleDateString("pt-BR")}</td>
+                  <td className="py-3 text-right"><ChevronRight className="w-4 h-4 text-slate-500 inline" /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      <Dialog open={!!selectedTenant} onOpenChange={() => setSelectedTenant(null)}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>{selectedTenant?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
+              <Users className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{selectedTenant?.userCount}</p>
+              <p className="text-xs text-slate-400 mt-1">Usuários</p>
+            </div>
+            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
+              <Scale className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+              <p className="text-2xl font-bold">{selectedTenant?.caseCount}</p>
+              <p className="text-xs text-slate-400 mt-1">Processos</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
