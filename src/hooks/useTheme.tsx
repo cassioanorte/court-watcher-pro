@@ -9,6 +9,10 @@ export interface ThemeColors {
   background: string;    // page background
   card: string;          // card background
   foreground: string;    // main text
+  logoHue?: number;      // logo hue-rotate (0-360)
+  logoBrightness?: number; // logo brightness (0-200)
+  logoSaturate?: number; // logo saturation (0-200)
+  logoInvert?: number;   // logo invert (0-100)
 }
 
 export const DEFAULT_THEME: ThemeColors = {
@@ -18,7 +22,19 @@ export const DEFAULT_THEME: ThemeColors = {
   background: "#f5f6f8",
   card: "#ffffff",
   foreground: "#1a2332",
+  logoHue: 0,
+  logoBrightness: 100,
+  logoSaturate: 100,
+  logoInvert: 0,
 };
+
+export function getLogoFilter(colors: ThemeColors): string {
+  const h = colors.logoHue ?? 0;
+  const b = colors.logoBrightness ?? 100;
+  const s = colors.logoSaturate ?? 100;
+  const i = colors.logoInvert ?? 0;
+  return `hue-rotate(${h}deg) brightness(${b}%) saturate(${s}%) invert(${i}%)`;
+}
 
 function hexToHsl(hex: string): string {
   const c = hex.replace("#", "");

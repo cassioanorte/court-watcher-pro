@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useThemeLoader } from "@/hooks/useTheme";
+import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,14 +18,18 @@ const AdminLayout = () => {
   const { tenantId } = useAuth();
   const [tenantName, setTenantName] = useState("Portal Jurídico");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
+  const [logoFilter, setLogoFilter] = useState("");
   useThemeLoader();
 
   useEffect(() => {
     if (!tenantId) return;
-    supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single().then(({ data }) => {
+    supabase.from("tenants").select("name, logo_url, theme_colors").eq("id", tenantId).single().then(({ data }) => {
       if (data) {
         setTenantName(data.name || "Portal Jurídico");
         setTenantLogo(data.logo_url || null);
+        const tc = data.theme_colors as unknown as Partial<ThemeColors> | null;
+        const merged = { ...DEFAULT_THEME, ...tc };
+        setLogoFilter(getLogoFilter(merged));
       }
     });
   }, [tenantId]);
@@ -43,7 +47,7 @@ const AdminLayout = () => {
         <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
           <div className="w-9 h-9 rounded-lg gradient-accent flex items-center justify-center overflow-hidden shrink-0">
             {tenantLogo ? (
-              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain" />
+              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain" style={{ filter: logoFilter }} />
             ) : (
               <Scale className="w-5 h-5 text-accent-foreground" />
             )}
