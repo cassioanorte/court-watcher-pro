@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/processos", icon: Scale, label: "Processos" },
   { to: "/clientes", icon: Users, label: "Clientes" },
   { to: "/agenda", icon: CalendarDays, label: "Agenda" },
+  { to: "/financeiro", icon: DollarSign, label: "Financeiro" },
 ];
 
 const AdminLayout = () => {
