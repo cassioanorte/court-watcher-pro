@@ -7,7 +7,7 @@ import { Save, Palette, Upload, X, Eye, RotateCcw } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
-import { type ThemeColors, DEFAULT_THEME, applyTheme, getLogoFilter } from "@/hooks/useTheme";
+import { type ThemeColors, DEFAULT_THEME, applyTheme, applyLogoOnly, getLogoFilter } from "@/hooks/useTheme";
 
 const THEME_PRESETS: { label: string; colors: ThemeColors }[] = [
   {
@@ -128,7 +128,7 @@ const Settings = () => {
 
   const handleApply = () => {
     applyTheme(themeColors);
-    toast({ title: "Aplicado!", description: "Cores alteradas na visualização. Clique em Salvar para persistir." });
+    toast({ title: "Aplicado!", description: "Cores do site alteradas na visualização. Clique em Salvar para persistir." });
   };
 
   const handleSaveBranding = async () => {
@@ -275,10 +275,10 @@ const Settings = () => {
                   <RotateCcw className="w-3 h-3" /> Resetar
                 </button>
                 <button
-                  onClick={() => applyTheme(themeColors)}
+                  onClick={() => { applyLogoOnly(themeColors); toast({ title: "Aplicado!", description: "Fundo e filtros do logo atualizados na visualização." }); }}
                   className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1"
                 >
-                  <Eye className="w-3 h-3" /> Aplicar no site
+                  <Eye className="w-3 h-3" /> Aplicar logo
                 </button>
               </div>
             </div>
