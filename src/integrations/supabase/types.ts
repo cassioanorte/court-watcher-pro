@@ -548,11 +548,14 @@ export type Database = {
       }
       tenants: {
         Row: {
+          blocked_at: string | null
           created_at: string
           id: string
           logo_url: string | null
           monthly_fee: number | null
           name: string
+          payment_due_date: string | null
+          payment_status: string | null
           primary_color: string | null
           slug: string
           subscription_status: string | null
@@ -563,11 +566,14 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          blocked_at?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
           monthly_fee?: number | null
           name: string
+          payment_due_date?: string | null
+          payment_status?: string | null
           primary_color?: string | null
           slug: string
           subscription_status?: string | null
@@ -578,11 +584,14 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          blocked_at?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
           monthly_fee?: number | null
           name?: string
+          payment_due_date?: string | null
+          payment_status?: string | null
           primary_color?: string | null
           slug?: string
           subscription_status?: string | null

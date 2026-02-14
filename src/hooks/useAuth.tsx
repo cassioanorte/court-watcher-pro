@@ -11,6 +11,8 @@ interface AuthContextType {
   role: AppRole | null;
   tenantId: string | null;
   profile: { full_name: string; avatar_url: string | null; oab_number: string | null } | null;
+  tenantBlocked: boolean;
+  tenantBlockReason: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -21,6 +23,8 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   tenantId: null,
   profile: null,
+  tenantBlocked: false,
+  tenantBlockReason: null,
   signOut: async () => {},
 });
 
@@ -33,6 +37,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
+  const [tenantBlocked, setTenantBlocked] = useState(false);
+  const [tenantBlockReason, setTenantBlockReason] = useState<string | null>(null);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -53,6 +59,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: profileRes.data.avatar_url,
           oab_number: profileRes.data.oab_number,
         });
+
+        // Check tenant blocking (skip for superadmins)
+        const isSuperadmin = roleRes.data?.some(r => r.role === "superadmin");
+        if (!isSuperadmin && profileRes.data.tenant_id) {
+          const { data: tenant } = await supabase
+            .from("tenants")
+            .select("subscription_status, monthly_fee, trial_ends_at")
+            .eq("id", profileRes.data.tenant_id)
+            .single();
+
+          if (tenant) {
+            const isExempt = tenant.subscription_status === "exempt";
+            const isFree = Number(tenant.monthly_fee) === 0;
+            const isBlocked = tenant.subscription_status === "blocked";
+            const isOverdue = tenant.subscription_status === "overdue";
+            const trialExpired = tenant.subscription_status === "trial" && tenant.trial_ends_at && new Date(tenant.trial_ends_at) < new Date();
+
+            if (isExempt || isFree) {
+              setTenantBlocked(false);
+              setTenantBlockReason(null);
+            } else if (isBlocked) {
+              setTenantBlocked(true);
+              setTenantBlockReason("Seu escritório está bloqueado por falta de pagamento. Entre em contato com o administrador.");
+            } else if (isOverdue) {
+              setTenantBlocked(true);
+              setTenantBlockReason("Seu escritório possui pagamento em atraso. Entre em contato com o administrador para regularizar.");
+            } else if (trialExpired) {
+              setTenantBlocked(true);
+              setTenantBlockReason("O período de teste do seu escritório expirou. Entre em contato com o administrador.");
+            } else {
+              setTenantBlocked(false);
+              setTenantBlockReason(null);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching user data:", err);
@@ -92,10 +133,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRole(null);
     setTenantId(null);
     setProfile(null);
+    setTenantBlocked(false);
+    setTenantBlockReason(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, tenantId, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, tenantId, profile, tenantBlocked, tenantBlockReason, signOut }}>
       {children}
     </AuthContext.Provider>
   );
