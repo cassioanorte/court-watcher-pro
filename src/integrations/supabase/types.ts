@@ -555,6 +555,8 @@ export type Database = {
           primary_color: string | null
           slug: string
           theme_colors: Json | null
+          website: string | null
+          whatsapp: string | null
         }
         Insert: {
           created_at?: string
@@ -564,6 +566,8 @@ export type Database = {
           primary_color?: string | null
           slug: string
           theme_colors?: Json | null
+          website?: string | null
+          whatsapp?: string | null
         }
         Update: {
           created_at?: string
@@ -573,6 +577,8 @@ export type Database = {
           primary_color?: string | null
           slug?: string
           theme_colors?: Json | null
+          website?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }

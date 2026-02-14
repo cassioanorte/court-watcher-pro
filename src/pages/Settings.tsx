@@ -55,6 +55,8 @@ const Settings = () => {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [oabNumber, setOabNumber] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [website, setWebsite] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -73,6 +75,8 @@ const Settings = () => {
       if (tenantRes.data) {
         setFirmName(tenantRes.data.name);
         setLogoUrl(tenantRes.data.logo_url || null);
+        setWhatsapp((tenantRes.data as any).whatsapp || "");
+        setWebsite((tenantRes.data as any).website || "");
         const saved = tenantRes.data.theme_colors as unknown as Partial<ThemeColors> | null;
         if (saved && Object.keys(saved).length > 0) {
           setThemeColors({ ...DEFAULT_THEME, ...saved });
@@ -405,6 +409,30 @@ const Settings = () => {
           />
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">WhatsApp do escritório</label>
+            <input
+              type="text"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              placeholder="55519999999999"
+              className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">Número com DDD e DDI (ex: 5551999999999)</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Site do escritório</label>
+            <input
+              type="text"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://www.seuescritorio.com.br"
+              className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+          </div>
+        </div>
+
         {/* Logo & name save button */}
         <div className="pt-2 border-t">
           <button
@@ -412,9 +440,10 @@ const Settings = () => {
               if (!tenantId) return;
               setSaving(true);
               try {
-                const { error } = await supabase.from("tenants").update({ name: firmName, logo_url: logoUrl }).eq("id", tenantId);
+                const updateData: any = { name: firmName, logo_url: logoUrl, whatsapp: whatsapp || null, website: website || null };
+                const { error } = await supabase.from("tenants").update(updateData).eq("id", tenantId);
                 if (error) throw error;
-                toast({ title: "Salvo!", description: "Logo e nome atualizados com sucesso." });
+                toast({ title: "Salvo!", description: "Dados do escritório atualizados com sucesso." });
               } catch (err: any) {
                 toast({ title: "Erro", description: err.message, variant: "destructive" });
               } finally {
