@@ -168,8 +168,8 @@ const ProcessDetail = () => {
     TRF4_JFSC: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=SC`,
     TRF4_JFPR: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=PR`,
     TRF4: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
-    TJRS_1G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(n)}`,
-    TJRS_2G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(n)}`,
+    TJRS_1G: (n) => `https://eproc.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=1`,
+    TJRS_2G: (n) => `https://eproc.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=2`,
   };
 
   const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
