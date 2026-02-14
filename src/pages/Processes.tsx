@@ -35,8 +35,9 @@ const Processes = () => {
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editProcess, setEditProcess] = useState<Tables<"cases"> | null>(null);
-  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", case_summary: "", client_user_id: "", simple_status: "", automation_enabled: true });
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [staff, setStaff] = useState<{ user_id: string; full_name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteProcess, setDeleteProcess] = useState<Tables<"cases"> | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -73,13 +74,15 @@ const Processes = () => {
     return `Há ${days}d`;
   };
 
-  const fetchClients = async () => {
+  const fetchClientsAndStaff = async () => {
     if (!tenantId) return;
     const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId);
     if (!profiles) return;
     const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", profiles.map((p) => p.user_id));
     const clientIds = new Set((roles || []).filter((r) => r.role === "client").map((r) => r.user_id));
+    const staffIds = new Set((roles || []).filter((r) => r.role === "owner" || r.role === "staff").map((r) => r.user_id));
     setClients(profiles.filter((p) => clientIds.has(p.user_id)));
+    setStaff(profiles.filter((p) => staffIds.has(p.user_id)));
   };
 
   const openEdit = (p: Tables<"cases">) => {
@@ -89,10 +92,11 @@ const Processes = () => {
       subject: p.subject || "",
       case_summary: p.case_summary || "",
       client_user_id: p.client_user_id || "",
+      responsible_user_id: p.responsible_user_id || "",
       simple_status: p.simple_status || "",
       automation_enabled: p.automation_enabled ?? true,
     });
-    fetchClients();
+    fetchClientsAndStaff();
     setEditProcess(p);
   };
 
@@ -107,6 +111,7 @@ const Processes = () => {
         subject: editForm.subject || null,
         case_summary: editForm.case_summary || null,
         client_user_id: editForm.client_user_id || null,
+        responsible_user_id: editForm.responsible_user_id || null,
         simple_status: editForm.simple_status || null,
         automation_enabled: editForm.automation_enabled,
       }).eq("id", editProcess.id);
@@ -310,6 +315,13 @@ const Processes = () => {
                 <select value={editForm.client_user_id} onChange={(e) => setEditForm(f => ({ ...f, client_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
                   <option value="">Sem cliente vinculado</option>
                   {clients.map((c) => <option key={c.user_id} value={c.user_id}>{c.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado responsável</label>
+                <select value={editForm.responsible_user_id} onChange={(e) => setEditForm(f => ({ ...f, responsible_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Selecione...</option>
+                  {staff.map((s) => <option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
                 </select>
               </div>
               <div>
