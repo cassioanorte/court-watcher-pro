@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -160,7 +160,19 @@ const ProcessDetail = () => {
   const sourceLabel: Record<string, string> = {
     TJRS_1G: "TJRS - 1º Grau", TJRS_2G: "TJRS - 2º Grau",
     TRF4_JFRS: "TRF4 - JFRS", TRF4_JFSC: "TRF4 - JFSC", TRF4_JFPR: "TRF4 - JFPR",
+    TRF4: "TRF4",
   };
+
+  const tribunalUrls: Record<string, (n: string) => string> = {
+    TRF4_JFRS: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=RS`,
+    TRF4_JFSC: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=SC`,
+    TRF4_JFPR: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}&selOrigem=PR`,
+    TRF4: (n) => `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&txtValor=${encodeURIComponent(n)}`,
+    TJRS_1G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(n)}`,
+    TJRS_2G: (n) => `https://www.tjrs.jus.br/novo/busca/?return=proc&client=wp_index&proxystylesheet=wp_index&aba=processos&q=${encodeURIComponent(n)}`,
+  };
+
+  const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
 
   const tabs = [
     { key: "timeline" as const, label: "Timeline", icon: RefreshCw },
@@ -254,14 +266,26 @@ const ProcessDetail = () => {
       </div>
 
       {/* Atualizar button */}
-      <button
-        onClick={handleRefresh}
-        disabled={refreshing}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-      >
-        {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-        {refreshing ? "Consultando tribunais..." : "Atualizar movimentações"}
-      </button>
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          {refreshing ? "Consultando tribunais..." : "Atualizar movimentações"}
+        </button>
+        {tribunalUrl && (
+          <a
+            href={tribunalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" /> Abrir no tribunal
+          </a>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b">

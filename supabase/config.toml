@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.import-processes]
 verify_jwt = false
+
+[functions.capture-movements]
+verify_jwt = false

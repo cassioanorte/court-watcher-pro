@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Save, Palette } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import EprocCredentials from "@/components/EprocCredentials";
+import BookmarkletSetup from "@/components/BookmarkletSetup";
 
 const Settings = () => {
   const { tenantId, profile } = useAuth();
@@ -129,6 +130,9 @@ const Settings = () => {
       >
         <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar configurações"}
       </button>
+
+      {/* Bookmarklet Setup */}
+      <BookmarkletSetup />
 
       {/* Eproc Credentials */}
       <EprocCredentials />
