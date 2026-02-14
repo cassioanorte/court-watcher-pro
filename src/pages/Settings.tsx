@@ -568,7 +568,8 @@ const Settings = () => {
       </motion.div>
 
       <BookmarkletSetup />
-      <EprocCredentials />
+      {/* EprocCredentials oculto — mantido no código caso volte a ser útil */}
+      {/* <EprocCredentials /> */}
       <TeamManagement />
     </div>
   );
