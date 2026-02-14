@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2 } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,11 @@ const Processes = () => {
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [editProcess, setEditProcess] = useState<Tables<"cases"> | null>(null);
+  const [editForm, setEditForm] = useState({ subject: "", simple_status: "", automation_enabled: true });
+  const [saving, setSaving] = useState(false);
+  const [deleteProcess, setDeleteProcess] = useState<Tables<"cases"> | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { tenantId } = useAuth();
   const { toast } = useToast();
 
@@ -63,6 +68,56 @@ const Processes = () => {
     if (hours < 24) return `Há ${hours}h`;
     const days = Math.floor(hours / 24);
     return `Há ${days}d`;
+  };
+
+  const openEdit = (p: Tables<"cases">) => {
+    setEditForm({
+      subject: p.subject || "",
+      simple_status: p.simple_status || "",
+      automation_enabled: p.automation_enabled ?? true,
+    });
+    setEditProcess(p);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProcess) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("cases").update({
+        subject: editForm.subject || null,
+        simple_status: editForm.simple_status || null,
+        automation_enabled: editForm.automation_enabled,
+      }).eq("id", editProcess.id);
+      if (error) throw error;
+      toast({ title: "Processo atualizado!" });
+      setEditProcess(null);
+      fetchProcesses();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteProcess) return;
+    setDeleting(true);
+    try {
+      // Delete related data first
+      await supabase.from("movements").delete().eq("case_id", deleteProcess.id);
+      await supabase.from("messages").delete().eq("case_id", deleteProcess.id);
+      await supabase.from("documents").delete().eq("case_id", deleteProcess.id);
+      const { error } = await supabase.from("cases").delete().eq("id", deleteProcess.id);
+      if (error) throw error;
+      toast({ title: "Processo excluído!", description: deleteProcess.process_number });
+      setDeleteProcess(null);
+      fetchProcesses();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -148,6 +203,7 @@ const Processes = () => {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Automação</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Atualização</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-20">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -181,10 +237,75 @@ const Processes = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-muted-foreground">{formatDate(p.updated_at)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(p)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Editar">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setDeleteProcess(p)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title="Excluir">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
                   </motion.tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editProcess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setEditProcess(null)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+            <button onClick={() => setEditProcess(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+            <h2 className="text-lg font-bold text-foreground mb-1">Editar Processo</h2>
+            <p className="text-xs text-muted-foreground font-mono mb-5">{editProcess.process_number}</p>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assunto</label>
+                <input type="text" value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+                <input type="text" value={editForm.simple_status} onChange={(e) => setEditForm(f => ({ ...f, simple_status: e.target.value }))} placeholder="Ex: Em andamento" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editForm.automation_enabled} onChange={(e) => setEditForm(f => ({ ...f, automation_enabled: e.target.checked }))} className="rounded border-border" />
+                <span className="text-sm text-foreground">Captura automática de movimentações</span>
+              </label>
+              <button type="submit" disabled={saving} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" />
+                {saving ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteProcess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setDeleteProcess(null)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-sm p-6 animate-scale-in">
+            <h2 className="text-lg font-bold text-foreground mb-2">Confirmar exclusão</h2>
+            <p className="text-sm text-muted-foreground mb-1">
+              Tem certeza que deseja excluir o processo:
+            </p>
+            <p className="text-sm font-mono font-semibold text-foreground mb-4">{deleteProcess.process_number}</p>
+            <p className="text-xs text-destructive mb-5">⚠️ Todas as movimentações, mensagens e documentos vinculados serão excluídos permanentemente.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteProcess(null)} className="flex-1 h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleDelete} disabled={deleting} className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+                {deleting ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
           </div>
         </div>
       )}
