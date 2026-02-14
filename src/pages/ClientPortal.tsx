@@ -89,7 +89,7 @@ const ClientPortal = () => {
               <Bell className="w-5 h-5 opacity-80" />
             </button>
             <button
-              onClick={signOut}
+              onClick={async () => { await signOut(); window.location.href = "/portal/login"; }}
               className="text-[10px] opacity-70 hover:opacity-100 uppercase tracking-wide"
             >
               Sair
