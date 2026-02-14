@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
-import { Scale, Bell, Clock, ArrowRight, MessageSquare, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Scale, Bell, Clock, ArrowRight, Globe, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,10 +17,11 @@ type ClientCase = {
 
 const ClientPortal = () => {
   const { user, profile, tenantId, signOut } = useAuth();
-  const navigate = useNavigate();
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [tenantName, setTenantName] = useState("Portal Jurídico");
+  const [tenantWhatsapp, setTenantWhatsapp] = useState<string | null>(null);
+  const [tenantWebsite, setTenantWebsite] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !tenantId) return;
@@ -34,13 +35,17 @@ const ClientPortal = () => {
           .eq("client_user_id", user.id),
         supabase
           .from("tenants")
-          .select("name")
+          .select("name, whatsapp, website")
           .eq("id", tenantId)
           .single(),
       ]);
 
       if (casesRes.data) setCases(casesRes.data);
-      if (tenantRes.data) setTenantName(tenantRes.data.name || "Portal Jurídico");
+      if (tenantRes.data) {
+        setTenantName(tenantRes.data.name || "Portal Jurídico");
+        setTenantWhatsapp((tenantRes.data as any).whatsapp || null);
+        setTenantWebsite((tenantRes.data as any).website || null);
+      }
       setLoading(false);
     };
 
@@ -148,20 +153,26 @@ const ClientPortal = () => {
 
         {/* Quick actions */}
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            onClick={() => cases.length > 0 && navigate(`/portal/processo/${cases[0].id}?tab=messages`)}
-            disabled={cases.length === 0}
-            className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow disabled:opacity-50"
-          >
-            <MessageSquare className="w-5 h-5 text-accent" /> Mensagens
-          </button>
-          <button
-            onClick={() => cases.length > 0 && navigate(`/portal/processo/${cases[0].id}?tab=documents`)}
-            disabled={cases.length === 0}
-            className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow disabled:opacity-50"
-          >
-            <FileText className="w-5 h-5 text-accent" /> Documentos
-          </button>
+          {tenantWhatsapp && (
+            <a
+              href={`https://wa.me/${tenantWhatsapp.replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-[#25D366]/10 rounded-xl border border-[#25D366]/30 p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow"
+            >
+              <Phone className="w-5 h-5 text-[#25D366]" /> WhatsApp
+            </a>
+          )}
+          {tenantWebsite && (
+            <a
+              href={tenantWebsite.startsWith("http") ? tenantWebsite : `https://${tenantWebsite}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow"
+            >
+              <Globe className="w-5 h-5 text-accent" /> Site do Escritório
+            </a>
+          )}
         </div>
       </div>
     </div>
