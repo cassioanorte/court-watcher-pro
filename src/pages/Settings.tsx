@@ -3,11 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Save, Palette, Upload, X, Eye, RotateCcw } from "lucide-react";
+import { Save, Palette, Upload, X, Eye, RotateCcw, Wand2 } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
 import { type ThemeColors, DEFAULT_THEME, applyTheme, applyLogoOnly, getLogoFilter } from "@/hooks/useTheme";
+import { extractColorsFromImage, generateThemePresetsFromColors } from "@/lib/extractColors";
 
 const THEME_PRESETS: { label: string; colors: ThemeColors }[] = [
   {
@@ -57,6 +58,8 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [logoPresets, setLogoPresets] = useState<{ label: string; colors: { sidebar: string; sidebarText: string; accent: string; background: string; card: string; foreground: string } }[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -281,6 +284,59 @@ const Settings = () => {
                   <Eye className="w-3 h-3" /> Aplicar logo
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Extract colors from logo */}
+          {logoUrl && (
+            <div className="mt-3 space-y-3">
+              <button
+                onClick={async () => {
+                  if (!logoUrl) return;
+                  setExtracting(true);
+                  setLogoPresets(null);
+                  try {
+                    const colors = await extractColorsFromImage(logoUrl);
+                    const presets = generateThemePresetsFromColors(colors);
+                    setLogoPresets(presets);
+                    toast({ title: "Cores extraídas!", description: `${colors.length} cor(es) encontrada(s) no logotipo.` });
+                  } catch {
+                    toast({ title: "Erro", description: "Não foi possível extrair cores do logotipo.", variant: "destructive" });
+                  } finally {
+                    setExtracting(false);
+                  }
+                }}
+                disabled={extracting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-accent/40 text-sm font-semibold text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+              >
+                <Wand2 className="w-4 h-4" /> {extracting ? "Extraindo..." : "Usar as Cores do Logotipo no Site"}
+              </button>
+
+              {logoPresets && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temas baseados no logo</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {logoPresets.map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => {
+                          setThemeColors((prev) => ({ ...prev, ...preset.colors }));
+                          applyTheme({ ...themeColors, ...preset.colors });
+                          toast({ title: `Tema "${preset.label}" aplicado!` });
+                        }}
+                        className="rounded-lg border p-3 hover:border-accent/60 transition-all text-left"
+                      >
+                        <div className="flex gap-1 mb-2">
+                          {[preset.colors.sidebar, preset.colors.accent, preset.colors.background, preset.colors.card].map((c, i) => (
+                            <div key={i} className="w-5 h-5 rounded-full border border-border/50" style={{ backgroundColor: c }} />
+                          ))}
+                        </div>
+                        <p className="text-[11px] font-medium text-foreground">{preset.label}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
