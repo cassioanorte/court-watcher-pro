@@ -50,9 +50,9 @@ const Clients = () => {
     fetchClients();
   }, [tenantId]);
 
-  const filtered = clients.filter((c) =>
-    c.full_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = clients
+    .filter((c) => c.full_name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"));
 
   return (
     <div className="space-y-5 animate-fade-in">
