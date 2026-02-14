@@ -226,10 +226,10 @@ const TeamManagement = () => {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card rounded-lg border p-5 shadow-card space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <Users className="w-4 h-4 text-accent" /> Equipe & Clientes
+            <Users className="w-4 h-4 text-accent" /> Equipe
           </h2>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => { setFormRole("staff"); setShowModal(true); }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
           >
             <UserPlus className="w-3.5 h-3.5" /> Cadastrar
@@ -250,17 +250,6 @@ const TeamManagement = () => {
                 )}
               </div>
             </div>
-
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Clientes ({grouped.clients.length})</p>
-              <div className="divide-y rounded-lg border overflow-hidden">
-                {grouped.clients.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">Nenhum cliente cadastrado.</p>
-                ) : (
-                  grouped.clients.map(renderMemberRow)
-                )}
-              </div>
-            </div>
           </div>
         )}
       </motion.div>
@@ -274,25 +263,11 @@ const TeamManagement = () => {
               <X className="w-4 h-4" />
             </button>
 
-            <h2 className="text-lg font-bold text-foreground mb-1">Cadastrar Usuário</h2>
-            <p className="text-sm text-muted-foreground mb-5">Adicione funcionários ou clientes ao escritório</p>
+            <h2 className="text-lg font-bold text-foreground mb-1">Cadastrar Funcionário</h2>
+            <p className="text-sm text-muted-foreground mb-5">Adicione funcionários ao escritório</p>
 
             {!result ? (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de acesso *</label>
-                  <div className="flex gap-2 mt-1">
-                    <button type="button" onClick={() => setFormRole("staff")} className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${formRole === "staff" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}>
-                      <Briefcase className="w-3.5 h-3.5 inline mr-1.5" /> Funcionário
-                    </button>
-                    <button type="button" onClick={() => setFormRole("client")} className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${formRole === "client" ? "bg-emerald-500/15 border-emerald-500 text-emerald-600" : "bg-background text-muted-foreground hover:bg-muted"}`}>
-                      <User className="w-3.5 h-3.5 inline mr-1.5" /> Cliente
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {formRole === "staff" ? "Funcionários têm acesso a todos os processos e clientes do escritório." : "Clientes só podem ver seus próprios processos no portal."}
-                  </p>
-                </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
                   <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
