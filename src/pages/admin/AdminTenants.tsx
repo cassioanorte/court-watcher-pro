@@ -14,6 +14,9 @@ interface Tenant {
   created_at: string;
   userCount: number;
   caseCount: number;
+  ownerUserId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
 }
 
 const AdminTenants = () => {
@@ -27,24 +30,37 @@ const AdminTenants = () => {
   const { toast } = useToast();
 
   const fetchTenants = async () => {
-    const [tenantsRes, profilesRes, casesRes] = await Promise.all([
+    const [tenantsRes, profilesRes, casesRes, rolesRes] = await Promise.all([
       supabase.from("tenants").select("*"),
-      supabase.from("profiles").select("tenant_id"),
+      supabase.from("profiles").select("tenant_id, user_id, full_name"),
       supabase.from("cases").select("tenant_id"),
+      supabase.from("user_roles").select("user_id, role"),
     ]);
 
     const profiles = profilesRes.data || [];
     const cases = casesRes.data || [];
+    const roles = rolesRes.data || [];
     const usersByTenant: Record<string, number> = {};
     const casesByTenant: Record<string, number> = {};
     profiles.forEach((p) => { usersByTenant[p.tenant_id] = (usersByTenant[p.tenant_id] || 0) + 1; });
     cases.forEach((c) => { casesByTenant[c.tenant_id] = (casesByTenant[c.tenant_id] || 0) + 1; });
+
+    // Find owner for each tenant
+    const ownerUserIds = new Set(roles.filter((r) => r.role === "owner").map((r) => r.user_id));
+    const ownerByTenant: Record<string, { userId: string; name: string }> = {};
+    profiles.forEach((p) => {
+      if (ownerUserIds.has(p.user_id) && !ownerByTenant[p.tenant_id]) {
+        ownerByTenant[p.tenant_id] = { userId: p.user_id, name: p.full_name };
+      }
+    });
 
     setTenants(
       (tenantsRes.data || []).map((t) => ({
         ...t,
         userCount: usersByTenant[t.id] || 0,
         caseCount: casesByTenant[t.id] || 0,
+        ownerUserId: ownerByTenant[t.id]?.userId,
+        ownerName: ownerByTenant[t.id]?.name,
       }))
     );
     setLoading(false);
@@ -97,17 +113,40 @@ const AdminTenants = () => {
 
   const handleUpdate = async () => {
     if (!editingTenant) return;
-    const { error } = await supabase.from("tenants").update({
-      name: form.name,
-      website: form.website || null,
-      whatsapp: form.whatsapp || null,
-    }).eq("id", editingTenant.id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("tenants").update({
+        name: form.name,
+        website: form.website || null,
+        whatsapp: form.whatsapp || null,
+      }).eq("id", editingTenant.id);
+      if (error) throw error;
+
+      // Update owner profile if changed
+      if (editingTenant.ownerUserId && form.ownerName) {
+        await supabase.from("profiles").update({
+          full_name: form.ownerName,
+        }).eq("user_id", editingTenant.ownerUserId);
+      }
+
+      // Update owner password if provided
+      if (editingTenant.ownerUserId && form.ownerPassword && form.ownerPassword.length >= 6) {
+        await supabase.functions.invoke("manage-team-member", {
+          body: {
+            action: "update",
+            target_user_id: editingTenant.ownerUserId,
+            updates: { new_password: form.ownerPassword },
+          },
+        });
+      }
+
       toast({ title: "Escritório atualizado!" });
       setEditingTenant(null);
       fetchTenants();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -170,14 +209,15 @@ const AdminTenants = () => {
 
   const EditModal = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-white">Editar Escritório</h3>
           <button onClick={() => setEditingTenant(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3">
+          <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Dados do escritório</p>
           <div>
-            <label className="text-xs text-slate-400 uppercase">Nome</label>
+            <label className="text-xs text-slate-400 uppercase">Nome do escritório</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
           </div>
           <div>
@@ -188,9 +228,25 @@ const AdminTenants = () => {
             <label className="text-xs text-slate-400 uppercase">WhatsApp</label>
             <input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
           </div>
+          <div className="border-t border-slate-700 pt-3 mt-3">
+            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Dados do dono</p>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Nome completo do dono</label>
+            <input value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Email do dono</label>
+            <input type="email" value={form.ownerEmail} disabled className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-sm text-slate-500 cursor-not-allowed focus:outline-none" />
+            <p className="text-[10px] text-slate-600 mt-1">O email não pode ser alterado.</p>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 uppercase">Nova senha (opcional)</label>
+            <input type="password" value={form.ownerPassword} onChange={(e) => setForm({ ...form, ownerPassword: e.target.value })} className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none" placeholder="Deixe em branco para manter" />
+          </div>
         </div>
-        <button onClick={handleUpdate} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity">
-          Salvar
+        <button onClick={handleUpdate} disabled={submitting} className="w-full mt-4 h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+          {submitting ? "Salvando..." : "Salvar alterações"}
         </button>
       </motion.div>
     </div>
@@ -245,7 +301,7 @@ const AdminTenants = () => {
                   <td className="px-5 py-3 text-right text-slate-400">{new Date(t.created_at).toLocaleDateString("pt-BR")}</td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingTenant(t); setForm({ ...defaultForm, name: t.name, slug: t.slug, website: t.website || "", whatsapp: t.whatsapp || "" }); }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
+                      <button onClick={() => { setEditingTenant(t); setForm({ ...defaultForm, name: t.name, slug: t.slug, website: t.website || "", whatsapp: t.whatsapp || "", ownerName: t.ownerName || "", ownerEmail: t.ownerEmail || "" }); }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDelete(t.id, t.name)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
