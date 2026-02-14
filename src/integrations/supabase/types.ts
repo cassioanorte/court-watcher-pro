@@ -551,10 +551,14 @@ export type Database = {
           created_at: string
           id: string
           logo_url: string | null
+          monthly_fee: number | null
           name: string
           primary_color: string | null
           slug: string
+          subscription_status: string | null
           theme_colors: Json | null
+          trial_duration_days: number | null
+          trial_ends_at: string | null
           website: string | null
           whatsapp: string | null
         }
@@ -562,10 +566,14 @@ export type Database = {
           created_at?: string
           id?: string
           logo_url?: string | null
+          monthly_fee?: number | null
           name: string
           primary_color?: string | null
           slug: string
+          subscription_status?: string | null
           theme_colors?: Json | null
+          trial_duration_days?: number | null
+          trial_ends_at?: string | null
           website?: string | null
           whatsapp?: string | null
         }
@@ -573,10 +581,14 @@ export type Database = {
           created_at?: string
           id?: string
           logo_url?: string | null
+          monthly_fee?: number | null
           name?: string
           primary_color?: string | null
           slug?: string
+          subscription_status?: string | null
           theme_colors?: Json | null
+          trial_duration_days?: number | null
+          trial_ends_at?: string | null
           website?: string | null
           whatsapp?: string | null
         }
