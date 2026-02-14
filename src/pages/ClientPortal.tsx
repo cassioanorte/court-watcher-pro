@@ -1,32 +1,69 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Scale, Bell, Clock, ArrowRight, MessageSquare, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-const clientProcesses = [
-  {
-    id: "1",
-    number: "5001234-56.2024.8.21.0001",
-    subject: "Indenização por danos morais",
-    simpleStatus: "Aguardando resposta da outra parte",
-    nextStep: "Prazo até 28/02/2026",
-    lastUpdate: "Há 2h",
-    court: "TJRS",
-    hasNewUpdate: true,
-  },
-  {
-    id: "2",
-    number: "5003456-78.2024.8.21.0001",
-    subject: "Recurso de apelação - Família",
-    simpleStatus: "Recurso em análise pelo tribunal",
-    nextStep: "Aguardando pauta de julgamento",
-    lastUpdate: "Há 1 dia",
-    court: "TJRS",
-    hasNewUpdate: false,
-  },
-];
+type ClientCase = {
+  id: string;
+  process_number: string;
+  subject: string | null;
+  simple_status: string | null;
+  next_step: string | null;
+  updated_at: string;
+  source: string;
+};
 
 const ClientPortal = () => {
+  const { user, profile, tenantId, signOut } = useAuth();
+  const [cases, setCases] = useState<ClientCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tenantName, setTenantName] = useState("Portal Jurídico");
+
+  useEffect(() => {
+    if (!user || !tenantId) return;
+
+    const fetchData = async () => {
+      const [casesRes, tenantRes] = await Promise.all([
+        supabase
+          .from("cases")
+          .select("id, process_number, subject, simple_status, next_step, updated_at, source")
+          .eq("tenant_id", tenantId)
+          .eq("client_user_id", user.id),
+        supabase
+          .from("tenants")
+          .select("name")
+          .eq("id", tenantId)
+          .single(),
+      ]);
+
+      if (casesRes.data) setCases(casesRes.data);
+      if (tenantRes.data) setTenantName(tenantRes.data.name || "Portal Jurídico");
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [user, tenantId]);
+
+  const firstName = profile?.full_name?.split(" ")[0] || "Cliente";
+
+  const getTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const hours = Math.floor(diff / 3600000);
+    if (hours < 1) return "Agora";
+    if (hours < 24) return `Há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `Há ${days} dia${days > 1 ? "s" : ""}`;
+  };
+
+  const getCourtFromSource = (source: string) => {
+    if (source.startsWith("TJRS")) return "TJRS";
+    if (source.startsWith("TRF4")) return "TRF4";
+    if (source.startsWith("TRT")) return source;
+    return source;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -38,57 +75,74 @@ const ClientPortal = () => {
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-wide">Portal Jurídico</h1>
-              <p className="text-[10px] opacity-60 uppercase tracking-widest">Escritório Silva & Associados</p>
+              <p className="text-[10px] opacity-60 uppercase tracking-widest">{tenantName}</p>
             </div>
           </div>
-          <button className="relative">
-            <Bell className="w-5 h-5 opacity-80" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button className="relative">
+              <Bell className="w-5 h-5 opacity-80" />
+            </button>
+            <button
+              onClick={signOut}
+              className="text-[10px] opacity-70 hover:opacity-100 uppercase tracking-wide"
+            >
+              Sair
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Welcome */}
       <div className="max-w-lg mx-auto px-4 py-6">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="text-xl font-bold text-foreground">Olá, Maria 👋</h2>
+          <h2 className="text-xl font-bold text-foreground">Olá, {firstName} 👋</h2>
           <p className="text-sm text-muted-foreground mt-1">Acompanhe seus processos em tempo real</p>
         </motion.div>
 
         {/* Processes */}
         <div className="mt-6 space-y-4">
-          {clientProcesses.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.1 }}
-            >
-              <Link to={`/portal/processo/${p.id}`} className="block bg-card rounded-xl border shadow-card p-4 hover:shadow-card-hover transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{p.subject}</h3>
-                      {p.hasNewUpdate && <span className="w-2 h-2 bg-accent rounded-full" />}
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : cases.length === 0 ? (
+            <div className="bg-card rounded-xl border shadow-card p-8 text-center">
+              <p className="text-sm text-muted-foreground">Nenhum processo encontrado.</p>
+            </div>
+          ) : (
+            cases.map((p, i) => (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.1 }}
+              >
+                <Link to={`/portal/processo/${p.id}`} className="block bg-card rounded-xl border shadow-card p-4 hover:shadow-card-hover transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-foreground">{p.subject || "Sem assunto"}</h3>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">{p.process_number}</p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">{p.number}</p>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground mt-0.5" />
                   </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground mt-0.5" />
-                </div>
 
-                <div className="space-y-2">
-                  <div className="bg-accent/8 rounded-lg p-3">
-                    <p className="text-[10px] font-semibold text-accent uppercase tracking-wide mb-0.5">Status Atual</p>
-                    <p className="text-sm text-foreground">{p.simpleStatus}</p>
+                  <div className="space-y-2">
+                    <div className="bg-accent/8 rounded-lg p-3">
+                      <p className="text-[10px] font-semibold text-accent uppercase tracking-wide mb-0.5">Status Atual</p>
+                      <p className="text-sm text-foreground">{p.simple_status || "Cadastrado"}</p>
+                    </div>
+                    {p.next_step && (
+                      <p className="text-xs text-muted-foreground">Próximo passo: {p.next_step}</p>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {getTimeAgo(p.updated_at)}</span>
+                      <span className="bg-muted px-2 py-0.5 rounded-full">{getCourtFromSource(p.source)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {p.lastUpdate}</span>
-                    <span className="bg-muted px-2 py-0.5 rounded-full">{p.court}</span>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
+                </Link>
+              </motion.div>
+            ))
+          )}
         </div>
 
         {/* Quick actions */}
