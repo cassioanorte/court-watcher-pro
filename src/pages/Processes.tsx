@@ -7,7 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import NewProcessModal from "@/components/NewProcessModal";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Tables, Database } from "@/integrations/supabase/types";
+
+type ProcessSource = Database["public"]["Enums"]["process_source"];
 
 const sourceLabels: Record<string, string> = {
   TJRS_1G: "TJRS - 1º Grau",
@@ -33,7 +35,8 @@ const Processes = () => {
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editProcess, setEditProcess] = useState<Tables<"cases"> | null>(null);
-  const [editForm, setEditForm] = useState({ subject: "", simple_status: "", automation_enabled: true });
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", case_summary: "", client_user_id: "", simple_status: "", automation_enabled: true });
+  const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteProcess, setDeleteProcess] = useState<Tables<"cases"> | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -70,12 +73,26 @@ const Processes = () => {
     return `Há ${days}d`;
   };
 
+  const fetchClients = async () => {
+    if (!tenantId) return;
+    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId);
+    if (!profiles) return;
+    const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", profiles.map((p) => p.user_id));
+    const clientIds = new Set((roles || []).filter((r) => r.role === "client").map((r) => r.user_id));
+    setClients(profiles.filter((p) => clientIds.has(p.user_id)));
+  };
+
   const openEdit = (p: Tables<"cases">) => {
     setEditForm({
+      process_number: p.process_number,
+      source: p.source,
       subject: p.subject || "",
+      case_summary: p.case_summary || "",
+      client_user_id: p.client_user_id || "",
       simple_status: p.simple_status || "",
       automation_enabled: p.automation_enabled ?? true,
     });
+    fetchClients();
     setEditProcess(p);
   };
 
@@ -85,7 +102,11 @@ const Processes = () => {
     setSaving(true);
     try {
       const { error } = await supabase.from("cases").update({
+        process_number: editForm.process_number,
+        source: editForm.source,
         subject: editForm.subject || null,
+        case_summary: editForm.case_summary || null,
+        client_user_id: editForm.client_user_id || null,
         simple_status: editForm.simple_status || null,
         automation_enabled: editForm.automation_enabled,
       }).eq("id", editProcess.id);
@@ -259,16 +280,37 @@ const Processes = () => {
       {editProcess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-foreground/30" onClick={() => setEditProcess(null)} />
-          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-lg p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
             <button onClick={() => setEditProcess(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
               <X className="w-4 h-4" />
             </button>
             <h2 className="text-lg font-bold text-foreground mb-1">Editar Processo</h2>
-            <p className="text-xs text-muted-foreground font-mono mb-5">{editProcess.process_number}</p>
+            <p className="text-sm text-muted-foreground mb-5">Atualize os dados do processo</p>
             <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Número CNJ *</label>
+                <input type="text" value={editForm.process_number} onChange={(e) => setEditForm(f => ({ ...f, process_number: e.target.value }))} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Origem *</label>
+                <select value={editForm.source} onChange={(e) => setEditForm(f => ({ ...f, source: e.target.value as ProcessSource }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  {Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assunto</label>
                 <input type="text" value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resumo do caso</label>
+                <textarea value={editForm.case_summary} onChange={(e) => setEditForm(f => ({ ...f, case_summary: e.target.value }))} placeholder="Descreva brevemente o caso, partes envolvidas, pedidos, etc." rows={3} className="w-full mt-1 px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cliente</label>
+                <select value={editForm.client_user_id} onChange={(e) => setEditForm(f => ({ ...f, client_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Sem cliente vinculado</option>
+                  {clients.map((c) => <option key={c.user_id} value={c.user_id}>{c.full_name}</option>)}
+                </select>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
@@ -276,7 +318,7 @@ const Processes = () => {
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={editForm.automation_enabled} onChange={(e) => setEditForm(f => ({ ...f, automation_enabled: e.target.checked }))} className="rounded border-border" />
-                <span className="text-sm text-foreground">Captura automática de movimentações</span>
+                <span className="text-sm text-foreground">Ativar captura automática de movimentações</span>
               </label>
               <button type="submit" disabled={saving} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2">
                 <Save className="w-4 h-4" />
