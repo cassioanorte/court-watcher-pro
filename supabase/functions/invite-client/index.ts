@@ -37,13 +37,13 @@ Deno.serve(async (req) => {
     const callerUserId = claimsData.claims.sub as string;
 
     // Verify caller is owner
-    const { data: callerRole } = await supabaseAdmin
+    const { data: callerRoles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", callerUserId)
-      .single();
+      .eq("user_id", callerUserId);
 
-    if (!callerRole || callerRole.role !== "owner") {
+    const isOwner = (callerRoles || []).some((r: { role: string }) => r.role === "owner");
+    if (!isOwner) {
       return new Response(JSON.stringify({ error: "Apenas o dono do escritório pode cadastrar usuários" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
