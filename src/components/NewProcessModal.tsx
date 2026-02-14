@@ -65,18 +65,21 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
   const [automationEnabled, setAutomationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [staffMembers, setStaffMembers] = useState<{ user_id: string; full_name: string }[]>([]);
   const { tenantId, user } = useAuth();
+  const [responsibleUserId, setResponsibleUserId] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
-    if (open && defaultClientUserId) {
-      setClientUserId(defaultClientUserId);
+    if (open) {
+      if (defaultClientUserId) setClientUserId(defaultClientUserId);
+      if (user?.id && !responsibleUserId) setResponsibleUserId(user.id);
     }
-  }, [open, defaultClientUserId]);
+  }, [open, defaultClientUserId, user?.id]);
 
   useEffect(() => {
     if (!open || !tenantId) return;
-    const fetchClients = async () => {
+    const fetchPeople = async () => {
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name")
@@ -89,9 +92,11 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
         .in("user_id", profiles.map((p) => p.user_id));
 
       const clientIds = new Set((roles || []).filter((r) => r.role === "client").map((r) => r.user_id));
+      const staffIds = new Set((roles || []).filter((r) => r.role === "owner" || r.role === "staff").map((r) => r.user_id));
       setClients(profiles.filter((p) => clientIds.has(p.user_id)));
+      setStaffMembers(profiles.filter((p) => staffIds.has(p.user_id)));
     };
-    fetchClients();
+    fetchPeople();
   }, [open, tenantId]);
 
   if (!open) return null;
@@ -108,7 +113,7 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
         subject: subject || null,
         case_summary: caseSummary || null,
         client_user_id: clientUserId || null,
-        responsible_user_id: user?.id || null,
+        responsible_user_id: responsibleUserId || null,
         automation_enabled: automationEnabled,
       }).select("id").single();
       if (error) throw error;
@@ -125,6 +130,7 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
       setSubject("");
       setCaseSummary("");
       setClientUserId("");
+      setResponsibleUserId(user?.id || "");
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -169,6 +175,13 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
             <select value={clientUserId} onChange={(e) => setClientUserId(e.target.value)} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
               <option value="">Sem cliente vinculado</option>
               {clients.map((c) => <option key={c.user_id} value={c.user_id}>{c.full_name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado responsável</label>
+            <select value={responsibleUserId} onChange={(e) => setResponsibleUserId(e.target.value)} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+              <option value="">Selecione...</option>
+              {staffMembers.map((s) => <option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
             </select>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
