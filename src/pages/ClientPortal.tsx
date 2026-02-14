@@ -168,9 +168,9 @@ const ClientPortal = () => {
               href={tenantWebsite.startsWith("http") ? tenantWebsite : `https://${tenantWebsite}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow"
+              className="flex items-center gap-2 bg-card rounded-xl border p-4 text-sm font-medium text-foreground hover:shadow-card transition-shadow overflow-hidden"
             >
-              <Globe className="w-5 h-5 text-accent" /> Site do Escritório
+              <Globe className="w-5 h-5 text-accent shrink-0" /> <span className="truncate">Nosso Site</span>
             </a>
           )}
         </div>
