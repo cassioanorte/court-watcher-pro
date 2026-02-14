@@ -109,6 +109,11 @@ const ClientAuth = () => {
             </button>
           </form>
         </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          É advogado?{" "}
+          <a href="/auth" className="text-accent hover:underline font-medium">Acessar painel do escritório</a>
+        </p>
       </motion.div>
     </div>
   );

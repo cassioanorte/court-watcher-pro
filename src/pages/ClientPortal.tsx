@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Scale, Bell, Clock, ArrowRight, Globe, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ type ClientCase = {
 
 const ClientPortal = () => {
   const { user, profile, tenantId, signOut } = useAuth();
+  const navigate = useNavigate();
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [tenantName, setTenantName] = useState("Portal Jurídico");
@@ -89,7 +90,7 @@ const ClientPortal = () => {
               <Bell className="w-5 h-5 opacity-80" />
             </button>
             <button
-              onClick={async () => { await signOut(); window.location.href = "/portal/login"; }}
+              onClick={async () => { await signOut(); navigate("/portal/login"); }}
               className="text-[10px] opacity-70 hover:opacity-100 uppercase tracking-wide"
             >
               Sair
