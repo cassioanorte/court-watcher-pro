@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus, Pencil, X, Save, User, CreditCard } from "lucide-react";
+import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus, Pencil, X, Save, User, CreditCard, MapPin, Globe } from "lucide-react";
 import NewProcessModal from "@/components/NewProcessModal";
 
 const sourceLabels: Record<string, string> = {
@@ -27,7 +27,7 @@ const ClientDetail = () => {
   const [loadingMovements, setLoadingMovements] = useState<string | null>(null);
   const [showNewProcess, setShowNewProcess] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", new_password: "" });
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "", cpf: "", address: "", origin: "", new_password: "" });
   const [saving, setSaving] = useState(false);
 
   const fetchCases = async () => {
@@ -79,11 +79,15 @@ const ClientDetail = () => {
     return `Há ${Math.floor(hours / 24)}d`;
   };
 
+  const originOptions = ["Indicação", "Google", "Instagram", "Facebook", "LinkedIn", "Site", "OAB", "Outro"];
+
   const openEdit = () => {
     setEditForm({
       full_name: client?.full_name || "",
       phone: client?.phone || "",
       cpf: client?.cpf || "",
+      address: client?.address || "",
+      origin: client?.origin || "",
       new_password: "",
     });
     setShowEdit(true);
@@ -102,6 +106,8 @@ const ClientDetail = () => {
             full_name: editForm.full_name.trim(),
             phone: editForm.phone.trim() || null,
             cpf: editForm.cpf.trim() || null,
+            address: editForm.address.trim() || null,
+            origin: editForm.origin || null,
             new_password: editForm.new_password || undefined,
           },
         },
@@ -112,6 +118,8 @@ const ClientDetail = () => {
         full_name: editForm.full_name.trim(),
         phone: editForm.phone.trim() || null,
         cpf: editForm.cpf.trim() || null,
+        address: editForm.address.trim() || null,
+        origin: editForm.origin || null,
       }));
       setShowEdit(false);
       toast({ title: "Cliente atualizado!", description: "Os dados foram salvos com sucesso." });
@@ -143,6 +151,8 @@ const ClientDetail = () => {
               <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                 {client.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {client.phone}</span>}
                 {client.cpf && <span className="flex items-center gap-1"><CreditCard className="w-3 h-3" /> {client.cpf}</span>}
+                {client.address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {client.address}</span>}
+                {client.origin && <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {client.origin}</span>}
               </div>
             </div>
           </div>
@@ -185,6 +195,23 @@ const ClientDetail = () => {
                 <div className="relative mt-1">
                   <CreditCard className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input type="text" value={editForm.cpf} onChange={(e) => setEditForm(f => ({ ...f, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) }))} placeholder="00000000000" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Endereço</label>
+                <div className="relative mt-1">
+                  <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input type="text" value={editForm.address} onChange={(e) => setEditForm(f => ({ ...f, address: e.target.value }))} placeholder="Rua, número, bairro, cidade - UF" className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Origem</label>
+                <div className="relative mt-1">
+                  <Globe className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <select value={editForm.origin} onChange={(e) => setEditForm(f => ({ ...f, origin: e.target.value }))} className="w-full h-10 pl-9 pr-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                    <option value="">Selecione...</option>
+                    {originOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
                 </div>
               </div>
               <div>
