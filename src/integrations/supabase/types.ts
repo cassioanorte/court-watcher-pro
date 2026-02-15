@@ -228,6 +228,176 @@ export type Database = {
           },
         ]
       }
+      crm_interactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          lead_id: string
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          lead_id: string
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          lead_id?: string
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_interactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_leads: {
+        Row: {
+          assigned_to: string | null
+          closed_at: string | null
+          company: string | null
+          converted_client_id: string | null
+          cpf: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          estimated_value: number | null
+          id: string
+          name: string
+          notes: string | null
+          origin: string | null
+          phone: string | null
+          stage: Database["public"]["Enums"]["crm_stage"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          closed_at?: string | null
+          company?: string | null
+          converted_client_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          estimated_value?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          origin?: string | null
+          phone?: string | null
+          stage?: Database["public"]["Enums"]["crm_stage"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          closed_at?: string | null
+          company?: string | null
+          converted_client_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          estimated_value?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          origin?: string | null
+          phone?: string | null
+          stage?: Database["public"]["Enums"]["crm_stage"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string
+          id: string
+          lead_id: string
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date: string
+          id?: string
+          lead_id: string
+          tenant_id: string
+          title: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string
+          id?: string
+          lead_id?: string
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dje_publications: {
         Row: {
           case_id: string | null
@@ -796,6 +966,13 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "staff" | "client" | "superadmin"
+      crm_stage:
+        | "contato_inicial"
+        | "reuniao_agendada"
+        | "proposta_enviada"
+        | "negociacao"
+        | "fechado_ganho"
+        | "fechado_perdido"
       process_source:
         | "TJRS_1G"
         | "TJRS_2G"
@@ -964,6 +1141,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "staff", "client", "superadmin"],
+      crm_stage: [
+        "contato_inicial",
+        "reuniao_agendada",
+        "proposta_enviada",
+        "negociacao",
+        "fechado_ganho",
+        "fechado_perdido",
+      ],
       process_source: [
         "TJRS_1G",
         "TJRS_2G",
