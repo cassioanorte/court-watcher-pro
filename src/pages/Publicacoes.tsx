@@ -76,15 +76,28 @@ const Publicacoes = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Não autenticado");
 
-      const { data, error } = await supabase.functions.invoke("fetch-dje-publications", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      // Run both searches in parallel:
+      // 1. DataJud (by process number - existing processes)
+      // 2. DJE scraping (by OAB - ALL publications)
+      const [datajudResult, djeResult] = await Promise.allSettled([
+        supabase.functions.invoke("fetch-dje-publications", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }),
+        supabase.functions.invoke("fetch-dje-by-oab", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }),
+      ]);
 
-      if (error) throw error;
+      const datajudFound = datajudResult.status === 'fulfilled' ? datajudResult.value.data?.found || 0 : 0;
+      const djeFound = djeResult.status === 'fulfilled' ? djeResult.value.data?.found || 0 : 0;
+      const total = datajudFound + djeFound;
+
+      if (datajudResult.status === 'rejected') console.error('DataJud error:', datajudResult.reason);
+      if (djeResult.status === 'rejected') console.error('DJE error:', djeResult.reason);
 
       toast({
         title: "Sincronização concluída",
-        description: `${data?.found || 0} publicação(ões) encontrada(s).`,
+        description: `${total} publicação(ões) encontrada(s) (${datajudFound} via DataJud, ${djeFound} via DJE).`,
       });
       fetchPublications();
     } catch (err: any) {
