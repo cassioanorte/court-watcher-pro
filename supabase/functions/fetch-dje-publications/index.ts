@@ -4,6 +4,7 @@ const corsHeaders = {
 };
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,26 +19,19 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
-
-    if (!firecrawlKey) {
-      return new Response(JSON.stringify({ error: 'Firecrawl não configurado' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
 
-    // Get user profile to find OAB and tenant
-    // Get all profiles with OAB in the tenant
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('tenant_id')
@@ -50,7 +44,6 @@ Deno.serve(async (req) => {
 
     const tenantId = userProfile.tenant_id;
 
-    // Use service client to get all OAB numbers in the tenant
     const serviceClient = createClient(
       supabaseUrl,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -70,80 +63,32 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Nenhum número da OAB cadastrado no escritório. Configure nas Configurações.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log(`OABs encontradas no escritório: ${oabNumbers.join(', ')}`);
-
-    // Get today and a week ago for broader search
-    const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    
-    const formatDate = (d: Date) => {
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      return `${dd}/${mm}/${yyyy}`;
-    };
+    console.log(`OABs encontradas: ${oabNumbers.join(', ')}`);
 
     const results: any[] = [];
 
-    // === TRF4 DJE Search for each OAB ===
     for (const oab of oabNumbers) {
       console.log(`Buscando publicações TRF4 para OAB: ${oab}`);
-      
       try {
-        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: `https://www.trf4.jus.br/trf4/diario/consulta_diario.php`,
-            formats: ['markdown'],
-            onlyMainContent: true,
-            waitFor: 5000,
-            actions: [
-              { type: 'write', selector: 'input[name="txtOAB"]', text: oab },
-              { type: 'write', selector: 'input[name="txtDataInicio"]', text: formatDate(weekAgo) },
-              { type: 'write', selector: 'input[name="txtDataFim"]', text: formatDate(today) },
-              { type: 'click', selector: 'input[type="submit"], button[type="submit"]' },
-              { type: 'wait', milliseconds: 5000 },
-            ],
-          }),
-        });
-
-        const scrapeData = await scrapeResponse.json();
-        
-        if (scrapeData.success || scrapeData.data) {
-          const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
-          console.log(`TRF4 scrape result for ${oab}: ${markdown.length} chars`);
-          
-          if (markdown.length > 100) {
-            const publications = parseTrf4Publications(markdown, oab, tenantId);
-            results.push(...publications);
-          }
-        } else {
-          console.error(`TRF4 scrape failed for ${oab}:`, JSON.stringify(scrapeData).substring(0, 500));
-        }
-      } catch (trf4Error) {
-        console.error(`TRF4 scrape error for ${oab}:`, trf4Error);
+        const pubs = await fetchTrf4Publications(oab, tenantId);
+        results.push(...pubs);
+        console.log(`TRF4: ${pubs.length} publicações encontradas para ${oab}`);
+      } catch (err) {
+        console.error(`Erro TRF4 para ${oab}:`, err);
       }
     }
 
-    // === Store results in database (serviceClient already created above) ===
+    // Store results
     if (results.length > 0) {
-
       for (const pub of results) {
         const { error: insertError } = await serviceClient
           .from('dje_publications')
           .upsert(pub, { onConflict: 'unique_hash' });
-        
         if (insertError) {
           console.error('Insert error:', insertError.message);
         }
       }
 
-      // Also create notifications for new publications
       for (const pub of results) {
         await serviceClient.from('notifications').insert({
           user_id: userId,
@@ -154,8 +99,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    return new Response(JSON.stringify({
+      success: true,
       found: results.length,
       publications: results.map(r => ({ title: r.title, source: r.source, date: r.publication_date }))
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -166,59 +111,181 @@ Deno.serve(async (req) => {
   }
 });
 
-function parseTrf4Publications(markdown: string, oabNumber: string, tenantId: string): any[] {
+// === TRF4: Direct POST to the search form ===
+async function fetchTrf4Publications(oab: string, tenantId: string): Promise<any[]> {
+  const url = 'https://www2.trf4.jus.br/trf4/diario/exibe_documento.php';
+  
+  // First, try the search form with POST
+  const formData = new URLSearchParams();
+  formData.append('txtOAB', oab);
+  formData.append('selOrigem', '');
+  formData.append('txtNumero', '');
+  formData.append('txtProcesso', '');
+  formData.append('selTipo', '');
+  formData.append('hdnInicio', '0');
+  formData.append('txtQtdPorPagina', '50');
+  formData.append('hdnOrderBy', '');
+
+  const searchUrl = 'https://www2.trf4.jus.br/trf4/diario/consulta_diario.php';
+  
+  const response = await fetch(searchUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+      'Origin': 'https://www2.trf4.jus.br',
+      'Referer': 'https://www2.trf4.jus.br/trf4/diario/consulta_diario.php',
+    },
+    body: formData.toString(),
+  });
+
+  const html = await response.text();
+  console.log(`TRF4 response: ${response.status}, ${html.length} chars`);
+  
+  // Log a snippet to debug
+  const snippet = html.substring(0, 1000);
+  console.log(`TRF4 snippet: ${snippet.substring(0, 500)}`);
+
+  return parseTrf4Html(html, oab, tenantId);
+}
+
+function parseTrf4Html(html: string, oabNumber: string, tenantId: string): any[] {
   const publications: any[] = [];
-  
-  // Split by potential publication separators
-  const sections = markdown.split(/---|\*\*\*|___/);
-  
-  for (const section of sections) {
-    const trimmed = section.trim();
-    if (!trimmed || trimmed.length < 50) continue;
+
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    if (!doc) return publications;
+
+    // Look for result rows - TRF4 typically uses tables for results
+    const tables = doc.querySelectorAll('table');
+    console.log(`Found ${tables.length} tables in TRF4 response`);
     
-    // Look for process numbers (CNJ format)
-    const processMatch = trimmed.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+    // Try to find publication entries in the HTML
+    // TRF4 results usually have links to documents with publication info
+    const links = doc.querySelectorAll('a[href*="download.php"], a[href*="exibe_documento"]');
+    console.log(`Found ${links.length} document links`);
+
+    // Also try to parse based on common patterns in the raw HTML
+    // Look for rows with publication data
+    const rows = doc.querySelectorAll('tr');
     
-    // Look for publication types
-    const typePatterns = [
-      { pattern: /despacho/i, type: 'Despacho' },
-      { pattern: /decisão/i, type: 'Decisão' },
-      { pattern: /sentença/i, type: 'Sentença' },
-      { pattern: /intimação/i, type: 'Intimação' },
-      { pattern: /acórdão/i, type: 'Acórdão' },
-      { pattern: /ato\s+ordinatório/i, type: 'Ato Ordinatório' },
-      { pattern: /certidão/i, type: 'Certidão' },
-      { pattern: /edital/i, type: 'Edital' },
-    ];
-    
-    let pubType = 'Publicação';
-    for (const tp of typePatterns) {
-      if (tp.pattern.test(trimmed)) {
-        pubType = tp.type;
-        break;
+    for (const row of rows) {
+      const cells = row.querySelectorAll('td');
+      if (cells.length < 2) continue;
+      
+      const rowText = row.textContent?.trim() || '';
+      if (rowText.length < 20) continue;
+      
+      // Skip header rows and navigation
+      if (rowText.includes('Documentos por Página') || rowText.includes('Todas as edições')) continue;
+      
+      // Look for edition links
+      const link = row.querySelector('a[href*="download.php"], a[href*="exibe_documento"]');
+      if (!link) continue;
+      
+      const linkText = link.textContent?.trim() || '';
+      const href = link.getAttribute('href') || '';
+      
+      if (!linkText || linkText.length < 5) continue;
+      
+      // Extract date from context if possible
+      let pubDate = new Date().toISOString().split('T')[0];
+      const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dateMatch) {
+        pubDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
       }
+
+      // Determine publication type
+      let pubType = 'Publicação';
+      const typePatterns = [
+        { pattern: /judicial/i, type: 'Judicial' },
+        { pattern: /administrativ/i, type: 'Administrativa' },
+        { pattern: /despacho/i, type: 'Despacho' },
+        { pattern: /decisão/i, type: 'Decisão' },
+        { pattern: /sentença/i, type: 'Sentença' },
+        { pattern: /intimação/i, type: 'Intimação' },
+        { pattern: /acórdão/i, type: 'Acórdão' },
+      ];
+      for (const tp of typePatterns) {
+        if (tp.pattern.test(linkText) || tp.pattern.test(rowText)) {
+          pubType = tp.type;
+          break;
+        }
+      }
+
+      // Extract process number if present
+      const processMatch = rowText.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+      
+      const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br/trf4/diario/${href}`;
+
+      const hash = `trf4_${oabNumber}_${pubDate}_${simpleHash(linkText + href)}`;
+
+      publications.push({
+        tenant_id: tenantId,
+        oab_number: oabNumber,
+        source: 'TRF4',
+        publication_date: pubDate,
+        title: linkText.substring(0, 300),
+        content: rowText.substring(0, 5000),
+        publication_type: pubType,
+        process_number: processMatch?.[1] || null,
+        organ: 'TRF4',
+        unique_hash: hash,
+        external_url: externalUrl,
+      });
     }
 
-    // Extract title (first meaningful line)
-    const lines = trimmed.split('\n').filter(l => l.trim().length > 0);
-    const title = lines[0]?.replace(/[#*]/g, '').trim().substring(0, 300) || 'Publicação DJE';
+    // If no table results, try regex-based parsing on raw HTML
+    if (publications.length === 0) {
+      console.log('No table results, trying regex parsing...');
+      
+      // Look for patterns like "Edição Judicial nº XX" or document references
+      const editionRegex = /Edi[çc][ãa]o\s+(Judicial|Administrativ[ao]|Extraordin[áa]ri[ao])\s+(?:n[ºo]\s*)?(\d+)/gi;
+      let match;
+      const seen = new Set<string>();
+      
+      while ((match = editionRegex.exec(html)) !== null) {
+        const edType = match[1];
+        const edNum = match[2];
+        const key = `${edType}_${edNum}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        
+        // Find nearby date
+        const context = html.substring(Math.max(0, match.index - 200), match.index + 200);
+        const dateMatch = context.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
+        
+        // Find nearby download link
+        const linkMatch = context.match(/href="([^"]*download\.php[^"]*)"/);
+        const externalUrl = linkMatch 
+          ? (linkMatch[1].startsWith('http') ? linkMatch[1] : `https://www2.trf4.jus.br/trf4/diario/${linkMatch[1]}`)
+          : null;
 
-    const hash = `trf4_${oabNumber}_${new Date().toISOString().split('T')[0]}_${simpleHash(trimmed.substring(0, 200))}`;
+        const title = `Edição ${edType} nº ${edNum}`;
+        const hash = `trf4_${oabNumber}_${pubDate}_${simpleHash(title)}`;
 
-    publications.push({
-      tenant_id: tenantId,
-      oab_number: oabNumber,
-      source: 'TRF4',
-      publication_date: new Date().toISOString().split('T')[0],
-      title,
-      content: trimmed.substring(0, 5000),
-      publication_type: pubType,
-      process_number: processMatch?.[1] || null,
-      organ: 'TRF4',
-      unique_hash: hash,
-    });
+        publications.push({
+          tenant_id: tenantId,
+          oab_number: oabNumber,
+          source: 'TRF4',
+          publication_date: pubDate,
+          title,
+          content: `Publicação no Diário Eletrônico - ${title}`,
+          publication_type: edType.includes('Judicial') ? 'Judicial' : 'Administrativa',
+          process_number: null,
+          organ: 'TRF4',
+          unique_hash: hash,
+          external_url: externalUrl,
+        });
+      }
+    }
+  } catch (parseError) {
+    console.error('Parse error:', parseError);
   }
-  
+
   return publications;
 }
 
@@ -232,29 +299,19 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
-// Normalize OAB to TRF4 format: "RS073679"
-// Input can be: "OAB/RS 73679", "OABRS73679", "RS 73679", "73679/RS", etc.
 function normalizeOab(raw: string | null): string {
   if (!raw) return '';
   const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  
-  // Remove leading "OAB" if present
   const withoutOab = clean.replace(/^OAB/, '');
   
-  // Try to extract state (2 letters) and number
   const match = withoutOab.match(/^([A-Z]{2})(\d+)$/);
   if (match) {
-    const state = match[1];
-    const num = match[2].padStart(6, '0');
-    return `${state}${num}`;
+    return `${match[1]}${match[2].padStart(6, '0')}`;
   }
   
-  // Try number first then state: "73679RS"
   const match2 = withoutOab.match(/^(\d+)([A-Z]{2})$/);
   if (match2) {
-    const state = match2[2];
-    const num = match2[1].padStart(6, '0');
-    return `${state}${num}`;
+    return `${match2[2]}${match2[1].padStart(6, '0')}`;
   }
   
   return withoutOab;
