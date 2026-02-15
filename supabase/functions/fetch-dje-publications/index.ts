@@ -31,6 +31,11 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
+    const serviceClient = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('tenant_id')
@@ -43,11 +48,6 @@ Deno.serve(async (req) => {
 
     const tenantId = userProfile.tenant_id;
 
-    const serviceClient = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
     const { data: profiles } = await serviceClient
       .from('profiles')
       .select('oab_number, user_id')
@@ -59,32 +59,17 @@ Deno.serve(async (req) => {
       .filter(oab => oab && oab.length >= 4);
 
     if (oabNumbers.length === 0) {
-      return new Response(JSON.stringify({ error: 'Nenhum número da OAB cadastrado no escritório. Configure nas Configurações.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Nenhum número da OAB cadastrado no escritório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     console.log(`OABs encontradas: ${oabNumbers.join(', ')}`);
 
     const results: any[] = [];
 
-    // Try all possible TRF4 base URLs
-    const baseUrls = [
-      'https://www.trf4.jus.br/trf4/diario',
-      'https://www2.trf4.jus.br/trf4/diario',
-    ];
-
-    for (const baseUrl of baseUrls) {
-      console.log(`Tentando base URL: ${baseUrl}`);
-      try {
-        const pubs = await fetchTrf4NotasExpediente(oabNumbers, tenantId, baseUrl);
-        if (pubs.length > 0) {
-          results.push(...pubs);
-          console.log(`Sucesso! ${pubs.length} notas encontradas em ${baseUrl}`);
-          break; // Found results, stop trying other URLs
-        }
-      } catch (err) {
-        console.error(`Erro com ${baseUrl}:`, err);
-      }
-    }
+    // Strategy: POST to consulta_diario.php with tipo_publicacao=3 (Judicial II)
+    // The form fields oab1-oab7 only work with Judicial II publications
+    const pubs = await fetchTrf4Publications(oabNumbers, tenantId);
+    results.push(...pubs);
 
     // Store results
     if (results.length > 0) {
@@ -100,7 +85,7 @@ Deno.serve(async (req) => {
       for (const pub of results) {
         await serviceClient.from('notifications').insert({
           user_id: userId,
-          title: `Nova nota de expediente - ${pub.source}`,
+          title: `Nova publicação - ${pub.publication_type || pub.source}`,
           body: pub.title.substring(0, 200),
           case_id: pub.case_id || null,
         }).then(() => {});
@@ -110,7 +95,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       found: results.length,
-      publications: results.map(r => ({ title: r.title, source: r.source, date: r.publication_date }))
+      publications: results.map(r => ({ title: r.title, source: r.source, date: r.publication_date, type: r.publication_type }))
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
@@ -119,179 +104,138 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchTrf4NotasExpediente(oabNumbers: string[], tenantId: string, baseUrl: string): Promise<any[]> {
-  const searchPageUrl = `${baseUrl}/consulta_diario.php`;
+async function fetchTrf4Publications(oabNumbers: string[], tenantId: string): Promise<any[]> {
+  const formPageUrl = 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php';
 
-  // Step 1: GET the page to get cookies
-  const getResponse = await fetch(searchPageUrl, {
+  // Step 1: GET the form page to obtain session cookies
+  console.log('Step 1: GET form page for cookies...');
+  const getResponse = await fetch(formPageUrl, {
     method: 'GET',
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml',
-      'Accept-Language': 'pt-BR,pt;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
     },
   });
 
   const cookies = getResponse.headers.get('set-cookie') || '';
-  const pageHtml = await getResponse.text();
-  console.log(`GET ${searchPageUrl}: ${getResponse.status}, ${pageHtml.length} chars`);
+  const cookieStr = cookies.split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+  console.log(`GET response: ${getResponse.status}, cookies: ${cookieStr ? 'yes' : 'none'}`);
 
-  // Step 2: Build form data
-  // oab1-oab7 are slots for up to 7 complete OAB numbers (maxlength=10 each)
+  // Step 2: POST to the SAME form page with correct parameters
+  // tipo_publicacao=3 is "Judicial II" (current active judicial publications)
+  // The form action says resultado_consulta.php but that URL returns 404
+  // The real processing happens when POSTing back to consulta_diario.php
   const formData = new URLSearchParams();
-  
-  // Fill OAB slots with our OAB numbers (up to 7)
-  for (let i = 0; i < Math.min(oabNumbers.length, 7); i++) {
-    formData.append(`oab${i + 1}`, oabNumbers[i]);
-  }
-  // Fill remaining slots empty
-  for (let i = oabNumbers.length; i < 7; i++) {
-    formData.append(`oab${i + 1}`, '');
+  formData.append('tipo_publicacao', '3'); // Judicial II - THIS IS THE KEY FIX (was 'JU' before)
+
+  // Fill OAB slots (up to 7)
+  for (let i = 0; i < 7; i++) {
+    formData.append(`oab${i + 1}`, i < oabNumbers.length ? oabNumbers[i] : '');
   }
 
-  // Select Judicial publication type
-  formData.append('tipo_publicacao', 'JU');
+  formData.append('orgao', '');
+  formData.append('localidade', '');
+  formData.append('unidade', '');
+  formData.append('serie_jud', '');
+  formData.append('serie_adm', '');
+  formData.append('serie_comp_jud', '');
+  formData.append('data_ini', '');
+  formData.append('data_fim', '');
   formData.append('numero', '');
   formData.append('processo', '');
-  formData.append('pesquisa_textual', '');
-  formData.append('docsPagina', '50');
+  formData.append('docsPagina', '100');
 
-  // Try multiple possible result URLs
-  const resultUrls = [
-    `${baseUrl}/resultado_consulta.php`,
-    `${baseUrl}/pesquisa_resultado.php`,
-    searchPageUrl, // POST back to itself
-  ];
+  console.log(`Step 2: POST to ${formPageUrl}`);
+  console.log(`Form: tipo_publicacao=3, oab1=${oabNumbers[0]}, oab2=${oabNumbers[1] || ''}`);
 
-  for (const resultUrl of resultUrls) {
-    console.log(`POST to: ${resultUrl}`);
-    console.log(`Form data: ${formData.toString().substring(0, 300)}`);
+  const postResponse = await fetch(formPageUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Origin': 'https://www.trf4.jus.br',
+      'Referer': formPageUrl,
+      ...(cookieStr ? { 'Cookie': cookieStr } : {}),
+    },
+    body: formData.toString(),
+  });
 
-    try {
-      const postResponse = await fetch(resultUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-          'Origin': baseUrl.replace('/trf4/diario', ''),
-          'Referer': searchPageUrl,
-          ...(cookies ? { 'Cookie': cookies.split(';')[0] } : {}),
-        },
-        body: formData.toString(),
-      });
+  const resultHtml = await postResponse.text();
+  console.log(`POST response: ${postResponse.status}, ${resultHtml.length} chars`);
 
-      const resultHtml = await postResponse.text();
-      console.log(`Response from ${resultUrl}: ${postResponse.status}, ${resultHtml.length} chars`);
+  // Log a clean text snippet to see what we got
+  const cleanText = resultHtml
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-      if (postResponse.status === 404 || resultHtml.length < 100) {
-        console.log('Skipping - 404 or empty response');
-        continue;
-      }
+  // Look for indicators of search results vs just the form
+  const hasSearchResults = /Resultado da Pesquisa|documentos? encontrados?|Nenhum documento|exibe_documento/i.test(resultHtml);
+  const hasOabMention = oabNumbers.some(oab => cleanText.includes(oab) || cleanText.includes(oab.replace(/^([A-Z]{2})0*/, '$1')));
 
-      // Check if this looks like a results page (not just the form again)
-      const cleanText = resultHtml
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+  console.log(`Has search results indicators: ${hasSearchResults}`);
+  console.log(`Has OAB mention: ${hasOabMention}`);
+  console.log(`Clean text snippet (chars 3000-5000): ${cleanText.substring(3000, 5000)}`);
 
-      console.log(`Result snippet: ${cleanText.substring(0, 2000)}`);
+  // Parse results - look for exibe_documento links (individual documents)
+  const publications = parseSearchResults(resultHtml, oabNumbers, tenantId);
 
-      // Check for result indicators
-      const hasResults = /encontrad|resultado|documento|exibe_documento|intimação|despacho|decisão|sentença|ato\s*ordinat/i.test(cleanText);
-      const isJustForm = /Informe ao menos|P[áa]gina n[ãa]o encontrada|File not found/i.test(cleanText);
-
-      if (isJustForm) {
-        console.log('Page is just form/error, skipping');
-        continue;
-      }
-
-      if (hasResults || resultHtml.length > 20000) {
-        console.log('Found potential results page!');
-        const pubs = parseNotasExpediente(resultHtml, oabNumbers, tenantId);
-        if (pubs.length > 0) return pubs;
-      }
-    } catch (fetchErr) {
-      console.error(`Error fetching ${resultUrl}:`, fetchErr);
-    }
+  if (publications.length === 0) {
+    console.log('No specific publications found from POST. Trying alternative: download edition PDFs...');
+    // Fallback: try to get the latest edition and find OAB mentions
+    const editionPubs = await tryEditionPdfFallback(resultHtml, oabNumbers, tenantId);
+    publications.push(...editionPubs);
   }
 
-  // Fallback: Try GET with query params
-  const getSearchUrl = `${searchPageUrl}?oab1=${oabNumbers[0]}&tipo_publicacao=JU&docsPagina=50`;
-  console.log(`Fallback GET: ${getSearchUrl}`);
-  
-  try {
-    const getResult = await fetch(getSearchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html',
-      },
-    });
-    const getHtml = await getResult.text();
-    console.log(`GET result: ${getResult.status}, ${getHtml.length} chars`);
-    
-    const cleanGet = getHtml
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    console.log(`GET snippet: ${cleanGet.substring(0, 1000)}`);
-    
-    const pubs = parseNotasExpediente(getHtml, oabNumbers, tenantId);
-    if (pubs.length > 0) return pubs;
-  } catch (e) {
-    console.error('GET fallback error:', e);
-  }
-
-  return [];
+  return publications;
 }
 
-function parseNotasExpediente(html: string, oabNumbers: string[], tenantId: string): any[] {
+function parseSearchResults(html: string, oabNumbers: string[], tenantId: string): any[] {
   const publications: any[] = [];
-  const oab = oabNumbers[0]; // primary OAB for hashing
 
-  // Look for document entries
-  const docRegex = /<a[^>]*href="([^"]*(?:exibe_documento|download)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let docMatch;
+  // Look for exibe_documento links - these are individual publication entries
+  const docRegex = /<a[^>]*href="([^"]*exibe_documento[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
 
-  while ((docMatch = docRegex.exec(html)) !== null) {
-    const href = docMatch[1];
-    const linkText = docMatch[2].replace(/<[^>]+>/g, '').trim();
+  while ((match = docRegex.exec(html)) !== null) {
+    const href = match[1];
+    const linkText = match[2].replace(/<[^>]+>/g, '').trim();
     if (!linkText || linkText.length < 3) continue;
+
+    // Skip if it's just an edition link
     if (/^Edi[çc][ãa]o\s+(Judicial|Administrativ)/i.test(linkText)) continue;
 
-    const contextStart = Math.max(0, docMatch.index - 500);
-    const contextEnd = Math.min(html.length, docMatch.index + docMatch[0].length + 500);
+    const contextStart = Math.max(0, match.index - 1000);
+    const contextEnd = Math.min(html.length, match.index + match[0].length + 1000);
     const context = html.substring(contextStart, contextEnd).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
     const processMatch = context.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
     const dateMatch = context.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
 
-    let pubType = 'Nota de Expediente';
+    let pubType = 'Publicação';
     for (const tp of [
+      { pattern: /ato\s*ordinat[óo]rio/i, type: 'Ato Ordinatório' },
       { pattern: /despacho/i, type: 'Despacho' },
-      { pattern: /decisão|decisao/i, type: 'Decisão' },
-      { pattern: /sentença|sentenca/i, type: 'Sentença' },
-      { pattern: /intimação|intimacao/i, type: 'Intimação' },
-      { pattern: /ato\s*ordinat/i, type: 'Ato Ordinatório' },
+      { pattern: /decis[ãa]o/i, type: 'Decisão' },
+      { pattern: /senten[çc]a/i, type: 'Sentença' },
+      { pattern: /intima[çc][ãa]o/i, type: 'Intimação' },
+      { pattern: /ac[óo]rd[ãa]o/i, type: 'Acórdão' },
     ]) {
       if (tp.pattern.test(context)) { pubType = tp.type; break; }
     }
 
-    // Determine which OAB this belongs to
-    let matchedOab = oab;
+    let matchedOab = oabNumbers[0];
     for (const o of oabNumbers) {
-      if (context.includes(o) || context.includes(o.replace(/^([A-Z]{2})0*/, '$1'))) {
-        matchedOab = o;
-        break;
-      }
+      if (context.includes(o)) { matchedOab = o; break; }
     }
 
-    const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br/trf4/diario/${href}`;
+    const externalUrl = href.startsWith('http') ? href : `https://www.trf4.jus.br/trf4/diario/${href}`;
     const hash = `trf4_${matchedOab}_${pubDate}_${simpleHash(linkText + href)}`;
 
     publications.push({
@@ -309,7 +253,93 @@ function parseNotasExpediente(html: string, oabNumbers: string[], tenantId: stri
     });
   }
 
+  // Also look for table rows with publication data (common DJE format)
+  // Pattern: <tr> containing process number, type, and content
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let trMatch;
+
+  while ((trMatch = trRegex.exec(html)) !== null) {
+    const row = trMatch[1];
+    const rowText = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // Check if this row mentions any of our OAB numbers
+    const mentionsOab = oabNumbers.some(oab => rowText.includes(oab));
+    if (!mentionsOab) continue;
+
+    // Check if this looks like a publication row (has process number or publication type)
+    const processMatch = rowText.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+    if (!processMatch) continue;
+
+    // Avoid duplicates
+    const existingProcess = publications.some(p => p.process_number === processMatch[1]);
+    if (existingProcess) continue;
+
+    const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
+
+    let pubType = 'Publicação';
+    for (const tp of [
+      { pattern: /ato\s*ordinat[óo]rio/i, type: 'Ato Ordinatório' },
+      { pattern: /despacho/i, type: 'Despacho' },
+      { pattern: /decis[ãa]o/i, type: 'Decisão' },
+      { pattern: /senten[çc]a/i, type: 'Sentença' },
+      { pattern: /intima[çc][ãa]o/i, type: 'Intimação' },
+      { pattern: /ac[óo]rd[ãa]o/i, type: 'Acórdão' },
+    ]) {
+      if (tp.pattern.test(rowText)) { pubType = tp.type; break; }
+    }
+
+    let matchedOab = oabNumbers[0];
+    for (const o of oabNumbers) {
+      if (rowText.includes(o)) { matchedOab = o; break; }
+    }
+
+    const hash = `trf4_${matchedOab}_${pubDate}_${simpleHash(rowText)}`;
+    const title = rowText.length > 100 ? rowText.substring(0, 100) + '...' : rowText;
+
+    publications.push({
+      tenant_id: tenantId,
+      oab_number: matchedOab,
+      source: 'TRF4',
+      publication_date: pubDate,
+      title,
+      content: rowText.substring(0, 5000),
+      publication_type: pubType,
+      process_number: processMatch[1],
+      organ: 'TRF4',
+      unique_hash: hash,
+      external_url: null,
+    });
+  }
+
+  console.log(`Parsed ${publications.length} publications from search results`);
   return publications;
+}
+
+async function tryEditionPdfFallback(formHtml: string, oabNumbers: string[], tenantId: string): Promise<any[]> {
+  // Extract download links for Judicial II editions from the form page
+  const downloadRegex = /href="([^"]*download\.php\?id_publicacao=\d+)"[^>]*>[\s\S]*?<b>(Edi[çc][ãa]o Judicial[^<]*)<\/b>/gi;
+  let match;
+  const editionLinks: { url: string; name: string }[] = [];
+
+  while ((match = downloadRegex.exec(formHtml)) !== null) {
+    // Only get Judicial editions (not Administrative)
+    if (/judicial/i.test(match[2]) && !/administrativa/i.test(match[2])) {
+      const url = match[1].startsWith('http') ? match[1] : `https://www.trf4.jus.br/trf4/diario/${match[1]}`;
+      editionLinks.push({ url, name: match[2].trim() });
+    }
+  }
+
+  console.log(`Found ${editionLinks.length} Judicial edition links for PDF fallback`);
+
+  // We won't actually download PDFs (too heavy for edge functions)
+  // Instead, log what we found so the user knows the scraping approach doesn't work
+  if (editionLinks.length === 0) {
+    console.log('No Judicial edition links found. The TRF4 DJE search requires JavaScript execution which is not available in edge functions.');
+    console.log('Consider using an alternative data source or API for OAB-specific publications.');
+  }
+
+  return [];
 }
 
 function simpleHash(str: string): string {
