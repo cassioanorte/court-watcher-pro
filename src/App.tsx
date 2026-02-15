@@ -54,7 +54,7 @@ const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
   if (loading) return <div className="flex items-center justify-center min-h-screen text-muted-foreground">Carregando...</div>;
   if (!user) return <Navigate to="/auth" replace />;
   if (role === "client") return <Navigate to="/portal" replace />;
-  if (role === "superadmin") return <Navigate to="/admin" replace />;
+  
   if (tenantBlocked) return <TenantBlockedScreen />;
   return <>{children}</>;
 };
