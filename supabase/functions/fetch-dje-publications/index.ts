@@ -110,28 +110,28 @@ async function fetchWithFirecrawl(apiKey: string, oabNumbers: string[], tenantId
 
   console.log(`Scraping ${searchUrl} with Firecrawl for OABs: ${oabNumbers.join(', ')}`);
 
-  // Use Firecrawl scrape with actions to:
-  // 1. Click "Judicial II" radio button
-  // 2. Fill OAB fields
-  // 3. Click "Pesquisar" button
-  // 4. Wait for results
+  // Build JS script to fill form and submit programmatically
+  // The OAB fields are hidden until "Judicial II" is selected via JS
+  const oabAssignments = oabNumbers
+    .slice(0, 7)
+    .map((oab, i) => `document.getElementById('oab${i + 1}').value = '${oab}';`)
+    .join('\n');
+
+  const formScript = `
+    // Select Judicial II radio
+    document.getElementById('tipo_publicacao_C').click();
+    // Show OAB fields (they are hidden by default)
+    document.getElementById('processo_oab').style.display = '';
+    // Fill OAB fields
+    ${oabAssignments}
+    // Submit the form
+    document.forms['form'].submit();
+  `;
+
   const actions = [
-    // Select "Judicial II" publication type (value=3)
-    { type: "click", selector: "#tipo_publicacao_C" },
-    { type: "wait", milliseconds: 500 },
-    // Fill OAB fields using "write" action (Firecrawl's text input type)
-    { type: "write", selector: "#oab1", text: oabNumbers[0] || "" },
+    { type: "executeJavascript", script: formScript },
+    { type: "wait", milliseconds: 5000 },
   ];
-
-  // Add more OAB fields if available
-  if (oabNumbers[1]) actions.push({ type: "write", selector: "#oab2", text: oabNumbers[1] });
-  if (oabNumbers[2]) actions.push({ type: "write", selector: "#oab3", text: oabNumbers[2] });
-  if (oabNumbers[3]) actions.push({ type: "write", selector: "#oab4", text: oabNumbers[3] });
-
-  // Click the search button
-  actions.push({ type: "click", selector: "#botaoPesquisar" });
-  // Wait for results to load
-  actions.push({ type: "wait", milliseconds: 3000 });
 
   try {
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
