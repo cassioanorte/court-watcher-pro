@@ -71,6 +71,49 @@ Deno.serve(async (req) => {
 // Folders to check besides INBOX
 const FOLDERS_TO_CHECK = ['INBOX', '[Gmail]/Spam', 'Junk', 'Spam', 'INBOX.Spam', 'INBOX.Junk'];
 
+/**
+ * Convert HTML to clean text preserving proper spacing.
+ * mailparser's built-in text conversion often joins words together.
+ */
+function htmlToCleanText(html: string): string {
+  let text = html;
+  // Replace block-level tags with newlines
+  text = text.replace(/<\/(p|div|br|tr|li|h[1-6]|blockquote|pre|section|article)>/gi, '\n');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/(td|th)>/gi, ' ');
+  // Remove all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, ' ');
+  // Decode common HTML entities
+  text = text.replace(/&nbsp;/gi, ' ');
+  text = text.replace(/&amp;/gi, '&');
+  text = text.replace(/&lt;/gi, '<');
+  text = text.replace(/&gt;/gi, '>');
+  text = text.replace(/&quot;/gi, '"');
+  text = text.replace(/&#39;/gi, "'");
+  text = text.replace(/&aacute;/gi, 'á');
+  text = text.replace(/&eacute;/gi, 'é');
+  text = text.replace(/&iacute;/gi, 'í');
+  text = text.replace(/&oacute;/gi, 'ó');
+  text = text.replace(/&uacute;/gi, 'ú');
+  text = text.replace(/&atilde;/gi, 'ã');
+  text = text.replace(/&otilde;/gi, 'õ');
+  text = text.replace(/&ccedil;/gi, 'ç');
+  text = text.replace(/&Aacute;/gi, 'Á');
+  text = text.replace(/&Eacute;/gi, 'É');
+  text = text.replace(/&Iacute;/gi, 'Í');
+  text = text.replace(/&Oacute;/gi, 'Ó');
+  text = text.replace(/&Uacute;/gi, 'Ú');
+  text = text.replace(/&Atilde;/gi, 'Ã');
+  text = text.replace(/&Otilde;/gi, 'Õ');
+  text = text.replace(/&Ccedil;/gi, 'Ç');
+  text = text.replace(/&#\d+;/g, ' ');
+  // Collapse multiple spaces (but not newlines)
+  text = text.replace(/[^\S\n]+/g, ' ');
+  // Collapse multiple newlines
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
 async function processMailbox(serviceClient: any, cred: any) {
   const client = new ImapFlow({
     host: cred.imap_host,
@@ -107,7 +150,6 @@ async function processMailbox(serviceClient: any, cred: any) {
         lock = await client.getMailboxLock(folder);
         console.log(`📂 Checking folder: ${folder}`);
       } catch {
-        // Folder doesn't exist, skip silently
         continue;
       }
 
@@ -133,7 +175,14 @@ async function processMailbox(serviceClient: any, cred: any) {
               try {
                 const parsed = await simpleParser(msg.source);
                 const subject = parsed.subject || '';
-                const textBody = parsed.text || '';
+                
+                // Prefer HTML with proper conversion, fallback to text
+                let textBody = '';
+                if (parsed.html) {
+                  textBody = htmlToCleanText(parsed.html);
+                } else if (parsed.text) {
+                  textBody = parsed.text;
+                }
                 
                 if (!textBody && !subject) continue;
 
