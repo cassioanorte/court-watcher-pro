@@ -174,6 +174,14 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     const trimmed = section.trim();
     if (!trimmed) continue;
 
+    // Skip header/index sections that just list processes and lawyers
+    if (/NESTE E-MAIL \d+ PROCESSOS?\b/i.test(trimmed) || 
+        /PROCESSOS? EST[ÃA]O? LISTADOS?/i.test(trimmed) ||
+        /ESTE E-MAIL CONT[ÉE]M AS INTIMA[ÇC][ÕO]ES/i.test(trimmed)) {
+      // Only skip if section is short (header-like) — under 500 chars
+      if (trimmed.length < 500) continue;
+    }
+
     // Find process numbers in this section
     const procsInSection: string[] = [];
     let match;
