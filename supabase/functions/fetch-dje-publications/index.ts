@@ -37,23 +37,45 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub;
 
     // Get user profile to find OAB and tenant
-    const { data: profile, error: profileError } = await supabase
+    // Get all profiles with OAB in the tenant
+    const { data: userProfile } = await supabase
       .from('profiles')
-      .select('oab_number, tenant_id')
+      .select('tenant_id')
       .eq('user_id', userId)
       .single();
 
-    if (profileError || !profile?.oab_number) {
-      return new Response(JSON.stringify({ error: 'Número da OAB não encontrado no perfil. Configure nas configurações.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!userProfile?.tenant_id) {
+      return new Response(JSON.stringify({ error: 'Perfil não encontrado.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const oabNumber = profile.oab_number.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const tenantId = profile.tenant_id;
+    const tenantId = userProfile.tenant_id;
 
-    // Get today and yesterday dates
+    // Use service client to get all OAB numbers in the tenant
+    const serviceClient = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data: profiles } = await serviceClient
+      .from('profiles')
+      .select('oab_number, user_id')
+      .eq('tenant_id', tenantId)
+      .not('oab_number', 'is', null);
+
+    const oabNumbers = (profiles || [])
+      .map(p => normalizeOab(p.oab_number))
+      .filter(oab => oab && oab.length >= 4);
+
+    if (oabNumbers.length === 0) {
+      return new Response(JSON.stringify({ error: 'Nenhum número da OAB cadastrado no escritório. Configure nas Configurações.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    console.log(`OABs encontradas no escritório: ${oabNumbers.join(', ')}`);
+
+    // Get today and a week ago for broader search
     const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
     
     const formatDate = (d: Date) => {
       const dd = String(d.getDate()).padStart(2, '0');
@@ -64,56 +86,52 @@ Deno.serve(async (req) => {
 
     const results: any[] = [];
 
-    // === TRF4 DJE Search ===
-    console.log(`Buscando publicações TRF4 para OAB: ${oabNumber}`);
-    
-    // TRF4 DJE uses a form - try scraping with search parameters
-    const trf4Url = `https://www.trf4.jus.br/trf4/diario/consulta_diario.php`;
-    
-    try {
-      const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${firecrawlKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: trf4Url,
-          formats: ['markdown'],
-          onlyMainContent: true,
-          waitFor: 3000,
-          actions: [
-            { type: 'fill', selector: 'input[name="txtOAB"]', value: oabNumber },
-            { type: 'fill', selector: 'input[name="txtDataInicio"]', value: formatDate(yesterday) },
-            { type: 'fill', selector: 'input[name="txtDataFim"]', value: formatDate(today) },
-            { type: 'click', selector: 'input[type="submit"], button[type="submit"]' },
-            { type: 'wait', milliseconds: 3000 },
-          ],
-        }),
-      });
-
-      const scrapeData = await scrapeResponse.json();
+    // === TRF4 DJE Search for each OAB ===
+    for (const oab of oabNumbers) {
+      console.log(`Buscando publicações TRF4 para OAB: ${oab}`);
       
-      if (scrapeData.success || scrapeData.data) {
-        const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
-        console.log('TRF4 scrape result length:', markdown.length);
+      try {
+        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: `https://www.trf4.jus.br/trf4/diario/consulta_diario.php`,
+            formats: ['markdown'],
+            onlyMainContent: true,
+            waitFor: 5000,
+            actions: [
+              { type: 'write', selector: 'input[name="txtOAB"]', text: oab },
+              { type: 'write', selector: 'input[name="txtDataInicio"]', text: formatDate(weekAgo) },
+              { type: 'write', selector: 'input[name="txtDataFim"]', text: formatDate(today) },
+              { type: 'click', selector: 'input[type="submit"], button[type="submit"]' },
+              { type: 'wait', milliseconds: 5000 },
+            ],
+          }),
+        });
+
+        const scrapeData = await scrapeResponse.json();
         
-        // Parse the markdown to find publication entries
-        const publications = parseTrf4Publications(markdown, oabNumber, tenantId);
-        results.push(...publications);
-      } else {
-        console.error('TRF4 scrape failed:', JSON.stringify(scrapeData));
+        if (scrapeData.success || scrapeData.data) {
+          const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
+          console.log(`TRF4 scrape result for ${oab}: ${markdown.length} chars`);
+          
+          if (markdown.length > 100) {
+            const publications = parseTrf4Publications(markdown, oab, tenantId);
+            results.push(...publications);
+          }
+        } else {
+          console.error(`TRF4 scrape failed for ${oab}:`, JSON.stringify(scrapeData).substring(0, 500));
+        }
+      } catch (trf4Error) {
+        console.error(`TRF4 scrape error for ${oab}:`, trf4Error);
       }
-    } catch (trf4Error) {
-      console.error('TRF4 scrape error:', trf4Error);
     }
 
-    // === Store results in database ===
+    // === Store results in database (serviceClient already created above) ===
     if (results.length > 0) {
-      const serviceClient = createClient(
-        supabaseUrl,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      );
 
       for (const pub of results) {
         const { error: insertError } = await serviceClient
@@ -212,4 +230,32 @@ function simpleHash(str: string): string {
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
+}
+
+// Normalize OAB to TRF4 format: "RS073679"
+// Input can be: "OAB/RS 73679", "OABRS73679", "RS 73679", "73679/RS", etc.
+function normalizeOab(raw: string | null): string {
+  if (!raw) return '';
+  const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  
+  // Remove leading "OAB" if present
+  const withoutOab = clean.replace(/^OAB/, '');
+  
+  // Try to extract state (2 letters) and number
+  const match = withoutOab.match(/^([A-Z]{2})(\d+)$/);
+  if (match) {
+    const state = match[1];
+    const num = match[2].padStart(6, '0');
+    return `${state}${num}`;
+  }
+  
+  // Try number first then state: "73679RS"
+  const match2 = withoutOab.match(/^(\d+)([A-Z]{2})$/);
+  if (match2) {
+    const state = match2[2];
+    const num = match2[1].padStart(6, '0');
+    return `${state}${num}`;
+  }
+  
+  return withoutOab;
 }
