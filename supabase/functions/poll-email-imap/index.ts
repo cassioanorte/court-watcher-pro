@@ -68,6 +68,9 @@ Deno.serve(async (req) => {
   }
 });
 
+// Folders to check besides INBOX
+const FOLDERS_TO_CHECK = ['INBOX', '[Gmail]/Spam', 'Junk', 'Spam', 'INBOX.Spam', 'INBOX.Junk'];
+
 async function processMailbox(serviceClient: any, cred: any) {
   const client = new ImapFlow({
     host: cred.imap_host,
@@ -91,81 +94,89 @@ async function processMailbox(serviceClient: any, cred: any) {
     await client.connect();
     console.log('IMAP connected successfully');
 
-    const lock = await client.getMailboxLock('INBOX');
+    const senders: string[] = cred.senders || [];
+    
+    // Search for emails from last 30 days
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
 
-    try {
-      const senders: string[] = cred.senders || [];
-      
-      // Search for emails from last 30 days
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
+    // Try each folder
+    for (const folder of FOLDERS_TO_CHECK) {
+      let lock;
+      try {
+        lock = await client.getMailboxLock(folder);
+        console.log(`📂 Checking folder: ${folder}`);
+      } catch {
+        // Folder doesn't exist, skip silently
+        continue;
+      }
 
-      for (const sender of senders) {
-        console.log(`Searching emails from: ${sender} (since ${since.toISOString().split('T')[0]})`);
-        
-        const searchCriteria = {
-          from: sender,
-          since: since,
-        };
+      try {
+        for (const sender of senders) {
+          console.log(`Searching emails from: ${sender} in ${folder} (since ${since.toISOString().split('T')[0]})`);
+          
+          const searchCriteria = {
+            from: sender,
+            since: since,
+          };
 
-        try {
-          const messages = client.fetch(searchCriteria, {
-            source: true,
-            envelope: true,
-            uid: true,
-          });
+          try {
+            const messages = client.fetch(searchCriteria, {
+              source: true,
+              envelope: true,
+              uid: true,
+            });
 
-          for await (const msg of messages) {
-            emailsScanned++;
-            
-            try {
-              const parsed = await simpleParser(msg.source);
-              const subject = parsed.subject || '';
-              const textBody = parsed.text || '';
+            for await (const msg of messages) {
+              emailsScanned++;
               
-              if (!textBody && !subject) continue;
+              try {
+                const parsed = await simpleParser(msg.source);
+                const subject = parsed.subject || '';
+                const textBody = parsed.text || '';
+                
+                if (!textBody && !subject) continue;
 
-              console.log(`Processing email ${emailsScanned}: ${subject.substring(0, 80)}`);
+                console.log(`Processing email ${emailsScanned}: ${subject.substring(0, 80)}`);
 
-              const apiKey = await generateApiKey(cred.tenant_id);
-              const parseResponse = await fetch(
-                `${Deno.env.get('SUPABASE_URL')}/functions/v1/parse-email-publications`,
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    email_body: textBody.substring(0, 50000),
-                    email_subject: subject,
-                    email_from: sender,
-                    tenant_id: cred.tenant_id,
-                    api_key: apiKey,
-                  }),
+                const apiKey = await generateApiKey(cred.tenant_id);
+                const parseResponse = await fetch(
+                  `${Deno.env.get('SUPABASE_URL')}/functions/v1/parse-email-publications`,
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      email_body: textBody.substring(0, 50000),
+                      email_subject: subject,
+                      email_from: sender,
+                      tenant_id: cred.tenant_id,
+                      api_key: apiKey,
+                    }),
+                  }
+                );
+
+                if (parseResponse.ok) {
+                  const result = await parseResponse.json();
+                  totalFound += result.found || 0;
+                  totalInserted += result.inserted || 0;
+                } else {
+                  const errText = await parseResponse.text();
+                  console.error(`Parse error for "${subject.substring(0, 40)}": ${errText.substring(0, 200)}`);
+                  errors++;
                 }
-              );
-
-              if (parseResponse.ok) {
-                const result = await parseResponse.json();
-                totalFound += result.found || 0;
-                totalInserted += result.inserted || 0;
-              } else {
-                const errText = await parseResponse.text();
-                console.error(`Parse error for "${subject.substring(0, 40)}": ${errText.substring(0, 200)}`);
+              } catch (parseErr) {
+                console.error(`Error parsing message ${emailsScanned}:`, parseErr instanceof Error ? parseErr.message : parseErr);
                 errors++;
               }
-            } catch (parseErr) {
-              console.error(`Error parsing message ${emailsScanned}:`, parseErr instanceof Error ? parseErr.message : parseErr);
-              errors++;
-              // Continue processing remaining emails
             }
+          } catch (fetchErr) {
+            console.error(`Error fetching from sender ${sender} in ${folder}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
+            errors++;
           }
-        } catch (fetchErr) {
-          console.error(`Error fetching from sender ${sender}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
-          errors++;
-          // Continue with next sender
         }
+      } finally {
+        lock.release();
       }
-    } finally {
-      lock.release();
     }
   } finally {
     await client.logout().catch(() => {});
