@@ -231,12 +231,48 @@ const EmailIntegrationSetup = () => {
       </div>
 
       {provider === "gmail" && (
-        <div className="text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded p-3">
-          <strong>Gmail requer "Senha de App"</strong>: Acesse{" "}
-          <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-            myaccount.google.com/apppasswords
-          </a>
-          , crie uma senha de aplicativo e use-a aqui.
+        <div className="text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded p-3 space-y-1">
+          <strong>📋 Gmail — Passo a passo:</strong>
+          <ol className="list-decimal list-inside space-y-0.5 ml-1">
+            <li>Ative a <strong>verificação em duas etapas</strong> na sua conta Google</li>
+            <li>Acesse{" "}
+              <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-medium">
+                myaccount.google.com/apppasswords
+              </a>
+            </li>
+            <li>Crie uma nova senha de aplicativo (nome: "Portal Jurídico" ou similar)</li>
+            <li>Copie a senha de 16 caracteres gerada e cole no campo <strong>Senha</strong> acima</li>
+          </ol>
+          <p className="mt-1 text-amber-600 dark:text-amber-400">⚠️ <strong>Não use a senha normal do Gmail</strong> — use apenas a senha de app gerada.</p>
+        </div>
+      )}
+
+      {provider === "outlook" && (
+        <div className="text-xs text-muted-foreground bg-blue-500/10 border border-blue-500/20 rounded p-3 space-y-1">
+          <strong>📋 Outlook / Microsoft 365 — Passo a passo:</strong>
+          <ol className="list-decimal list-inside space-y-0.5 ml-1">
+            <li>Acesse <a href="https://outlook.live.com/mail/0/options/mail/accounts" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-medium">Configurações do Outlook</a></li>
+            <li>Verifique se o <strong>acesso IMAP</strong> está habilitado</li>
+            <li>Se usar autenticação em dois fatores, gere uma <strong>senha de app</strong> nas configurações de segurança</li>
+            <li>Use seu e-mail completo e a senha (ou senha de app) nos campos acima</li>
+          </ol>
+        </div>
+      )}
+
+      {provider === "yahoo" && (
+        <div className="text-xs text-muted-foreground bg-purple-500/10 border border-purple-500/20 rounded p-3 space-y-1">
+          <strong>📋 Yahoo — Passo a passo:</strong>
+          <ol className="list-decimal list-inside space-y-0.5 ml-1">
+            <li>Acesse <a href="https://login.yahoo.com/account/security" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-medium">Segurança da conta Yahoo</a></li>
+            <li>Gere uma <strong>senha de app</strong> para "Outro aplicativo"</li>
+            <li>Cole a senha gerada no campo <strong>Senha</strong> acima</li>
+          </ol>
+        </div>
+      )}
+
+      {(provider === "uol" || provider === "terra" || provider === "custom") && (
+        <div className="text-xs text-muted-foreground bg-muted border rounded p-3">
+          <strong>💡 Dica:</strong> Use seu e-mail completo e senha de acesso. Se o provedor exigir senha de aplicativo, gere uma nas configurações de segurança da sua conta.
         </div>
       )}
 
