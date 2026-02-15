@@ -220,13 +220,15 @@ const CRM = () => {
   };
 
   const handleAddInteraction = async () => {
-    if (!selectedLead || !tenantId || !user || !newInteractionDesc.trim()) return;
+    if (!selectedLead || !tenantId || !user) return;
+    const desc = newInteractionDesc.trim() || (newInteractionType === "meeting" ? `Reunião com ${selectedLead.name}` : "");
+    if (!desc) return;
     setSavingInteraction(true);
     const { data, error } = await supabase.from("crm_interactions").insert({
       lead_id: selectedLead.id,
       tenant_id: tenantId,
       type: newInteractionType,
-      description: newInteractionDesc.trim(),
+      description: desc,
       created_by: user.id,
     }).select("*").single();
     if (!error && data) {
@@ -238,8 +240,8 @@ const CRM = () => {
         const end_at = `${meetingDate}T${meetingEndTime}:00`;
         const videoLink = meetingOnline ? generateMeetingLink(selectedLead.name) : null;
         const description = videoLink
-          ? `${newInteractionDesc.trim()}\n\n🔗 Link da videochamada: ${videoLink}`
-          : newInteractionDesc.trim();
+          ? `${desc}\n\n🔗 Link da videochamada: ${videoLink}`
+          : desc;
         const { data: apptData } = await supabase.from("appointments").insert({
           tenant_id: tenantId,
           user_id: user.id,
@@ -775,7 +777,7 @@ const CRM = () => {
                             <CalendarIcon className="w-3 h-3" /> Será adicionada à agenda
                             {meetingOnline && <><LinkIcon className="w-3 h-3 ml-1" /> com videochamada</>}
                           </p>
-                          <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !newInteractionDesc.trim() || !meetingDate} className="gap-1.5">
+                          <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !meetingDate} className="gap-1.5">
                             {savingInteraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CalendarIcon className="w-3.5 h-3.5" /> Agendar Reunião</>}
                           </Button>
                         </div>
