@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import EmailIntegrationSetup from "@/components/EmailIntegrationSetup";
 
 interface Publication {
   id: string;
@@ -163,6 +164,8 @@ const Publicacoes = () => {
           {syncing ? "Buscando..." : "Buscar Publicações"}
         </Button>
       </div>
+
+      <EmailIntegrationSetup />
 
       {!profile?.oab_number && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 text-sm text-amber-700 dark:text-amber-400">
