@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.parse-email-publications]
 verify_jwt = false
+
+[functions.poll-email-imap]
+verify_jwt = false
