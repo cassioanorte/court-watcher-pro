@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square } from "lucide-react";
+import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale } from "lucide-react";
+import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -351,6 +352,38 @@ const Publicacoes = () => {
                     {pub.process_number && <span className="font-mono">{pub.process_number}</span>}
                     <span>{new Date(pub.publication_date).toLocaleDateString("pt-BR")}</span>
                   </div>
+                  {/* Tribunal quick links */}
+                  {(() => {
+                    const allText = [pub.title, pub.content || "", pub.process_number || ""].join(" ");
+                    const processes = extractProcessNumbers(allText);
+                    if (processes.length === 0 && pub.process_number) {
+                      const url = getCourtUrl(pub.process_number);
+                      if (url) processes.push(pub.process_number);
+                    }
+                    if (processes.length === 0) return null;
+                    return (
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {processes.map((pn) => {
+                          const url = getCourtUrl(pn);
+                          if (!url) return null;
+                          return (
+                            <a
+                              key={pn}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                              title={`Abrir ${pn} no tribunal`}
+                            >
+                              <Scale className="w-3 h-3" />
+                              {processes.length > 1 ? pn.slice(-13) : "Tribunal"}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -413,9 +446,38 @@ const Publicacoes = () => {
                     {new Date(selectedPub.publication_date).toLocaleDateString("pt-BR")}
                   </span>
                 </div>
-                {selectedPub.process_number && (
-                  <p className="text-sm font-mono text-muted-foreground">Processo: {selectedPub.process_number}</p>
-                )}
+                {/* Process numbers with tribunal links */}
+                {(() => {
+                  const allText = [selectedPub.title, selectedPub.content || "", selectedPub.process_number || ""].join(" ");
+                  const processes = extractProcessNumbers(allText);
+                  if (processes.length === 0 && selectedPub.process_number) {
+                    processes.push(selectedPub.process_number);
+                  }
+                  if (processes.length === 0) return null;
+                  return (
+                    <div className="space-y-1.5">
+                      {processes.map((pn) => {
+                        const url = getCourtUrl(pn);
+                        return (
+                          <div key={pn} className="flex items-center gap-2">
+                            <span className="text-sm font-mono text-muted-foreground">{pn}</span>
+                            {url && (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                              >
+                                <Scale className="w-3 h-3" />
+                                Abrir no tribunal
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 {/* Extract parties from content */}
                 {selectedPub.content && (() => {
                   const text = selectedPub.content!;
