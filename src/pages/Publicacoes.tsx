@@ -3,12 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search } from "lucide-react";
+import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import EmailIntegrationSetup from "@/components/EmailIntegrationSetup";
 
 interface Publication {
@@ -109,6 +110,20 @@ const Publicacoes = () => {
       .eq("id", pub.id);
     if (!error) {
       setPublications(prev => prev.map(p => p.id === pub.id ? { ...p, read: !p.read } : p));
+    }
+  };
+
+  const handleDelete = async (pub: Publication) => {
+    const { error } = await supabase
+      .from("dje_publications")
+      .delete()
+      .eq("id", pub.id);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      setPublications(prev => prev.filter(p => p.id !== pub.id));
+      if (selectedPub?.id === pub.id) setSelectedPub(null);
+      toast({ title: "Publicação excluída" });
     }
   };
 
@@ -252,13 +267,40 @@ const Publicacoes = () => {
                     <span>{new Date(pub.publication_date).toLocaleDateString("pt-BR")}</span>
                   </div>
                 </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleRead(pub); }}
-                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0 p-1"
-                  title={pub.read ? "Marcar como não lida" : "Marcar como lida"}
-                >
-                  {pub.read ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleRead(pub); }}
+                    className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                    title={pub.read ? "Marcar como não lida" : "Marcar como lida"}
+                  >
+                    {pub.read ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                        title="Excluir publicação"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir publicação?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação não pode ser desfeita. A publicação será removida permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(pub)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </motion.div>
           ))}
