@@ -4,7 +4,7 @@ const corsHeaders = {
 };
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ImapClient } from "jsr:@workingdevshero/deno-imap";
+import { ImapClient, searchAndFetchMessages } from "jsr:@workingdevshero/deno-imap";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -76,44 +76,32 @@ async function processMailbox(serviceClient: any, cred: any) {
   });
 
   try {
-    // ImapClient connect() handles login internally
     await client.connect();
-
-    // Select INBOX
-    const inbox = await client.select("INBOX");
-    console.log(`Mailbox INBOX selected, ${inbox?.exists || 0} messages`);
+    await client.authenticate();
 
     const senders: string[] = cred.senders || [];
     let totalFound = 0;
     let totalInserted = 0;
     let emailsScanned = 0;
 
-    // Search for recent emails from court senders
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    const sinceStr = formatImapDate(threeDaysAgo);
-
     for (const sender of senders) {
       try {
-        // Search for messages from this sender since 3 days ago
-        const searchResult = await client.search(`FROM "${sender}" SINCE ${sinceStr}`);
-        if (!searchResult || searchResult.length === 0) continue;
+        // Use searchAndFetchMessages utility - searches in INBOX
+        const messages = await searchAndFetchMessages(
+          client,
+          "INBOX",
+          { from: sender },
+          { body: true, envelope: true }
+        );
 
-        // Fetch the found messages (limit to 20 per sender)
-        const uids = searchResult.slice(-20);
-        const fetchRange = uids.join(',');
-        
-        const messages = await client.fetch(fetchRange, {
-          body: true,
-          envelope: true,
-        });
+        if (!messages || messages.length === 0) continue;
 
-        if (!messages) continue;
-        const msgList = Array.isArray(messages) ? messages : [messages];
+        // Process only last 10 messages per sender
+        const recentMsgs = messages.slice(-10);
 
-        for (const msg of msgList) {
+        for (const msg of recentMsgs) {
           emailsScanned++;
-          
+
           const subject = msg.envelope?.subject || '';
           const body = typeof msg.body === 'string' ? msg.body : '';
           const plainBody = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -151,11 +139,6 @@ async function processMailbox(serviceClient: any, cred: any) {
   } finally {
     try { await client.disconnect(); } catch { /* ignore */ }
   }
-}
-
-function formatImapDate(date: Date): string {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${date.getDate()}-${months[date.getMonth()]}-${date.getFullYear()}`;
 }
 
 async function generateApiKey(tenantId: string): Promise<string> {
