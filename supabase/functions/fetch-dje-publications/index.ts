@@ -119,14 +119,14 @@ async function fetchWithFirecrawl(apiKey: string, oabNumbers: string[], tenantId
     // Select "Judicial II" publication type (value=3)
     { type: "click", selector: "#tipo_publicacao_C" },
     { type: "wait", milliseconds: 500 },
-    // Fill OAB fields
-    { type: "fill", selector: "#oab1", value: oabNumbers[0] || "" },
+    // Fill OAB fields using "write" action (Firecrawl's text input type)
+    { type: "write", selector: "#oab1", text: oabNumbers[0] || "" },
   ];
 
   // Add more OAB fields if available
-  if (oabNumbers[1]) actions.push({ type: "fill", selector: "#oab2", value: oabNumbers[1] });
-  if (oabNumbers[2]) actions.push({ type: "fill", selector: "#oab3", value: oabNumbers[2] });
-  if (oabNumbers[3]) actions.push({ type: "fill", selector: "#oab4", value: oabNumbers[3] });
+  if (oabNumbers[1]) actions.push({ type: "write", selector: "#oab2", text: oabNumbers[1] });
+  if (oabNumbers[2]) actions.push({ type: "write", selector: "#oab3", text: oabNumbers[2] });
+  if (oabNumbers[3]) actions.push({ type: "write", selector: "#oab4", text: oabNumbers[3] });
 
   // Click the search button
   actions.push({ type: "click", selector: "#botaoPesquisar" });
