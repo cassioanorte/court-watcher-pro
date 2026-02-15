@@ -171,27 +171,8 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
   ];
 
   if (processes.length === 0) {
-    // No process numbers found - create a single generic publication from the email
-    let pubType = 'Publicação DJE';
-    for (const [regex, name] of typeKeywords) {
-      if (regex.test(content)) { pubType = name; break; }
-    }
-
-    const hash = `email_${source.toLowerCase()}_${today}_${simpleHash(content.substring(0, 200))}`;
-    publications.push({
-      tenant_id: tenantId,
-      oab_number: '',
-      source,
-      publication_date: today,
-      title: `${pubType} - ${source} (via email)`.substring(0, 300),
-      content: content.substring(0, 5000),
-      publication_type: pubType,
-      process_number: null,
-      organ: source,
-      unique_hash: hash,
-      external_url: null,
-      case_id: null,
-    });
+    // No process numbers found - skip this email entirely
+    console.log('Skipping email: no process numbers found');
     return publications;
   }
 
@@ -218,7 +199,8 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     }
 
     const procClean = proc.replace(/[^0-9]/g, '');
-    const hash = `email_${source.toLowerCase()}_${procClean}_${pubDate}_${simpleHash(context.substring(0, 100))}`;
+    // Hash based on source + process + date + type only (not content) to deduplicate across emails
+    const hash = `email_${source.toLowerCase()}_${procClean}_${pubDate}_${pubType.toLowerCase().replace(/\s+/g, '_')}`;
 
     publications.push({
       tenant_id: tenantId,
