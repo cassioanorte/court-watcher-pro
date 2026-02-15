@@ -9,7 +9,7 @@ import {
   UserPlus, Phone, Mail, MessageSquare, Calendar, ChevronRight,
   Plus, X, Search, Filter, BarChart3, Users, DollarSign, Clock,
   Check, Trash2, Edit2, Save, Loader2, ArrowRight, Building2,
-  PhoneCall, Video, StickyNote, Send, CalendarIcon,
+  PhoneCall, Video, StickyNote, Send, CalendarIcon, LinkIcon, ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -120,6 +120,13 @@ const CRM = () => {
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingStartTime, setMeetingStartTime] = useState("09:00");
   const [meetingEndTime, setMeetingEndTime] = useState("10:00");
+  const [meetingOnline, setMeetingOnline] = useState(false);
+
+  const generateMeetingLink = (leadName: string) => {
+    const slug = leadName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").slice(0, 30);
+    const id = Math.random().toString(36).substring(2, 10);
+    return `https://meet.jit.si/${slug}-${id}`;
+  };
 
   // New task
   const [showNewTask, setShowNewTask] = useState(false);
@@ -229,22 +236,31 @@ const CRM = () => {
       if (newInteractionType === "meeting" && meetingDate) {
         const start_at = `${meetingDate}T${meetingStartTime}:00`;
         const end_at = `${meetingDate}T${meetingEndTime}:00`;
+        const videoLink = meetingOnline ? generateMeetingLink(selectedLead.name) : null;
+        const description = videoLink
+          ? `${newInteractionDesc.trim()}\n\n🔗 Link da videochamada: ${videoLink}`
+          : newInteractionDesc.trim();
         const { data: apptData } = await supabase.from("appointments").insert({
           tenant_id: tenantId,
           user_id: user.id,
-          title: `Reunião: ${selectedLead.name}`,
-          description: newInteractionDesc.trim(),
+          title: `${meetingOnline ? "📹 " : ""}Reunião: ${selectedLead.name}`,
+          description,
           start_at,
           end_at,
           lead_id: selectedLead.id,
         }).select("id, title, description, start_at, end_at, lead_id").single();
         if (apptData) {
           setLeadAppointments(prev => [...prev, apptData as LeadAppointment]);
-          toast({ title: "Reunião adicionada à agenda!" });
+          if (videoLink) {
+            toast({ title: "Reunião online criada!", description: "Link da videochamada gerado e adicionado à agenda." });
+          } else {
+            toast({ title: "Reunião adicionada à agenda!" });
+          }
         }
         setMeetingDate("");
         setMeetingStartTime("09:00");
         setMeetingEndTime("10:00");
+        setMeetingOnline(false);
       } else {
         toast({ title: "Interação registrada!" });
       }
@@ -730,21 +746,30 @@ const CRM = () => {
                     </div>
                     {/* Meeting date/time fields */}
                     {newInteractionType === "meeting" && (
-                      <div className="grid grid-cols-3 gap-2 bg-muted/30 rounded-lg p-2">
-                        <div>
-                          <label className="text-[10px] font-medium text-muted-foreground">Data *</label>
-                          <Input type="date" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} className="h-8 text-xs mt-0.5" />
+                      <div className="space-y-2 bg-muted/30 rounded-lg p-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] font-medium text-muted-foreground">Data *</label>
+                            <Input type="date" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} className="h-8 text-xs mt-0.5" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-medium text-muted-foreground">Início</label>
+                            <Input type="time" value={meetingStartTime} onChange={e => setMeetingStartTime(e.target.value)} className="h-8 text-xs mt-0.5" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-medium text-muted-foreground">Fim</label>
+                            <Input type="time" value={meetingEndTime} onChange={e => setMeetingEndTime(e.target.value)} className="h-8 text-xs mt-0.5" />
+                          </div>
                         </div>
-                        <div>
-                          <label className="text-[10px] font-medium text-muted-foreground">Início</label>
-                          <Input type="time" value={meetingStartTime} onChange={e => setMeetingStartTime(e.target.value)} className="h-8 text-xs mt-0.5" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-medium text-muted-foreground">Fim</label>
-                          <Input type="time" value={meetingEndTime} onChange={e => setMeetingEndTime(e.target.value)} className="h-8 text-xs mt-0.5" />
-                        </div>
-                        <p className="col-span-3 text-[10px] text-muted-foreground flex items-center gap-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={meetingOnline} onChange={e => setMeetingOnline(e.target.checked)} className="rounded border-muted-foreground/30" />
+                          <Video className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-[11px] text-foreground font-medium">Reunião online</span>
+                          <span className="text-[10px] text-muted-foreground">(gera link de videochamada automaticamente)</span>
+                        </label>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <CalendarIcon className="w-3 h-3" /> A reunião será adicionada automaticamente à agenda
+                          {meetingOnline && <><LinkIcon className="w-3 h-3 ml-1" /> com link de videochamada</>}
                         </p>
                       </div>
                     )}
@@ -834,6 +859,9 @@ const CRM = () => {
                     <div className="space-y-2">
                       {leadAppointments.map(appt => {
                         const isPast = new Date(appt.end_at) < new Date();
+                        const videoLinkMatch = appt.description?.match(/(https:\/\/meet\.jit\.si\/[^\s]+)/);
+                        const videoLink = videoLinkMatch ? videoLinkMatch[1] : null;
+                        const descWithoutLink = appt.description?.replace(/\n\n🔗 Link da videochamada: https:\/\/meet\.jit\.si\/[^\s]+/, "").trim();
                         return (
                           <div key={appt.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${isPast ? "opacity-60 bg-muted/20" : "bg-card"}`}>
                             <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
@@ -843,8 +871,21 @@ const CRM = () => {
                                 <Clock className="w-3 h-3" />
                                 {format(new Date(appt.start_at), "dd/MM/yyyy HH:mm", { locale: ptBR })} – {format(new Date(appt.end_at), "HH:mm", { locale: ptBR })}
                               </p>
-                              {appt.description && (
-                                <p className="text-xs text-muted-foreground mt-1">{appt.description}</p>
+                              {descWithoutLink && (
+                                <p className="text-xs text-muted-foreground mt-1">{descWithoutLink}</p>
+                              )}
+                              {videoLink && (
+                                <a
+                                  href={videoLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                                >
+                                  <Video className="w-3.5 h-3.5" />
+                                  Entrar na videochamada
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
                               )}
                             </div>
                             {isPast && <Badge variant="outline" className="text-[10px] shrink-0">Passado</Badge>}
