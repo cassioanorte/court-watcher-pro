@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, Save, CheckCircle, Loader2, Settings2, Trash2, Plus, X } from "lucide-react";
+import { Mail, Save, CheckCircle, Loader2, Settings2, Trash2, Plus, X, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,9 +43,11 @@ const EmailIntegrationSetup = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<EmailCredential[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null); // null = not editing, "new" = adding new
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [provider, setProvider] = useState("gmail");
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [connectionError, setConnectionError] = useState<{ error: string; hint: string } | null>(null);
+  const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -79,6 +81,8 @@ const EmailIntegrationSetup = () => {
 
   const startEdit = (cred: EmailCredential) => {
     setEditingId(cred.id);
+    setConnectionError(null);
+    setConnectionSuccess(null);
     setForm({
       imap_host: cred.imap_host,
       imap_port: cred.imap_port,
@@ -92,12 +96,16 @@ const EmailIntegrationSetup = () => {
 
   const startAdd = () => {
     setEditingId("new");
+    setConnectionError(null);
+    setConnectionSuccess(null);
     setForm({ ...EMPTY_FORM });
     setProvider("gmail");
   };
 
   const cancelEdit = () => {
     setEditingId(null);
+    setConnectionError(null);
+    setConnectionSuccess(null);
     setForm({ ...EMPTY_FORM });
   };
 
@@ -107,7 +115,33 @@ const EmailIntegrationSetup = () => {
       return;
     }
     setSaving(true);
+    setConnectionError(null);
+    setConnectionSuccess(null);
+
     try {
+      // Step 1: Test connection BEFORE saving
+      const { data: testResult, error: testError } = await supabase.functions.invoke("test-email-connection", {
+        body: {
+          imap_host: form.imap_host,
+          imap_port: form.imap_port,
+          imap_user: form.imap_user,
+          imap_password: form.imap_password,
+          use_tls: form.use_tls,
+        },
+      });
+
+      if (testError) throw new Error("Erro ao testar conexão. Tente novamente.");
+
+      if (!testResult?.success) {
+        setConnectionError({
+          error: testResult?.error || "Erro desconhecido na conexão.",
+          hint: testResult?.hint || "Verifique as configurações e tente novamente.",
+        });
+        setSaving(false);
+        return;
+      }
+
+      // Step 2: Connection OK — save credentials
       const payload = { tenant_id: tenantId, ...form, is_active: true };
 
       if (editingId && editingId !== "new") {
@@ -123,8 +157,11 @@ const EmailIntegrationSetup = () => {
         if (error) throw error;
       }
 
-      toast({ title: "Salvo!", description: "Credenciais de email configuradas." });
+      setConnectionSuccess(testResult.message || "Conexão verificada com sucesso!");
+      toast({ title: "Salvo!", description: `E-mail ${form.imap_user} configurado e verificado.` });
       setEditingId(null);
+      setConnectionError(null);
+      setConnectionSuccess(null);
       await fetchCredentials();
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
@@ -276,10 +313,31 @@ const EmailIntegrationSetup = () => {
         </div>
       )}
 
+      {/* Connection error feedback */}
+      {connectionError && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-destructive">{connectionError.error}</p>
+              <p className="text-xs text-muted-foreground mt-1">💡 {connectionError.hint}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection success feedback */}
+      {connectionSuccess && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">{connectionSuccess}</p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Button onClick={handleSave} disabled={saving} className="gap-2">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? "Salvando..." : "Salvar"}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+          {saving ? "Verificando conexão..." : "Verificar e salvar"}
         </Button>
         <Button onClick={cancelEdit} variant="outline" className="gap-2">
           <X className="w-4 h-4" /> Cancelar
