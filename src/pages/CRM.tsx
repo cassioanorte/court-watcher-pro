@@ -738,15 +738,18 @@ const CRM = () => {
                         </button>
                       ))}
                     </div>
-                    <div className="flex gap-2">
-                      <Input placeholder="Descreva a interação..." value={newInteractionDesc} onChange={e => setNewInteractionDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && newInteractionType !== "meeting" && handleAddInteraction()} className="flex-1" />
-                      <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !newInteractionDesc.trim() || (newInteractionType === "meeting" && !meetingDate)}>
-                        {savingInteraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    {/* Meeting date/time fields */}
+                    {newInteractionType !== "meeting" && (
+                      <div className="flex gap-2">
+                        <Input placeholder="Descreva a interação..." value={newInteractionDesc} onChange={e => setNewInteractionDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddInteraction()} className="flex-1" />
+                        <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !newInteractionDesc.trim()}>
+                          {savingInteraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    {/* Meeting form */}
                     {newInteractionType === "meeting" && (
-                      <div className="space-y-2 bg-muted/30 rounded-lg p-2">
+                      <div className="space-y-2 bg-muted/30 rounded-lg p-3">
+                        <Input placeholder="Descreva a reunião..." value={newInteractionDesc} onChange={e => setNewInteractionDesc(e.target.value)} />
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="text-[10px] font-medium text-muted-foreground">Data *</label>
@@ -765,12 +768,17 @@ const CRM = () => {
                           <input type="checkbox" checked={meetingOnline} onChange={e => setMeetingOnline(e.target.checked)} className="rounded border-muted-foreground/30" />
                           <Video className="w-3.5 h-3.5 text-muted-foreground" />
                           <span className="text-[11px] text-foreground font-medium">Reunião online</span>
-                          <span className="text-[10px] text-muted-foreground">(gera link de videochamada automaticamente)</span>
+                          <span className="text-[10px] text-muted-foreground">(gera link automaticamente)</span>
                         </label>
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <CalendarIcon className="w-3 h-3" /> A reunião será adicionada automaticamente à agenda
-                          {meetingOnline && <><LinkIcon className="w-3 h-3 ml-1" /> com link de videochamada</>}
-                        </p>
+                        <div className="flex items-center justify-between pt-1">
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <CalendarIcon className="w-3 h-3" /> Será adicionada à agenda
+                            {meetingOnline && <><LinkIcon className="w-3 h-3 ml-1" /> com videochamada</>}
+                          </p>
+                          <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !newInteractionDesc.trim() || !meetingDate} className="gap-1.5">
+                            {savingInteraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CalendarIcon className="w-3.5 h-3.5" /> Agendar Reunião</>}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
