@@ -5,11 +5,6 @@ const corsHeaders = {
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-/**
- * Busca publicações nos Diários de Justiça Eletrônicos por número de OAB.
- * Usa Firecrawl para scraping com JavaScript rendering dos portais dos tribunais.
- */
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -27,7 +22,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Determine tenants
     let isCron = false;
     let userId: string | null = null;
     let tenantIds: string[] = [];
@@ -76,7 +70,6 @@ Deno.serve(async (req) => {
 
       console.log(`Tenant ${tenantId}: ${oabEntries.length} OABs: ${oabEntries.map((o: any) => o.oab_formatted).join(', ')}`);
 
-      // Get cases for linking
       const { data: cases } = await serviceClient
         .from('cases').select('id, process_number').eq('tenant_id', tenantId);
       const caseMap: Record<string, string> = {};
@@ -84,7 +77,6 @@ Deno.serve(async (req) => {
         caseMap[c.process_number.replace(/[^0-9]/g, '')] = c.id;
       }
 
-      // Get notify users
       let notifyUserIds: string[] = [];
       if (userId && !isCron) {
         notifyUserIds = [userId];
@@ -101,29 +93,36 @@ Deno.serve(async (req) => {
       const allPubs: any[] = [];
 
       for (const oab of oabEntries) {
-        // Search TRF4 DJE via Firecrawl
+        // TRF4 DJE via Firecrawl with corrected actions
         try {
-          const pubs = await searchTRF4WithFirecrawl(firecrawlKey, oab, tenantId, caseMap);
+          const pubs = await searchTRF4(firecrawlKey, oab, tenantId, caseMap);
           allPubs.push(...pubs);
-          console.log(`TRF4 DJE for ${oab.oab_formatted}: ${pubs.length} publications`);
+          console.log(`TRF4 for ${oab.oab_formatted}: ${pubs.length} pubs`);
         } catch (err) {
           console.error(`TRF4 error for ${oab.oab_formatted}:`, err);
         }
 
-        // Search TJRS DJE via Firecrawl
+        // TJRS via direct fetch (no Firecrawl - it keeps timing out)
         try {
-          const pubs = await searchTJRSWithFirecrawl(firecrawlKey, oab, tenantId, caseMap);
+          const pubs = await searchTJRS(oab, tenantId, caseMap);
           allPubs.push(...pubs);
-          console.log(`TJRS DJE for ${oab.oab_formatted}: ${pubs.length} publications`);
+          console.log(`TJRS for ${oab.oab_formatted}: ${pubs.length} pubs`);
         } catch (err) {
           console.error(`TJRS error for ${oab.oab_formatted}:`, err);
         }
       }
 
-      // Store publications
-      if (allPubs.length > 0) {
+      // Deduplicate
+      const seen = new Set<string>();
+      const uniquePubs = allPubs.filter(p => {
+        if (seen.has(p.unique_hash)) return false;
+        seen.add(p.unique_hash);
+        return true;
+      });
+
+      if (uniquePubs.length > 0) {
         let inserted = 0;
-        for (const pub of allPubs) {
+        for (const pub of uniquePubs) {
           const { error } = await serviceClient
             .from('dje_publications')
             .upsert(pub, { onConflict: 'unique_hash' });
@@ -134,14 +133,14 @@ Deno.serve(async (req) => {
         for (const uid of notifyUserIds) {
           await serviceClient.from('notifications').insert({
             user_id: uid,
-            title: `${allPubs.length} publicação(ões) encontrada(s) no DJE`,
-            body: `Novas publicações vinculadas às OABs do escritório.`,
+            title: `${uniquePubs.length} publicação(ões) no DJE`,
+            body: `Publicações vinculadas às OABs do escritório.`,
             case_id: null,
           });
         }
 
         console.log(`Tenant ${tenantId}: ${inserted} stored`);
-        totalFound += allPubs.length;
+        totalFound += uniquePubs.length;
       }
     }
 
@@ -158,16 +157,18 @@ Deno.serve(async (req) => {
   }
 });
 
-// ==================== TRF4 via Firecrawl ====================
-async function searchTRF4WithFirecrawl(
+// ==================== TRF4 via Firecrawl with corrected actions ====================
+async function searchTRF4(
   apiKey: string, oabEntry: any, tenantId: string, caseMap: Record<string, string>
 ): Promise<any[]> {
-  // Use Firecrawl to scrape the TRF4 DJE search with OAB parameter
-  // The TRF4 form uses JavaScript to submit, so we need Firecrawl's JS rendering
   const oab = oabEntry.oab_formatted;
-  
-  // The TRF4 DJE accepts direct URL params for searching
-  // We'll scrape the consultation page with actions to fill and submit the form
+
+  // Use Firecrawl with MINIMAL corrected actions:
+  // 1. Click "Judicial II" radio to show OAB fields
+  // 2. Wait for JS to show the hidden #processo_oab span
+  // 3. Type OAB into #oab1
+  // 4. Click the search button (calls validaConsulta())
+  // 5. Wait for results page to load
   const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
     method: 'POST',
     headers: {
@@ -175,107 +176,117 @@ async function searchTRF4WithFirecrawl(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      url: 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php',
+      url: 'https://www2.trf4.jus.br/trf4/diario/consulta_diario.php',
       formats: ['markdown'],
-      waitFor: 3000,
+      timeout: 60000,
       actions: [
-        // Click on "Judicial II" radio button
-        { type: 'click', selector: '#tipo_publicacao_C' },
-        // Wait for OAB fields to appear
-        { type: 'wait', milliseconds: 1000 },
-        // Fill OAB field
-        { type: 'write', selector: '#oab1', text: oab },
-        // Set docs per page to 100
-        { type: 'click', selector: '#docsPagina option[value="100"]' },
-        // Click search button
-        { type: 'click', selector: '#botaoPesquisar' },
-        // Wait for results
-        { type: 'wait', milliseconds: 5000 },
-        // Take screenshot for debugging
-        { type: 'screenshot' },
+        // Step 1: Click Judicial II radio to show OAB fields
+        { type: 'click', selector: 'input#tipo_publicacao_C' },
+        // Step 2: Wait for JavaScript to show the OAB section
+        { type: 'wait', milliseconds: 2000 },
+        // Step 3: Type OAB number into the field
+        { type: 'write', selector: 'input#oab1', text: oab },
+        // Step 4: Click the search button
+        { type: 'click', selector: 'input#botaoPesquisar' },
+        // Step 5: Wait for results to load
+        { type: 'wait', milliseconds: 8000 },
       ],
     }),
   });
 
   const data = await response.json();
-  
+
   if (!data.success && !data.data) {
-    console.error('Firecrawl TRF4 error:', JSON.stringify(data).substring(0, 500));
+    console.error(`TRF4 Firecrawl error: ${JSON.stringify(data).substring(0, 500)}`);
     return [];
   }
 
   const markdown = data.data?.markdown || data.markdown || '';
-  const screenshot = data.data?.screenshot || data.screenshot || '';
-  
-  console.log(`TRF4 Firecrawl: ${markdown.length} chars markdown, screenshot: ${screenshot ? 'yes' : 'no'}`);
-  
-  if (markdown.length < 100) {
-    console.log(`TRF4 markdown preview: ${markdown.substring(0, 500)}`);
+  console.log(`TRF4 markdown: ${markdown.length} chars`);
+
+  if (markdown.length < 200) {
+    console.log(`TRF4 preview: ${markdown.substring(0, 500)}`);
     return [];
   }
 
-  return parseDJEMarkdown(markdown, 'TRF4', oabEntry, tenantId, caseMap);
+  return parseDJEContent(markdown, 'TRF4', oabEntry, tenantId, caseMap,
+    'https://www2.trf4.jus.br/trf4/diario/resultado_consulta.php');
 }
 
-// ==================== TJRS via Firecrawl ====================
-async function searchTJRSWithFirecrawl(
-  apiKey: string, oabEntry: any, tenantId: string, caseMap: Record<string, string>
+// ==================== TJRS via direct fetch ====================
+async function searchTJRS(
+  oabEntry: any, tenantId: string, caseMap: Record<string, string>
 ): Promise<any[]> {
   const oabMatch = oabEntry.oab_formatted.match(/^([A-Z]{2})(\d+)$/);
   if (!oabMatch) return [];
 
-  const oabNum = oabMatch[2].replace(/^0+/, ''); // Remove leading zeros
+  const oabNum = oabMatch[2].replace(/^0+/, '');
+  const oabState = oabMatch[1];
 
-  // TJRS uses Themis system - search by OAB
-  // URL format: https://www.tjrs.jus.br/busca/?tb=proc
-  const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url: `https://www.tjrs.jus.br/novo/busca/?return=proc&ession=&oab_tipo=A&oab_uf=${oabMatch[1]}&oab_num=${oabNum}`,
-      formats: ['markdown'],
-      waitFor: 5000,
-    }),
-  });
+  // Try multiple TJRS search endpoints
+  const urls = [
+    `https://www.tjrs.jus.br/novo/busca/?return=proc&oab_tipo=A&oab_uf=${oabState}&oab_num=${oabNum}`,
+    `https://www1.tjrs.jus.br/busca/?tb=proc&oab=${oabState}${oabNum}`,
+  ];
 
-  const data = await response.json();
-  
-  if (!data.success && !data.data) {
-    console.error('Firecrawl TJRS error:', JSON.stringify(data).substring(0, 500));
-    return [];
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        redirect: 'follow',
+      });
+
+      const html = await resp.text();
+      console.log(`TJRS fetch ${url.substring(0, 60)}: ${resp.status}, ${html.length} chars`);
+
+      if (html.length < 300) continue;
+
+      // Strip HTML tags to get text
+      const text = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/\s+/g, ' ');
+
+      const pubs = parseDJEContent(text, 'TJRS', oabEntry, tenantId, caseMap, url);
+      if (pubs.length > 0) return pubs;
+    } catch (err) {
+      console.error(`TJRS fetch error:`, err);
+    }
   }
 
-  const markdown = data.data?.markdown || data.markdown || '';
-  console.log(`TJRS Firecrawl: ${markdown.length} chars`);
-
-  if (markdown.length < 100) {
-    console.log(`TJRS markdown preview: ${markdown.substring(0, 500)}`);
-    return [];
-  }
-
-  return parseDJEMarkdown(markdown, 'TJRS', oabEntry, tenantId, caseMap);
+  return [];
 }
 
-// ==================== Parse DJE markdown ====================
-function parseDJEMarkdown(
-  markdown: string, tribunal: string, oabEntry: any,
-  tenantId: string, caseMap: Record<string, string>
+// ==================== Parse DJE content ====================
+function parseDJEContent(
+  content: string, tribunal: string, oabEntry: any,
+  tenantId: string, caseMap: Record<string, string>, sourceUrl: string
 ): any[] {
   const publications: any[] = [];
   const today = new Date().toISOString().split('T')[0];
 
-  // Find all CNJ-format process numbers
   const procRegex = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g;
   const processes: string[] = [];
   let match;
-  while ((match = procRegex.exec(markdown)) !== null) {
+  while ((match = procRegex.exec(content)) !== null) {
     if (!processes.includes(match[1])) processes.push(match[1]);
   }
 
-  console.log(`${tribunal}: found ${processes.length} unique process numbers`);
+  if (processes.length === 0) {
+    console.log(`${tribunal}: 0 process numbers in ${content.length} chars`);
+    // Show some content for debugging
+    const sample = content.substring(0, 400).replace(/\s+/g, ' ');
+    console.log(`${tribunal} sample: ${sample}`);
+    return [];
+  }
+
+  console.log(`${tribunal}: ${processes.length} process numbers found`);
 
   const typeKeywords: [RegExp, string][] = [
     [/intima[çc][ãa]o|intimado/i, 'Intimação'],
@@ -290,47 +301,29 @@ function parseDJEMarkdown(
   ];
 
   for (const proc of processes) {
-    const procIdx = markdown.indexOf(proc);
+    const procIdx = content.indexOf(proc);
     if (procIdx === -1) continue;
 
     const start = Math.max(0, procIdx - 300);
-    const end = Math.min(markdown.length, procIdx + proc.length + 1500);
-    const context = markdown.substring(start, end).trim();
+    const end = Math.min(content.length, procIdx + proc.length + 1500);
+    const context = content.substring(start, end).trim();
 
-    // Determine type
     let pubType = 'Publicação DJE';
     for (const [regex, name] of typeKeywords) {
-      if (regex.test(context)) {
-        pubType = name;
-        break;
-      }
+      if (regex.test(context)) { pubType = name; break; }
     }
 
-    // Extract date (DD/MM/YYYY)
     const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/g;
     let pubDate = today;
     let dMatch;
     while ((dMatch = dateRegex.exec(context)) !== null) {
       const year = parseInt(dMatch[3]);
-      if (year >= 2024) {
-        pubDate = `${dMatch[3]}-${dMatch[2]}-${dMatch[1]}`;
-        break;
-      }
+      if (year >= 2024) { pubDate = `${dMatch[3]}-${dMatch[2]}-${dMatch[1]}`; break; }
     }
 
     const procClean = proc.replace(/[^0-9]/g, '');
     const caseId = caseMap[procClean] || null;
     const hash = `${tribunal.toLowerCase()}_dje_${procClean}_${pubDate}_${simpleHash(context.substring(0, 100))}`;
-
-    const content = [
-      `Processo: ${proc}`,
-      `Tribunal: ${tribunal}`,
-      `Advogado: ${oabEntry.full_name} (OAB ${oabEntry.oab_raw})`,
-      `Data: ${pubDate}`,
-      `Tipo: ${pubType}`,
-      '',
-      context.substring(0, 3000),
-    ].join('\n');
 
     publications.push({
       tenant_id: tenantId,
@@ -338,12 +331,16 @@ function parseDJEMarkdown(
       source: tribunal,
       publication_date: pubDate,
       title: `${pubType} - ${proc}`.substring(0, 300),
-      content: content.substring(0, 5000),
+      content: [
+        `Processo: ${proc}`, `Tribunal: ${tribunal}`,
+        `Advogado: ${oabEntry.full_name} (OAB ${oabEntry.oab_raw})`,
+        `Data: ${pubDate}`, `Tipo: ${pubType}`, '', context.substring(0, 3000),
+      ].join('\n').substring(0, 5000),
       publication_type: pubType,
       process_number: proc,
       organ: tribunal,
       unique_hash: hash,
-      external_url: null,
+      external_url: sourceUrl || null,
       case_id: caseId,
     });
   }
@@ -351,7 +348,6 @@ function parseDJEMarkdown(
   return publications;
 }
 
-// ==================== Utilities ====================
 function formatOab(raw: string): string {
   if (!raw) return '';
   const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().replace(/^OAB/, '');
