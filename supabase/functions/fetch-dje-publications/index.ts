@@ -30,7 +30,6 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-
     const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     const { data: userProfile } = await supabase
@@ -61,13 +60,8 @@ Deno.serve(async (req) => {
 
     console.log(`OABs encontradas: ${oabNumbers.join(', ')}`);
 
-    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!firecrawlKey) {
-      return new Response(JSON.stringify({ error: 'Firecrawl não configurado.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Use Firecrawl to scrape TRF4 DJE search with JavaScript rendering
-    const results = await fetchWithFirecrawl(firecrawlKey, oabNumbers, tenantId);
+    // Fetch publications directly via HTTP POST to TRF4 (no Firecrawl needed)
+    const results = await fetchDirectFromTRF4(oabNumbers, tenantId);
 
     // Store results
     if (results.length > 0) {
@@ -102,102 +96,97 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchWithFirecrawl(apiKey: string, oabNumbers: string[], tenantId: string): Promise<any[]> {
-  // Build the TRF4 DJE search URL with parameters
-  // The form uses JavaScript to submit, but we can use Firecrawl's actions feature
-  // to fill the form and click the search button
-  const searchUrl = 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php';
+async function fetchDirectFromTRF4(oabNumbers: string[], tenantId: string): Promise<any[]> {
+  // Build form params for TRF4 DJE search
+  // tipo_publicacao: 1=Administrativa, 2=Judicial I, 3=Judicial II
+  // We search Judicial II (tipo_publicacao=3) which uses OAB numbers
+  const params = new URLSearchParams();
+  params.set('tipo_publicacao', '3');
+  params.set('docsPagina', '50');
+  
+  // TRF4 accepts oab1 through oab7
+  oabNumbers.slice(0, 7).forEach((oab, i) => {
+    params.set(`oab${i + 1}`, oab);
+  });
 
-  console.log(`Scraping ${searchUrl} with Firecrawl for OABs: ${oabNumbers.join(', ')}`);
-
-  // Use executeJavascript to POST directly to resultado_consulta.php with correct params,
-  // then inject the response HTML into the DOM so Firecrawl can capture it
-  const oabParams = oabNumbers
-    .slice(0, 7)
-    .map((oab, i) => `oab${i + 1}=${encodeURIComponent(oab)}`)
-    .join('&');
-
-  const fetchScript = `
-    (async function() {
-      var params = 'tipo_publicacao=3&${oabParams}&docsPagina=100';
-      var resp = await fetch('https://www.trf4.jus.br/trf4/diario/resultado_consulta.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
-      });
-      var html = await resp.text();
-      document.open();
-      document.write(html);
-      document.close();
-    })();
-  `;
-
-  const actions = [
-    { type: "executeJavascript", script: fetchScript },
-    { type: "wait", milliseconds: 5000 },
-  ];
+  const url = 'https://www2.trf4.jus.br/trf4/diario/resultado_consulta.php';
+  console.log(`POST ${url} with params: ${params.toString()}`);
 
   try {
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'Referer': 'https://www2.trf4.jus.br/trf4/diario/consulta_diario.php',
+        'Origin': 'https://www2.trf4.jus.br',
       },
-      body: JSON.stringify({
-        url: searchUrl,
-        formats: ['html', 'markdown'],
-        waitFor: 2000,
-        actions: actions,
-      }),
+      body: params.toString(),
     });
 
-    const data = await response.json();
+    console.log(`TRF4 response status: ${response.status}`);
+    const html = await response.text();
+    console.log(`TRF4 response length: ${html.length} chars`);
 
-    if (!response.ok) {
-      console.error('Firecrawl error:', JSON.stringify(data));
-      return [];
-    }
-
-    const html = data.data?.html || data.html || '';
-    const markdown = data.data?.markdown || data.markdown || '';
-
-    console.log(`Firecrawl response: ${html.length} chars HTML, ${markdown.length} chars markdown`);
-
-    // Log a snippet to debug
+    // Log snippet for debugging
     const cleanText = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    console.log(`Result snippet: ${cleanText.substring(0, 500)}`);
 
-    console.log(`Result snippet: ${cleanText.substring(0, 2000)}`);
-
-    // Check for specific result indicators
-    const hasResults = /exibe_documento|Resultado|documentos?\s+encontrados?/i.test(html);
     const hasNoResults = /Nenhum documento encontrado|Informe ao menos/i.test(cleanText);
-
-    console.log(`Has results: ${hasResults}, No results: ${hasNoResults}`);
-
     if (hasNoResults) {
       console.log('No documents found for these OAB numbers');
       return [];
     }
 
-    // Parse the results
-    return parseResults(html, markdown, oabNumbers, tenantId);
-
+    return parseResults(html, oabNumbers, tenantId);
   } catch (err) {
-    console.error('Firecrawl fetch error:', err);
-    return [];
+    console.error('TRF4 fetch error:', err);
+    
+    // Fallback: try www instead of www2
+    try {
+      const fallbackUrl = 'https://www.trf4.jus.br/trf4/diario/resultado_consulta.php';
+      console.log(`Fallback POST ${fallbackUrl}`);
+      
+      const response = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php',
+        },
+        body: params.toString(),
+      });
+
+      console.log(`Fallback response status: ${response.status}`);
+      const html = await response.text();
+      console.log(`Fallback response length: ${html.length} chars`);
+      
+      const cleanText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      console.log(`Fallback snippet: ${cleanText.substring(0, 500)}`);
+
+      if (/Nenhum documento encontrado/i.test(cleanText)) {
+        return [];
+      }
+
+      return parseResults(html, oabNumbers, tenantId);
+    } catch (err2) {
+      console.error('Fallback also failed:', err2);
+      return [];
+    }
   }
 }
 
-function parseResults(html: string, markdown: string, oabNumbers: string[], tenantId: string): any[] {
+function parseResults(html: string, oabNumbers: string[], tenantId: string): any[] {
   const publications: any[] = [];
 
-  // Strategy 1: Look for exibe_documento links
+  // Strategy 1: Look for exibe_documento links (main result format)
   const docRegex = /<a[^>]*href="([^"]*exibe_documento[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
@@ -215,110 +204,52 @@ function parseResults(html: string, markdown: string, oabNumbers: string[], tena
     if (pub) publications.push(pub);
   }
 
-  // Strategy 2: Parse from markdown - look for process numbers with OAB context
-  if (publications.length === 0 && markdown.length > 500) {
-    // Split markdown into sections/paragraphs
-    const sections = markdown.split(/\n{2,}/);
+  // Strategy 2: Parse table rows
+  if (publications.length === 0) {
+    const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let trMatch;
 
-    for (const section of sections) {
-      const processMatch = section.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
-      const mentionsOab = oabNumbers.some(oab => section.includes(oab) || section.includes(oab.replace(/^([A-Z]{2})0*/, '$1')));
+    while ((trMatch = trRegex.exec(html)) !== null) {
+      const row = trMatch[1];
+      const rowText = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (rowText.length < 20) continue;
 
-      if (processMatch && mentionsOab) {
-        const dateMatch = section.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-        const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
+      // Extract date
+      const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (!dateMatch) continue;
+      const pubDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
 
-        let pubType = 'Publicação';
-        for (const tp of [
-          { pattern: /ato\s*ordinat[óo]rio/i, type: 'Ato Ordinatório' },
-          { pattern: /despacho/i, type: 'Despacho' },
-          { pattern: /decis[ãa]o/i, type: 'Decisão' },
-          { pattern: /senten[çc]a/i, type: 'Sentença' },
-          { pattern: /intima[çc][ãa]o/i, type: 'Intimação' },
-          { pattern: /ac[óo]rd[ãa]o/i, type: 'Acórdão' },
-        ]) {
-          if (tp.pattern.test(section)) { pubType = tp.type; break; }
-        }
+      // Extract link if present
+      const linkMatch = row.match(/<a[^>]*href="([^"]*)"[^>]*>/i);
+      const externalUrl = linkMatch?.[1]
+        ? (linkMatch[1].startsWith('http') ? linkMatch[1] : `https://www2.trf4.jus.br/trf4/diario/${linkMatch[1]}`)
+        : null;
 
-        let matchedOab = oabNumbers[0];
-        for (const o of oabNumbers) {
-          if (section.includes(o)) { matchedOab = o; break; }
-        }
+      // Extract organ/unit info
+      const cells = row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
+      const cellTexts = cells.map(c => c.replace(/<[^>]+>/g, '').trim());
 
-        const title = section.substring(0, 200).replace(/\n/g, ' ').trim();
-        const hash = `trf4_${matchedOab}_${pubDate}_${simpleHash(title + processMatch[1])}`;
+      let pubType = cellTexts[3] || 'Publicação';
+      const organ = cellTexts[1] || 'TRF4';
 
-        // Check for duplicate
-        if (publications.some(p => p.unique_hash === hash)) continue;
+      const hash = `trf4_${oabNumbers[0]}_${pubDate}_${simpleHash(rowText.substring(0, 200))}`;
 
-        publications.push({
-          tenant_id: tenantId,
-          oab_number: matchedOab,
-          source: 'TRF4',
-          publication_date: pubDate,
-          title: title.substring(0, 300),
-          content: section.substring(0, 5000),
-          publication_type: pubType,
-          process_number: processMatch[1],
-          organ: 'TRF4',
-          unique_hash: hash,
-          external_url: null,
-        });
-      }
+      if (publications.some(p => p.unique_hash === hash)) continue;
+
+      publications.push({
+        tenant_id: tenantId,
+        oab_number: oabNumbers[0],
+        source: 'TRF4',
+        publication_date: pubDate,
+        title: rowText.substring(0, 300),
+        content: rowText.substring(0, 5000),
+        publication_type: pubType,
+        process_number: null,
+        organ,
+        unique_hash: hash,
+        external_url: externalUrl,
+      });
     }
-  }
-
-  // Strategy 3: Parse table rows with OAB mentions
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch;
-
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const row = trMatch[1];
-    const rowText = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-    const mentionsOab = oabNumbers.some(oab => rowText.includes(oab));
-    if (!mentionsOab) continue;
-
-    const processMatch = rowText.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
-    if (!processMatch) continue;
-
-    if (publications.some(p => p.process_number === processMatch[1])) continue;
-
-    const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
-
-    let pubType = 'Publicação';
-    for (const tp of [
-      { pattern: /ato\s*ordinat[óo]rio/i, type: 'Ato Ordinatório' },
-      { pattern: /despacho/i, type: 'Despacho' },
-      { pattern: /decis[ãa]o/i, type: 'Decisão' },
-      { pattern: /senten[çc]a/i, type: 'Sentença' },
-      { pattern: /intima[çc][ãa]o/i, type: 'Intimação' },
-    ]) {
-      if (tp.pattern.test(rowText)) { pubType = tp.type; break; }
-    }
-
-    let matchedOab = oabNumbers[0];
-    for (const o of oabNumbers) {
-      if (rowText.includes(o)) { matchedOab = o; break; }
-    }
-
-    const hash = `trf4_${matchedOab}_${pubDate}_${simpleHash(rowText.substring(0, 200))}`;
-    const title = rowText.length > 200 ? rowText.substring(0, 200) + '...' : rowText;
-
-    publications.push({
-      tenant_id: tenantId,
-      oab_number: matchedOab,
-      source: 'TRF4',
-      publication_date: pubDate,
-      title,
-      content: rowText.substring(0, 5000),
-      publication_type: pubType,
-      process_number: processMatch[1],
-      organ: 'TRF4',
-      unique_hash: hash,
-      external_url: null,
-    });
   }
 
   console.log(`Parsed ${publications.length} publications total`);
@@ -347,7 +278,7 @@ function buildPublication(href: string, linkText: string, context: string, oabNu
     if (context.includes(o)) { matchedOab = o; break; }
   }
 
-  const externalUrl = href.startsWith('http') ? href : `https://www.trf4.jus.br/trf4/diario/${href}`;
+  const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br/trf4/diario/${href}`;
   const hash = `trf4_${matchedOab}_${pubDate}_${simpleHash(linkText + href)}`;
 
   return {
