@@ -1,158 +1,214 @@
 import { useState, useEffect } from "react";
-import { Mail, Copy, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, Save, CheckCircle, Loader2, Settings2, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
-function generateApiKeySync(tenantId: string): string {
-  // Simple deterministic hash for display - matches edge function logic
-  let hash = 0;
-  const str = `lovable-email-${tenantId}-integration`;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  // We need SHA-256 to match the server, so we'll compute it async
-  return '';
+interface EmailCredential {
+  id: string;
+  imap_host: string;
+  imap_port: number;
+  imap_user: string;
+  imap_password: string;
+  use_tls: boolean;
+  is_active: boolean;
+  last_polled_at: string | null;
 }
+
+const PROVIDER_PRESETS: Record<string, { host: string; port: number }> = {
+  gmail: { host: "imap.gmail.com", port: 993 },
+  outlook: { host: "outlook.office365.com", port: 993 },
+  yahoo: { host: "imap.mail.yahoo.com", port: 993 },
+  uol: { host: "imap.uol.com.br", port: 993 },
+  terra: { host: "imap.terra.com.br", port: 993 },
+  custom: { host: "", port: 993 },
+};
 
 const EmailIntegrationSetup = () => {
   const { tenantId } = useAuth();
   const { toast } = useToast();
-  const [showScript, setShowScript] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [existing, setExisting] = useState<EmailCredential | null>(null);
+  const [provider, setProvider] = useState("gmail");
+  const [form, setForm] = useState({
+    imap_host: "imap.gmail.com",
+    imap_port: 993,
+    imap_user: "",
+    imap_password: "",
+    use_tls: true,
+  });
 
   useEffect(() => {
     if (!tenantId) return;
-    // Generate matching API key (SHA-256)
-    const encoder = new TextEncoder();
-    const data = encoder.encode(`lovable-email-${tenantId}-integration`);
-    crypto.subtle.digest('SHA-256', data).then(hashBuffer => {
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      setApiKey(hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32));
-    });
+    fetchCredentials();
   }, [tenantId]);
 
-  const getGoogleScript = () => {
-    return `// ============================================
-// CAPTURA AUTOMÁTICA DE PUBLICAÇÕES - Google Apps Script
-// Cole este script em: https://script.google.com
-// ============================================
-
-// ⚠️ NÃO ALTERE ESTAS CONFIGURAÇÕES ⚠️
-var CONFIG = {
-  ENDPOINT: "${SUPABASE_URL}/functions/v1/parse-email-publications",
-  TENANT_ID: "${tenantId}",
-  API_KEY: "${apiKey}",
-  // Remetentes dos tribunais (adicione mais conforme necessário)
-  SENDERS: [
-    "noreply@trf4.jus.br",
-    "intimacao@trf4.jus.br",
-    "dje@trf4.jus.br",
-    "expediente@trf4.jus.br",
-    "noreply@tjrs.jus.br",
-    "intimacao@tjrs.jus.br",
-    "dje@tjrs.jus.br",
-    "push@stj.jus.br",
-    "noreply@stj.jus.br",
-    "push@tst.jus.br",
-    "noreply@cnj.jus.br",
-    "diario@trf4.jus.br"
-  ]
-};
-
-// Função principal - roda automaticamente a cada hora
-function processCourtEmails() {
-  var label = GmailApp.getUserLabelByName("JurisCapturado");
-  if (!label) {
-    label = GmailApp.createLabel("JurisCapturado");
-  }
-  
-  // Buscar emails dos últimos 2 dias dos remetentes dos tribunais
-  var queries = CONFIG.SENDERS.map(function(s) { return "from:" + s; });
-  var searchQuery = "(" + queries.join(" OR ") + ") newer_than:2d -label:JurisCapturado";
-  
-  var threads = GmailApp.search(searchQuery, 0, 20);
-  Logger.log("Encontrados " + threads.length + " emails de tribunais");
-  
-  var totalFound = 0;
-  
-  for (var i = 0; i < threads.length; i++) {
-    var messages = threads[i].getMessages();
-    for (var j = 0; j < messages.length; j++) {
-      var msg = messages[j];
-      var result = sendToApi(
-        msg.getPlainBody(),
-        msg.getSubject(),
-        msg.getFrom()
-      );
-      if (result && result.found > 0) {
-        totalFound += result.found;
+  const fetchCredentials = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("email_credentials" as any)
+        .select("*")
+        .eq("tenant_id", tenantId!)
+        .maybeSingle();
+      if (data) {
+        const cred = data as any as EmailCredential;
+        setExisting(cred);
+        setForm({
+          imap_host: cred.imap_host,
+          imap_port: cred.imap_port,
+          imap_user: cred.imap_user,
+          imap_password: cred.imap_password,
+          use_tls: cred.use_tls,
+        });
+        // Detect provider
+        const match = Object.entries(PROVIDER_PRESETS).find(([, v]) => v.host === cred.imap_host);
+        setProvider(match ? match[0] : "custom");
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    // Marcar como processado
-    threads[i].addLabel(label);
-  }
-  
-  if (totalFound > 0) {
-    Logger.log("✅ Total: " + totalFound + " publicações capturadas");
-  }
-}
-
-function sendToApi(body, subject, from) {
-  try {
-    var payload = {
-      email_body: body.substring(0, 50000),
-      email_subject: subject,
-      email_from: from,
-      tenant_id: CONFIG.TENANT_ID,
-      api_key: CONFIG.API_KEY
-    };
-    
-    var options = {
-      method: "post",
-      contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
-    
-    var response = UrlFetchApp.fetch(CONFIG.ENDPOINT, options);
-    var result = JSON.parse(response.getContentText());
-    Logger.log("Resposta: " + JSON.stringify(result));
-    return result;
-  } catch (e) {
-    Logger.log("Erro: " + e.message);
-    return null;
-  }
-}
-
-// Criar trigger automático (execute esta função UMA VEZ manualmente)
-function criarTriggerAutomatico() {
-  // Remove triggers existentes
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === "processCourtEmails") {
-      ScriptApp.deleteTrigger(triggers[i]);
-    }
-  }
-  // Cria trigger a cada 1 hora
-  ScriptApp.newTrigger("processCourtEmails")
-    .timeBased()
-    .everyHours(1)
-    .create();
-  Logger.log("✅ Trigger criado! O script rodará automaticamente a cada hora.");
-}`;
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(getGoogleScript());
-    toast({ title: "Copiado!", description: "Cole no Google Apps Script." });
+  const handleProviderChange = (val: string) => {
+    setProvider(val);
+    const preset = PROVIDER_PRESETS[val];
+    if (preset && preset.host) {
+      setForm(prev => ({ ...prev, imap_host: preset.host, imap_port: preset.port }));
+    }
   };
 
-  if (!tenantId || !apiKey) return null;
+  const handleSave = async () => {
+    if (!tenantId || !form.imap_user || !form.imap_password || !form.imap_host) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        tenant_id: tenantId,
+        ...form,
+        is_active: true,
+      };
 
+      if (existing) {
+        const { error } = await supabase
+          .from("email_credentials" as any)
+          .update(payload as any)
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("email_credentials" as any)
+          .insert(payload as any);
+        if (error) throw error;
+      }
+
+      toast({ title: "Salvo!", description: "Credenciais de email configuradas com sucesso." });
+      await fetchCredentials();
+      setShowForm(false);
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Não autenticado");
+
+      const response = await supabase.functions.invoke("poll-email-imap", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { tenant_id: tenantId },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+
+      const result = response.data?.results?.[0];
+      toast({
+        title: "Teste concluído",
+        description: result?.error
+          ? `Erro: ${result.error}`
+          : `${result?.found || 0} publicações encontradas, ${result?.inserted || 0} inseridas.`,
+      });
+      await fetchCredentials();
+    } catch (err: any) {
+      toast({ title: "Erro no teste", description: err.message, variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!existing) return;
+    try {
+      const { error } = await supabase
+        .from("email_credentials" as any)
+        .delete()
+        .eq("id", existing.id);
+      if (error) throw error;
+      setExisting(null);
+      setForm({ imap_host: "imap.gmail.com", imap_port: 993, imap_user: "", imap_password: "", use_tls: true });
+      setProvider("gmail");
+      toast({ title: "Removido", description: "Credenciais de email removidas." });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
+
+  if (!tenantId) return null;
+  if (loading) return null;
+
+  // Configured state
+  if (existing && !showForm) {
+    return (
+      <div className="bg-card rounded-lg border p-5 shadow-card space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <Mail className="w-4 h-4 text-accent" /> Captura Automática via Email
+          </h2>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" /> Configurado
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Monitorando <strong>{existing.imap_user}</strong> via {existing.imap_host}.
+          {existing.last_polled_at && (
+            <span className="block text-xs mt-1">
+              Última verificação: {new Date(existing.last_polled_at).toLocaleString("pt-BR")}
+            </span>
+          )}
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={handleTest} disabled={testing} variant="default" size="sm" className="gap-2">
+            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            {testing ? "Verificando..." : "Verificar agora"}
+          </Button>
+          <Button onClick={() => setShowForm(true)} variant="outline" size="sm" className="gap-2">
+            <Settings2 className="w-4 h-4" /> Editar
+          </Button>
+          <Button onClick={handleDelete} variant="ghost" size="sm" className="gap-2 text-destructive hover:text-destructive">
+            <Trash2 className="w-4 h-4" /> Remover
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Setup form
   return (
     <div className="bg-card rounded-lg border p-5 shadow-card space-y-4">
       <div className="flex items-center justify-between">
@@ -160,70 +216,106 @@ function criarTriggerAutomatico() {
           <Mail className="w-4 h-4 text-accent" /> Captura Automática via Email
         </h2>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium">
-          100% Automático
+          Qualquer provedor
         </span>
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Configure uma vez e receba publicações automaticamente. O sistema lê os emails dos tribunais 
-        no seu Gmail e extrai as publicações a cada hora, sem intervenção manual.
+        Configure o email que recebe as intimações dos tribunais. O sistema verificará automaticamente
+        novas publicações. Funciona com <strong>Gmail, Outlook, Yahoo</strong> ou qualquer email IMAP.
       </p>
 
-      <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">Setup rápido (2 minutos):</h3>
-        <ol className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex gap-2">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">1</span>
-            <span>
-              Acesse <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-medium">script.google.com</a> com 
-              o Gmail que recebe as intimações
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">2</span>
-            <span>Clique em <strong>"Novo projeto"</strong>, apague o conteúdo e cole o script abaixo</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">3</span>
-            <span>No menu suspenso de funções, selecione <strong>"criarTriggerAutomatico"</strong> e clique em <strong>▶ Executar</strong></span>
-          </li>
-          <li className="flex gap-2">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">4</span>
-            <span>Autorize o acesso ao Gmail quando solicitado</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center flex-col">
-              <CheckCircle className="w-3.5 h-3.5" />
-            </span>
-            <span className="text-foreground font-medium">Pronto! A cada hora, as publicações serão importadas automaticamente.</span>
-          </li>
-        </ol>
+      <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Provedor</Label>
+            <Select value={provider} onValueChange={handleProviderChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gmail">Gmail</SelectItem>
+                <SelectItem value="outlook">Outlook / Microsoft 365</SelectItem>
+                <SelectItem value="yahoo">Yahoo</SelectItem>
+                <SelectItem value="uol">UOL</SelectItem>
+                <SelectItem value="terra">Terra</SelectItem>
+                <SelectItem value="custom">Outro (IMAP manual)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {provider === "custom" && (
+            <>
+              <div className="space-y-2">
+                <Label>Servidor IMAP</Label>
+                <Input
+                  placeholder="imap.seuservidor.com"
+                  value={form.imap_host}
+                  onChange={e => setForm(prev => ({ ...prev, imap_host: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Porta</Label>
+                <Input
+                  type="number"
+                  value={form.imap_port}
+                  onChange={e => setForm(prev => ({ ...prev, imap_port: parseInt(e.target.value) || 993 }))}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              placeholder="advogado@exemplo.com"
+              value={form.imap_user}
+              onChange={e => setForm(prev => ({ ...prev, imap_user: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Senha {provider === "gmail" && <span className="text-xs text-muted-foreground">(senha de app)</span>}
+            </Label>
+            <Input
+              type="password"
+              placeholder="••••••••"
+              value={form.imap_password}
+              onChange={e => setForm(prev => ({ ...prev, imap_password: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        {provider === "gmail" && (
+          <div className="text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded p-3">
+            <strong>Gmail requer "Senha de App"</strong>: Acesse{" "}
+            <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+              myaccount.google.com/apppasswords
+            </a>
+            , crie uma senha de aplicativo e use-a aqui ao invés da senha normal.
+          </div>
+        )}
+
+        {provider === "outlook" && (
+          <div className="text-xs text-muted-foreground bg-blue-500/10 border border-blue-500/20 rounded p-3">
+            <strong>Outlook / Microsoft 365</strong>: Verifique se o acesso IMAP está habilitado nas configurações da sua conta.
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2">
-        <Button onClick={handleCopy} variant="default" className="gap-2">
-          <Copy className="w-4 h-4" /> Copiar Script
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saving ? "Salvando..." : "Salvar e ativar"}
         </Button>
-        <Button 
-          onClick={() => setShowScript(!showScript)} 
-          variant="outline" 
-          className="gap-2"
-        >
-          {showScript ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          {showScript ? "Ocultar" : "Ver script"}
-        </Button>
+        {existing && (
+          <Button onClick={() => setShowForm(false)} variant="outline">
+            Cancelar
+          </Button>
+        )}
       </div>
-
-      {showScript && (
-        <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono leading-relaxed">
-          {getGoogleScript()}
-        </pre>
-      )}
-
-      <p className="text-xs text-muted-foreground border-t border-border pt-3">
-        <strong>Remetentes monitorados:</strong> TRF4, TJRS, STJ, TST, CNJ. 
-        Você pode adicionar mais remetentes editando a lista <code>SENDERS</code> no script.
-      </p>
     </div>
   );
 };

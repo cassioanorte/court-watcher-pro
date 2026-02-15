@@ -338,6 +338,59 @@ export type Database = {
           },
         ]
       }
+      email_credentials: {
+        Row: {
+          created_at: string
+          id: string
+          imap_host: string
+          imap_password: string
+          imap_port: number
+          imap_user: string
+          is_active: boolean
+          last_polled_at: string | null
+          senders: string[]
+          tenant_id: string
+          updated_at: string
+          use_tls: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          imap_host: string
+          imap_password: string
+          imap_port?: number
+          imap_user: string
+          is_active?: boolean
+          last_polled_at?: string | null
+          senders?: string[]
+          tenant_id: string
+          updated_at?: string
+          use_tls?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          imap_host?: string
+          imap_password?: string
+          imap_port?: number
+          imap_user?: string
+          is_active?: boolean
+          last_polled_at?: string | null
+          senders?: string[]
+          tenant_id?: string
+          updated_at?: string
+          use_tls?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_credentials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eproc_credentials: {
         Row: {
           created_at: string
