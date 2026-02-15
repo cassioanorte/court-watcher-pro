@@ -149,13 +149,11 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
   const publications: any[] = [];
   const today = new Date().toISOString().split('T')[0];
 
+  // Split email into sections by separator lines (e.g. "-------------------------")
+  const sections = content.split(/\n\s*-{10,}\s*\n/);
+
   // Find all CNJ process numbers
   const procRegex = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g;
-  const processes: string[] = [];
-  let match;
-  while ((match = procRegex.exec(content)) !== null) {
-    if (!processes.includes(match[1])) processes.push(match[1]);
-  }
 
   // Type detection keywords
   const typeKeywords: [RegExp, string][] = [
@@ -170,52 +168,91 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     [/nota\s*de\s*expediente/i, 'Nota de Expediente'],
   ];
 
-  if (processes.length === 0) {
-    // No process numbers found - skip this email entirely
-    console.log('Skipping email: no process numbers found');
-    return publications;
-  }
+  const seenProcs = new Set<string>();
 
-  for (const proc of processes) {
-    const procIdx = content.indexOf(proc);
-    if (procIdx === -1) continue;
+  for (const section of sections) {
+    const trimmed = section.trim();
+    if (!trimmed) continue;
 
-    const start = Math.max(0, procIdx - 300);
-    const end = Math.min(content.length, procIdx + proc.length + 2000);
-    const context = content.substring(start, end).trim();
-
-    let pubType = 'Publicação DJE';
-    for (const [regex, name] of typeKeywords) {
-      if (regex.test(context)) { pubType = name; break; }
+    // Find process numbers in this section
+    const procsInSection: string[] = [];
+    let match;
+    const sectionProcRegex = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g;
+    while ((match = sectionProcRegex.exec(trimmed)) !== null) {
+      if (!procsInSection.includes(match[1])) procsInSection.push(match[1]);
     }
 
-    // Try to extract date
+    if (procsInSection.length === 0) continue;
+
+    // Detect publication type from the full section
+    let pubType = 'Publicação DJE';
+    for (const [regex, name] of typeKeywords) {
+      if (regex.test(trimmed)) { pubType = name; break; }
+    }
+
+    // Try to extract date from section
     const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/g;
     let pubDate = today;
     let dMatch;
-    while ((dMatch = dateRegex.exec(context)) !== null) {
+    while ((dMatch = dateRegex.exec(trimmed)) !== null) {
       const year = parseInt(dMatch[3]);
       if (year >= 2024) { pubDate = `${dMatch[3]}-${dMatch[2]}-${dMatch[1]}`; break; }
     }
 
-    const procClean = proc.replace(/[^0-9]/g, '');
-    // Hash based on source + process + date + type only (not content) to deduplicate across emails
-    const hash = `email_${source.toLowerCase()}_${procClean}_${pubDate}_${pubType.toLowerCase().replace(/\s+/g, '_')}`;
+    for (const proc of procsInSection) {
+      const procClean = proc.replace(/[^0-9]/g, '');
+      const hashKey = `${procClean}_${pubDate}_${pubType}`;
+      if (seenProcs.has(hashKey)) continue;
+      seenProcs.add(hashKey);
 
-    publications.push({
-      tenant_id: tenantId,
-      oab_number: '',
-      source,
-      publication_date: pubDate,
-      title: `${pubType} - ${proc}`.substring(0, 300),
-      content: context.substring(0, 5000),
-      publication_type: pubType,
-      process_number: proc,
-      organ: source,
-      unique_hash: hash,
-      external_url: null,
-      case_id: null,
-    });
+      const hash = `email_${source.toLowerCase()}_${procClean}_${pubDate}_${pubType.toLowerCase().replace(/\s+/g, '_')}`;
+
+      publications.push({
+        tenant_id: tenantId,
+        oab_number: '',
+        source,
+        publication_date: pubDate,
+        title: `${pubType} - ${proc}`.substring(0, 300),
+        content: trimmed.substring(0, 10000),
+        publication_type: pubType,
+        process_number: proc,
+        organ: source,
+        unique_hash: hash,
+        external_url: null,
+        case_id: null,
+      });
+    }
+  }
+
+  // Fallback: if no sections found (no separators), use full content approach
+  if (publications.length === 0) {
+    let match;
+    const fallbackProcs: string[] = [];
+    while ((match = procRegex.exec(content)) !== null) {
+      if (!fallbackProcs.includes(match[1])) fallbackProcs.push(match[1]);
+    }
+    for (const proc of fallbackProcs) {
+      const procClean = proc.replace(/[^0-9]/g, '');
+      let pubType = 'Publicação DJE';
+      for (const [regex, name] of typeKeywords) {
+        if (regex.test(content)) { pubType = name; break; }
+      }
+      const hash = `email_${source.toLowerCase()}_${procClean}_${today}_${pubType.toLowerCase().replace(/\s+/g, '_')}`;
+      publications.push({
+        tenant_id: tenantId,
+        oab_number: '',
+        source,
+        publication_date: today,
+        title: `${pubType} - ${proc}`.substring(0, 300),
+        content: content.substring(0, 10000),
+        publication_type: pubType,
+        process_number: proc,
+        organ: source,
+        unique_hash: hash,
+        external_url: null,
+        case_id: null,
+      });
+    }
   }
 
   return publications;
