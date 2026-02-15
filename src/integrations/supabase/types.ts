@@ -228,6 +228,78 @@ export type Database = {
           },
         ]
       }
+      dje_publications: {
+        Row: {
+          case_id: string | null
+          content: string | null
+          created_at: string
+          edition: string | null
+          external_url: string | null
+          id: string
+          oab_number: string
+          organ: string | null
+          process_number: string | null
+          publication_date: string
+          publication_type: string | null
+          read: boolean
+          source: string
+          tenant_id: string
+          title: string
+          unique_hash: string
+        }
+        Insert: {
+          case_id?: string | null
+          content?: string | null
+          created_at?: string
+          edition?: string | null
+          external_url?: string | null
+          id?: string
+          oab_number: string
+          organ?: string | null
+          process_number?: string | null
+          publication_date: string
+          publication_type?: string | null
+          read?: boolean
+          source: string
+          tenant_id: string
+          title: string
+          unique_hash: string
+        }
+        Update: {
+          case_id?: string | null
+          content?: string | null
+          created_at?: string
+          edition?: string | null
+          external_url?: string | null
+          id?: string
+          oab_number?: string
+          organ?: string | null
+          process_number?: string | null
+          publication_date?: string
+          publication_type?: string | null
+          read?: boolean
+          source?: string
+          tenant_id?: string
+          title?: string
+          unique_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dje_publications_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dje_publications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           case_id: string
