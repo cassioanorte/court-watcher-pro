@@ -45,7 +45,7 @@ const ProcessDetail = () => {
   const [editMovDetails, setEditMovDetails] = useState("");
   const [savingMov, setSavingMov] = useState(false);
 
-  const isLawyer = role === "owner" || role === "staff";
+  const isLawyer = role === "owner" || role === "staff" || role === "superadmin";
 
   useEffect(() => {
     if (!id) return;
