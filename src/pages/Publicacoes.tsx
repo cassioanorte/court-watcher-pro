@@ -418,28 +418,36 @@ const Publicacoes = () => {
                 )}
                 {/* Extract parties from content */}
                 {selectedPub.content && (() => {
+                  const text = selectedPub.content!;
                   const patterns: [RegExp, string, string][] = [
-                    [/Cliente:\s*(.+)/i, '👤', 'Cliente'],
-                    [/Advogado:\s*(.+)/i, '⚖️', 'Advogado'],
-                    [/Autor(?:a)?:\s*(.+)/i, '🔵', 'Autor'],
-                    [/R[ée]u:\s*(.+)/i, '🔴', 'Réu'],
-                    [/Requerente:\s*(.+)/i, '🔵', 'Requerente'],
-                    [/Requerido(?:a)?:\s*(.+)/i, '🔴', 'Requerido'],
-                    [/Impetrante:\s*(.+)/i, '🔵', 'Impetrante'],
-                    [/Impetrado(?:a)?:\s*(.+)/i, '🔴', 'Impetrado'],
-                    [/Agravante:\s*(.+)/i, '🔵', 'Agravante'],
-                    [/Agravado(?:a)?:\s*(.+)/i, '🔴', 'Agravado'],
-                    [/Apelante:\s*(.+)/i, '🔵', 'Apelante'],
-                    [/Apelado(?:a)?:\s*(.+)/i, '🔴', 'Apelado'],
-                    [/Recorrente:\s*(.+)/i, '🔵', 'Recorrente'],
-                    [/Recorrido(?:a)?:\s*(.+)/i, '🔴', 'Recorrido'],
-                    [/Exequente:\s*(.+)/i, '🔵', 'Exequente'],
-                    [/Executado(?:a)?:\s*(.+)/i, '🔴', 'Executado'],
+                    [/reclamante:\s*([^\n]+?)(?=\s*reclamad|intimad|$)/gi, '🔵', 'Reclamante'],
+                    [/reclamado(?:a)?:\s*([^\n]+?)(?=\s*intimad|fica|$)/gi, '🔴', 'Reclamado'],
+                    [/autor(?:a)?:\s*([^\n]+?)(?=\s*r[eé]u|intimad|$)/gi, '🔵', 'Autor'],
+                    [/r[eé]u:\s*([^\n]+?)(?=\s*intimad|fica|$)/gi, '🔴', 'Réu'],
+                    [/agravante:\s*([^\n]+?)(?=\s*(?:procurador|agravad|advogad|$))/gi, '🔵', 'Agravante'],
+                    [/agravado(?:a)?:\s*([^\n]+?)(?=\s*(?:procurador|advogad|publique|$))/gi, '🔴', 'Agravado'],
+                    [/apelante:\s*([^\n]+?)(?=\s*(?:apelad|advogad|procurador|$))/gi, '🔵', 'Apelante'],
+                    [/apelado(?:a)?:\s*([^\n]+?)(?=\s*(?:advogad|procurador|ato |$))/gi, '🔴', 'Apelado'],
+                    [/requerente:\s*([^\n]+?)(?=\s*(?:requerid|advogad|$))/gi, '🔵', 'Requerente'],
+                    [/requerido(?:a)?:\s*([^\n]+?)(?=\s*(?:advogad|intimad|$))/gi, '🔴', 'Requerido'],
+                    [/exequente:\s*([^\n]+?)(?=\s*(?:executad|advogad|$))/gi, '🔵', 'Exequente'],
+                    [/executado(?:a)?:\s*([^\n]+?)(?=\s*(?:advogad|intimad|$))/gi, '🔴', 'Executado'],
+                    [/impetrante:\s*([^\n]+?)(?=\s*(?:impetrad|advogad|$))/gi, '🔵', 'Impetrante'],
+                    [/impetrado(?:a)?:\s*([^\n]+?)(?=\s*(?:advogad|intimad|$))/gi, '🔴', 'Impetrado'],
+                    [/recorrente:\s*([^\n]+?)(?=\s*(?:recorrid|advogad|$))/gi, '🔵', 'Recorrente'],
+                    [/recorrido(?:a)?:\s*([^\n]+?)(?=\s*(?:advogad|intimad|$))/gi, '🔴', 'Recorrido'],
+                    [/advogado\(a\):\s*([^\n]+?)(?=\s*(?:ato |pela|$))/gi, '⚖️', 'Advogado'],
+                    [/procurador(?:a)?\(a\)?:\s*([^\n]+?)(?=\s*(?:agravad|apelad|publique|$))/gi, '⚖️', 'Procurador'],
                   ];
                   const found: { icon: string; label: string; name: string }[] = [];
                   for (const [regex, icon, label] of patterns) {
-                    const m = selectedPub.content!.match(regex);
-                    if (m) found.push({ icon, label, name: m[1].trim() });
+                    let m: RegExpExecArray | null;
+                    while ((m = regex.exec(text)) !== null) {
+                      const name = m[1].trim().replace(/\s+/g, ' ');
+                      if (name.length > 2 && name.length < 200) {
+                        found.push({ icon, label, name });
+                      }
+                    }
                   }
                   if (found.length === 0) return null;
                   return (
