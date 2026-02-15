@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2 } from "lucide-react";
+import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,8 @@ const Publicacoes = () => {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [readFilter, setReadFilter] = useState("all");
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchPublications = async () => {
     if (!tenantId) return;
@@ -125,6 +127,40 @@ const Publicacoes = () => {
       if (selectedPub?.id === pub.id) setSelectedPub(null);
       toast({ title: "Publicação excluída" });
     }
+  };
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(p => p.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("dje_publications")
+      .delete()
+      .in("id", ids);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      setPublications(prev => prev.filter(p => !selectedIds.has(p.id)));
+      toast({ title: `${ids.length} publicação(ões) excluída(s)` });
+      setSelectedIds(new Set());
+    }
+    setBulkDeleting(false);
   };
 
   const filtered = publications.filter(p => {
@@ -225,6 +261,44 @@ const Publicacoes = () => {
         </div>
       ) : (
         <div className="space-y-2">
+          {/* Bulk actions bar */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {selectedIds.size === filtered.length && filtered.length > 0 ? (
+                <CheckSquare className="w-4 h-4" />
+              ) : (
+                <Square className="w-4 h-4" />
+              )}
+              {selectedIds.size > 0 ? `${selectedIds.size} selecionada(s)` : "Selecionar todas"}
+            </button>
+            {selectedIds.size > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={bulkDeleting} className="gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Excluir {selectedIds.size} selecionada(s)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir {selectedIds.size} publicação(ões)?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. As publicações selecionadas serão removidas permanentemente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Excluir tudo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
           {filtered.map((pub, i) => (
             <motion.div
               key={pub.id}
@@ -235,7 +309,18 @@ const Publicacoes = () => {
               className={`group bg-card border rounded-lg p-4 cursor-pointer hover:border-accent/30 transition-all ${!pub.read ? "border-l-4 border-l-accent" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <button
+                    onClick={(e) => toggleSelect(pub.id, e)}
+                    className="mt-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    {selectedIds.has(pub.id) ? (
+                      <CheckSquare className="w-4 h-4 text-primary" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                  </button>
+                  <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <Badge variant="outline" className="text-[10px] shrink-0">{pub.source}</Badge>
                     {pub.publication_type && (
@@ -265,6 +350,7 @@ const Publicacoes = () => {
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     {pub.process_number && <span className="font-mono">{pub.process_number}</span>}
                     <span>{new Date(pub.publication_date).toLocaleDateString("pt-BR")}</span>
+                  </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
