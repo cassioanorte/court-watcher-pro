@@ -36,7 +36,6 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Simple API key validation - hash of tenant_id + slug
     const expectedKey = await generateApiKey(tenant_id);
     if (api_key !== expectedKey) {
       return new Response(JSON.stringify({ error: 'API key inválida' }),
@@ -88,7 +87,6 @@ Deno.serve(async (req) => {
             break;
           }
         }
-        // Default to first profile's OAB
         if (!pub.oab_number && profiles[0]?.oab_number) {
           pub.oab_number = profiles[0].oab_number;
         }
@@ -132,25 +130,111 @@ Deno.serve(async (req) => {
 
 function detectSource(from: string, subject: string): string {
   const text = `${from} ${subject}`.toLowerCase();
-  if (text.includes('trf4') || text.includes('trf 4')) return 'TRF4';
-  if (text.includes('tjrs') || text.includes('tj/rs') || text.includes('tribunal de justiça do rio grande')) return 'TJRS';
+  if (text.includes('trf4') || text.includes('trf 4') || text.includes('federal 4a regiao')) return 'TRF4';
+  if (text.includes('tjrs') || text.includes('tj/rs') || text.includes('tribunal de justiça do rio grande') || text.includes('justica estadual rs') || text.includes('justica estadual/rs')) return 'TJRS';
+  if (text.includes('trt4') || text.includes('trt 4') || text.includes('trabalho 4') || text.includes('trabalho rs')) return 'TRT4';
   if (text.includes('trf1') || text.includes('trf 1')) return 'TRF1';
   if (text.includes('trf2') || text.includes('trf 2')) return 'TRF2';
   if (text.includes('trf3') || text.includes('trf 3')) return 'TRF3';
   if (text.includes('trf5') || text.includes('trf 5')) return 'TRF5';
-  if (text.includes('stj')) return 'STJ';
-  if (text.includes('stf')) return 'STF';
-  if (text.includes('tst')) return 'TST';
-  if (text.includes('dje') || text.includes('diário') || text.includes('diario')) return 'DJE';
+  if (text.includes('stj') || text.includes('superior tribunal de justica')) return 'STJ';
+  if (text.includes('stf') || text.includes('supremo tribunal federal')) return 'STF';
+  if (text.includes('tst') || text.includes('tribunal superior do trabalho')) return 'TST';
+  if (text.includes('dje') || text.includes('diário') || text.includes('diario') || text.includes('djen')) return 'DJE';
   return 'EMAIL';
+}
+
+/**
+ * Extract only the "teor" (substance) of a publication section,
+ * removing tribunal headers, OAB info, and index listings.
+ */
+function extractTeor(sectionText: string): string {
+  const lines = sectionText.split('\n');
+  const cleanLines: string[] = [];
+  let foundProcessNumber = false;
+  let skipOabHeader = true;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (foundProcessNumber) cleanLines.push('');
+      continue;
+    }
+
+    // Skip OAB header lines (e.g., "OAB/RS 070421 - NOME DO ADVOGADO")
+    if (/^OAB\s*\/?\s*[A-Z]{2}\s+\d+/i.test(trimmed)) continue;
+
+    // Skip "Neste e-mail X processos..." index lines
+    if (/neste\s+e-?mail\s+\d+\s+processos?/i.test(trimmed)) continue;
+    if (/processos?\s+est[ãa]o?\s+listados?/i.test(trimmed)) continue;
+    if (/este\s+e-?mail\s+cont[ée]m/i.test(trimmed)) continue;
+
+    // Skip lines that are just a process number listing (index)
+    if (/^\s*-?\s*\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\s*$/.test(trimmed)) {
+      if (!foundProcessNumber) continue; // Skip if in index area
+    }
+
+    // Detect when we hit the actual content (process number in context)
+    if (/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/.test(trimmed)) {
+      foundProcessNumber = true;
+    }
+
+    // Skip tribunal header lines at start before content
+    if (skipOabHeader && !foundProcessNumber) {
+      // Skip generic tribunal headers
+      if (/^tribunal\s+(reg|regional|superior)/i.test(trimmed)) continue;
+      if (/^(poder\s+judici[aá]rio|justi[cç]a\s+(do\s+trabalho|estadual|federal))/i.test(trimmed)) continue;
+      if (/^disponibilizado\s+em\s*:/i.test(trimmed)) continue;
+      if (/^\d+[ªaº]\s+(turma|vara|câmara|seção)/i.test(trimmed)) continue;
+      if (/^sec\.gab\./i.test(trimmed)) continue;
+      if (/^(apela[çc][ãa]o|agravo|recurso|mandado|a[çc][ãa]o|procedimento|embargos)/i.test(trimmed)) continue;
+    }
+
+    if (foundProcessNumber) {
+      skipOabHeader = false;
+    }
+
+    cleanLines.push(trimmed);
+  }
+
+  // Remove leading empty lines
+  let result = cleanLines.join('\n').replace(/^\n+/, '').trim();
+
+  // If after cleaning we have very little content, return the original
+  if (result.length < 50) {
+    return sectionText.trim();
+  }
+
+  return result;
 }
 
 function parseEmailContent(content: string, source: string, tenantId: string): any[] {
   const publications: any[] = [];
   const today = new Date().toISOString().split('T')[0];
 
-  // Split email into sections by separator lines (e.g. "-------------------------")
-  const sections = content.split(/\n\s*-{10,}\s*\n/);
+  // Try multiple separator patterns
+  let sections: string[];
+  
+  // Pattern 1: Long dash lines (most common in OAB emails)
+  sections = content.split(/\n\s*-{10,}\s*\n/);
+  
+  // Pattern 2: If only 1 section, try equal signs
+  if (sections.length <= 1) {
+    sections = content.split(/\n\s*={10,}\s*\n/);
+  }
+  
+  // Pattern 3: If still 1 section, try asterisks
+  if (sections.length <= 1) {
+    sections = content.split(/\n\s*\*{10,}\s*\n/);
+  }
+  
+  // Pattern 4: Try double blank lines as last resort separator
+  if (sections.length <= 1) {
+    // Split by double blank lines but only if content is long enough
+    if (content.length > 2000) {
+      sections = content.split(/\n\s*\n\s*\n/);
+    }
+  }
 
   // Find all CNJ process numbers
   const procRegex = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g;
@@ -166,6 +250,8 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     [/cita[çc][ãa]o/i, 'Citação'],
     [/edital/i, 'Edital'],
     [/nota\s*de\s*expediente/i, 'Nota de Expediente'],
+    [/pauta\s*de\s*julgamento/i, 'Pauta de Julgamento'],
+    [/distribui[çc][ãa]o|distribuido/i, 'Distribuição'],
   ];
 
   const seenProcs = new Set<string>();
@@ -174,13 +260,8 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     const trimmed = section.trim();
     if (!trimmed) continue;
 
-    // Skip header/index sections that just list processes and lawyers
-    if (/NESTE E-MAIL \d+ PROCESSOS?\b/i.test(trimmed) || 
-        /PROCESSOS? EST[ÃA]O? LISTADOS?/i.test(trimmed) ||
-        /ESTE E-MAIL CONT[ÉE]M AS INTIMA[ÇC][ÕO]ES/i.test(trimmed)) {
-      // Only skip if section is short (header-like) — under 500 chars
-      if (trimmed.length < 500) continue;
-    }
+    // Skip OAB index sections
+    if (isOabIndexSection(trimmed)) continue;
 
     // Find process numbers in this section
     const procsInSection: string[] = [];
@@ -207,6 +288,9 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
       if (year >= 2024) { pubDate = `${dMatch[3]}-${dMatch[2]}-${dMatch[1]}`; break; }
     }
 
+    // Extract clean teor (substance) from the section
+    const cleanContent = extractTeor(trimmed);
+
     for (const proc of procsInSection) {
       const procClean = proc.replace(/[^0-9]/g, '');
       const hashKey = `${procClean}_${pubDate}_${pubType}`;
@@ -221,7 +305,7 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
         source,
         publication_date: pubDate,
         title: `${pubType} - ${proc}`.substring(0, 300),
-        content: trimmed.substring(0, 10000),
+        content: cleanContent.substring(0, 10000),
         publication_type: pubType,
         process_number: proc,
         organ: source,
@@ -232,13 +316,16 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     }
   }
 
-  // Fallback: if no sections found (no separators), use full content approach
+  // Fallback: if no publications found, try full content approach
   if (publications.length === 0) {
     let match;
     const fallbackProcs: string[] = [];
     while ((match = procRegex.exec(content)) !== null) {
       if (!fallbackProcs.includes(match[1])) fallbackProcs.push(match[1]);
     }
+    
+    const cleanContent = extractTeor(content);
+    
     for (const proc of fallbackProcs) {
       const procClean = proc.replace(/[^0-9]/g, '');
       let pubType = 'Publicação DJE';
@@ -252,7 +339,7 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
         source,
         publication_date: today,
         title: `${pubType} - ${proc}`.substring(0, 300),
-        content: content.substring(0, 10000),
+        content: cleanContent.substring(0, 10000),
         publication_type: pubType,
         process_number: proc,
         organ: source,
@@ -266,19 +353,37 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
   return publications;
 }
 
+/**
+ * Detect if a section is an OAB index/header section
+ * (lists lawyers and process numbers but no actual content)
+ */
+function isOabIndexSection(text: string): boolean {
+  // Check for explicit OAB index markers
+  if (/NESTE\s+E-?MAIL\s+\d+\s+PROCESSOS?\b/i.test(text) && text.length < 1000) return true;
+  if (/PROCESSOS?\s+EST[ÃA]O?\s+LISTADOS?/i.test(text) && text.length < 1000) return true;
+  if (/ESTE\s+E-?MAIL\s+CONT[ÉE]M\s+AS\s+INTIMA[ÇC][ÕO]ES/i.test(text) && text.length < 1000) return true;
+  
+  // Check if section is mostly OAB references (index listing)
+  const oabMatches = text.match(/OAB\s*\/?\s*[A-Z]{2}\s*\d+/gi);
+  const procMatches = text.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g);
+  
+  // If many OAB references relative to text length, it's an index
+  if (oabMatches && oabMatches.length >= 2 && text.length < 1500) return true;
+  
+  // If it has process numbers but mostly just lists them (short text per process)
+  if (procMatches && procMatches.length > 3) {
+    const textWithoutProcs = text.replace(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g, '').trim();
+    const avgCharsPerProc = textWithoutProcs.length / procMatches.length;
+    if (avgCharsPerProc < 100) return true; // Very little content per process = index
+  }
+
+  return false;
+}
+
 async function generateApiKey(tenantId: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(`lovable-email-${tenantId}-integration`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
-}
-
-function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(36);
 }
