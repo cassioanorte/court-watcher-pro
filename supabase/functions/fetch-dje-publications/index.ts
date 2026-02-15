@@ -5,6 +5,49 @@ const corsHeaders = {
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// DataJud API endpoint mapping for each tribunal
+const DATAJUD_ENDPOINTS: Record<string, string> = {
+  'TJRS_1G': 'api_publica_tjrs',
+  'TJRS_2G': 'api_publica_tjrs',
+  'TRF4_JFRS': 'api_publica_trf4',
+  'TRF4_JFSC': 'api_publica_trf4',
+  'TRF4_JFPR': 'api_publica_trf4',
+  'TRF4': 'api_publica_trf4',
+  'TST': 'api_publica_tst',
+  'TSE': 'api_publica_tse',
+  'STJ': 'api_publica_stj',
+  'STM': 'api_publica_stm',
+  'TRF1': 'api_publica_trf1',
+  'TRF2': 'api_publica_trf2',
+  'TRF3': 'api_publica_trf3',
+  'TRF5': 'api_publica_trf5',
+  'TRF6': 'api_publica_trf6',
+  'TRT1': 'api_publica_trt1',
+  'TRT2': 'api_publica_trt2',
+  'TRT3': 'api_publica_trt3',
+  'TRT4': 'api_publica_trt4',
+  'TRT5': 'api_publica_trt5',
+  'TRT6': 'api_publica_trt6',
+  'TRT7': 'api_publica_trt7',
+  'TRT8': 'api_publica_trt8',
+  'TRT9': 'api_publica_trt9',
+  'TRT10': 'api_publica_trt10',
+  'TRT11': 'api_publica_trt11',
+  'TRT12': 'api_publica_trt12',
+  'TRT13': 'api_publica_trt13',
+  'TRT14': 'api_publica_trt14',
+  'TRT15': 'api_publica_trt15',
+  'TRT16': 'api_publica_trt16',
+  'TRT17': 'api_publica_trt17',
+  'TRT18': 'api_publica_trt18',
+  'TRT19': 'api_publica_trt19',
+  'TRT20': 'api_publica_trt20',
+  'TRT21': 'api_publica_trt21',
+  'TRT22': 'api_publica_trt22',
+  'TRT23': 'api_publica_trt23',
+  'TRT24': 'api_publica_trt24',
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +61,11 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const datajudApiKey = Deno.env.get('DATAJUD_API_KEY');
+
+    if (!datajudApiKey) {
+      return new Response(JSON.stringify({ error: 'Chave da API DataJud não configurada.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } }
@@ -32,6 +80,7 @@ Deno.serve(async (req) => {
     const userId = user.id;
     const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
+    // Get tenant
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('tenant_id')
@@ -44,6 +93,7 @@ Deno.serve(async (req) => {
 
     const tenantId = userProfile.tenant_id;
 
+    // Get OAB numbers for matching
     const { data: profiles } = await serviceClient
       .from('profiles')
       .select('oab_number, user_id')
@@ -58,23 +108,70 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Nenhum número da OAB cadastrado no escritório.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log(`OABs encontradas: ${oabNumbers.join(', ')}`);
+    console.log(`OABs: ${oabNumbers.join(', ')}`);
 
-    // Fetch publications directly via HTTP POST to TRF4 (no Firecrawl needed)
-    const results = await fetchDirectFromTRF4(oabNumbers, tenantId);
+    // Get all cases for this tenant to query DataJud by process number
+    const { data: cases } = await serviceClient
+      .from('cases')
+      .select('id, process_number, source, client_user_id')
+      .eq('tenant_id', tenantId);
+
+    if (!cases || cases.length === 0) {
+      return new Response(JSON.stringify({ error: 'Nenhum processo cadastrado.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    console.log(`Encontrados ${cases.length} processos para consultar`);
+
+    // Group cases by tribunal endpoint
+    const casesByEndpoint: Record<string, typeof cases> = {};
+    for (const c of cases) {
+      const endpoint = DATAJUD_ENDPOINTS[c.source] || null;
+      if (!endpoint) {
+        console.log(`No DataJud endpoint for source: ${c.source}`);
+        continue;
+      }
+      if (!casesByEndpoint[endpoint]) casesByEndpoint[endpoint] = [];
+      casesByEndpoint[endpoint].push(c);
+    }
+
+    const allPublications: any[] = [];
+
+    // Query DataJud for each tribunal
+    for (const [endpoint, endpointCases] of Object.entries(casesByEndpoint)) {
+      // Process in batches of 10 to avoid huge queries
+      for (let i = 0; i < endpointCases.length; i += 10) {
+        const batch = endpointCases.slice(i, i + 10);
+        const processNumbers = batch.map(c => c.process_number.replace(/[^0-9]/g, ''));
+
+        console.log(`Querying DataJud ${endpoint} for ${processNumbers.length} processes`);
+
+        try {
+          const publications = await queryDataJud(datajudApiKey, endpoint, processNumbers, batch, tenantId, oabNumbers);
+          allPublications.push(...publications);
+        } catch (err) {
+          console.error(`DataJud error for ${endpoint}:`, err);
+        }
+      }
+    }
+
+    console.log(`Total publications found: ${allPublications.length}`);
 
     // Store results
-    if (results.length > 0) {
-      for (const pub of results) {
+    if (allPublications.length > 0) {
+      let inserted = 0;
+      for (const pub of allPublications) {
         const { error: insertError } = await serviceClient
           .from('dje_publications')
           .upsert(pub, { onConflict: 'unique_hash' });
         if (insertError) {
           console.error('Insert error:', insertError.message);
+        } else {
+          inserted++;
         }
       }
 
-      for (const pub of results) {
+      // Create notifications for new publications
+      for (const pub of allPublications) {
         await serviceClient.from('notifications').insert({
           user_id: userId,
           title: `Nova publicação - ${pub.publication_type || pub.source}`,
@@ -82,12 +179,20 @@ Deno.serve(async (req) => {
           case_id: pub.case_id || null,
         }).then(() => {});
       }
+
+      console.log(`Inserted/updated ${inserted} publications`);
     }
 
     return new Response(JSON.stringify({
       success: true,
-      found: results.length,
-      publications: results.map(r => ({ title: r.title, source: r.source, date: r.publication_date, type: r.publication_type }))
+      found: allPublications.length,
+      publications: allPublications.map(r => ({
+        title: r.title,
+        source: r.source,
+        date: r.publication_date,
+        type: r.publication_type,
+        process: r.process_number,
+      }))
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
@@ -96,189 +201,143 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchDirectFromTRF4(oabNumbers: string[], tenantId: string): Promise<any[]> {
-  // Build form params for TRF4 DJE search
-  // tipo_publicacao: 1=Administrativa, 2=Judicial I, 3=Judicial II
-  // We search Judicial II (tipo_publicacao=3) which uses OAB numbers
-  const params = new URLSearchParams();
-  params.set('tipo_publicacao', '3');
-  params.set('docsPagina', '50');
-  
-  // TRF4 accepts oab1 through oab7
-  oabNumbers.slice(0, 7).forEach((oab, i) => {
-    params.set(`oab${i + 1}`, oab);
+async function queryDataJud(
+  apiKey: string,
+  endpoint: string,
+  processNumbers: string[],
+  cases: any[],
+  tenantId: string,
+  oabNumbers: string[]
+): Promise<any[]> {
+  const url = `https://api-publica.datajud.cnj.jus.br/${endpoint}/_search`;
+
+  // Build Elasticsearch query to search for multiple process numbers
+  const query = {
+    size: 100,
+    query: {
+      bool: {
+        should: processNumbers.map(num => ({
+          match: { numeroProcesso: num }
+        })),
+        minimum_should_match: 1,
+      }
+    },
+    sort: [{ "dataAjuizamento": { order: "desc" } }],
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `APIKey ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(query),
   });
 
-  // The form posts to this URL - the search button is type="button" and uses JS,
-  // but the form action itself works with a direct POST
-  const url = 'https://www.trf4.jus.br/trf4/diario/resultado_consulta.php';
-  console.log(`POST ${url} with params: ${params.toString()}`);
-
-  try {
-    // First, GET the search page to establish a session/cookies
-    const sessionResp = await fetch('https://www.trf4.jus.br/trf4/diario/consulta_diario.php', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-    });
-    
-    // Extract cookies from the session response
-    const cookies = sessionResp.headers.getSetCookie?.() || [];
-    const cookieString = cookies.map(c => c.split(';')[0]).join('; ');
-    console.log(`Session cookies: ${cookieString || '(none)'}`);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'Referer': 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php',
-        'Origin': 'https://www.trf4.jus.br',
-        ...(cookieString ? { 'Cookie': cookieString } : {}),
-      },
-      body: params.toString(),
-    });
-
-    console.log(`TRF4 response status: ${response.status}`);
-    const html = await response.text();
-    console.log(`TRF4 response length: ${html.length} chars`);
-
-    // Log snippet for debugging
-    const cleanText = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    console.log(`Result snippet: ${cleanText.substring(0, 500)}`);
-
-    const hasNoResults = /Nenhum documento encontrado|Informe ao menos/i.test(cleanText);
-    if (hasNoResults) {
-      console.log('No documents found for these OAB numbers');
-      return [];
-    }
-
-    return parseResults(html, oabNumbers, tenantId);
-  } catch (err) {
-    console.error('TRF4 fetch error:', err);
-    return [];
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`DataJud API error (${response.status}): ${errorText.substring(0, 500)}`);
+    throw new Error(`DataJud API error: ${response.status}`);
   }
-}
 
-function parseResults(html: string, oabNumbers: string[], tenantId: string): any[] {
+  const data = await response.json();
+  const hits = data.hits?.hits || [];
+  console.log(`DataJud returned ${hits.length} results for ${endpoint}`);
+
   const publications: any[] = [];
 
-  // Strategy 1: Look for exibe_documento links (main result format)
-  const docRegex = /<a[^>]*href="([^"]*exibe_documento[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let match;
+  for (const hit of hits) {
+    const source = hit._source;
+    if (!source) continue;
 
-  while ((match = docRegex.exec(html)) !== null) {
-    const href = match[1];
-    const linkText = match[2].replace(/<[^>]+>/g, '').trim();
-    if (!linkText || linkText.length < 3) continue;
-    if (/^Edi[çc][ãa]o\s+(Judicial|Administrativ)/i.test(linkText)) continue;
+    const processNumber = source.numeroProcesso || '';
+    const tribunal = source.tribunal || endpoint.replace('api_publica_', '').toUpperCase();
 
-    const contextStart = Math.max(0, match.index - 1500);
-    const contextEnd = Math.min(html.length, match.index + match[0].length + 1500);
-    const context = html.substring(contextStart, contextEnd).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Find matching case
+    const matchingCase = cases.find(c =>
+      c.process_number.replace(/[^0-9]/g, '') === processNumber.replace(/[^0-9]/g, '')
+    );
 
-    const pub = buildPublication(href, linkText, context, oabNumbers, tenantId);
-    if (pub) publications.push(pub);
-  }
+    // Extract movements as publications
+    const movements = source.movimentos || source.movimento || [];
+    if (!Array.isArray(movements)) continue;
 
-  // Strategy 2: Parse table rows
-  if (publications.length === 0) {
-    const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-    let trMatch;
+    // Get last 30 days of movements
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    while ((trMatch = trRegex.exec(html)) !== null) {
-      const row = trMatch[1];
-      const rowText = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (rowText.length < 20) continue;
+    for (const mov of movements) {
+      const movDate = mov.dataHora ? new Date(mov.dataHora) : null;
+      if (!movDate || movDate < thirtyDaysAgo) continue;
 
-      // Extract date
-      const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-      if (!dateMatch) continue;
-      const pubDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+      const movName = mov.nome || mov.complementosTabelados?.map((c: any) => c.nome || c.descricao).join(' - ') || 'Movimentação';
+      const pubDate = movDate.toISOString().split('T')[0];
 
-      // Extract link if present
-      const linkMatch = row.match(/<a[^>]*href="([^"]*)"[^>]*>/i);
-      const externalUrl = linkMatch?.[1]
-        ? (linkMatch[1].startsWith('http') ? linkMatch[1] : `https://www2.trf4.jus.br/trf4/diario/${linkMatch[1]}`)
-        : null;
+      // Format process number for display
+      const formattedProcess = formatProcessNumber(processNumber);
 
-      // Extract organ/unit info
-      const cells = row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
-      const cellTexts = cells.map(c => c.replace(/<[^>]+>/g, '').trim());
+      const title = `${movName} - Processo ${formattedProcess}`;
+      const content = [
+        `Processo: ${formattedProcess}`,
+        `Tribunal: ${tribunal}`,
+        `Data: ${pubDate}`,
+        `Movimento: ${movName}`,
+        mov.complementosTabelados?.map((c: any) => `${c.nome || ''}: ${c.descricao || c.valor || ''}`).join('\n') || '',
+      ].filter(Boolean).join('\n');
 
-      let pubType = cellTexts[3] || 'Publicação';
-      const organ = cellTexts[1] || 'TRF4';
+      const hash = `datajud_${processNumber}_${pubDate}_${simpleHash(movName)}`;
 
-      const hash = `trf4_${oabNumbers[0]}_${pubDate}_${simpleHash(rowText.substring(0, 200))}`;
+      // Determine publication type from movement name
+      let pubType = 'Movimentação';
+      const movNameLower = movName.toLowerCase();
+      if (/despacho/.test(movNameLower)) pubType = 'Despacho';
+      else if (/decis[ãa]o/.test(movNameLower)) pubType = 'Decisão';
+      else if (/senten[çc]a/.test(movNameLower)) pubType = 'Sentença';
+      else if (/intima[çc][ãa]o/.test(movNameLower)) pubType = 'Intimação';
+      else if (/ac[óo]rd[ãa]o/.test(movNameLower)) pubType = 'Acórdão';
+      else if (/ato\s*ordinat[óo]rio/.test(movNameLower)) pubType = 'Ato Ordinatório';
+      else if (/cita[çc][ãa]o/.test(movNameLower)) pubType = 'Citação';
+      else if (/distribui[çc][ãa]o/.test(movNameLower)) pubType = 'Distribuição';
+      else if (/julgamento/.test(movNameLower)) pubType = 'Julgamento';
+      else if (/peti[çc][ãa]o/.test(movNameLower)) pubType = 'Petição';
+      else if (/recurso/.test(movNameLower)) pubType = 'Recurso';
 
-      if (publications.some(p => p.unique_hash === hash)) continue;
+      // Match OAB if possible
+      let matchedOab = oabNumbers[0];
+      const contentStr = JSON.stringify(source);
+      for (const oab of oabNumbers) {
+        if (contentStr.includes(oab) || contentStr.includes(oab.replace(/^([A-Z]{2})0*/, '$1'))) {
+          matchedOab = oab;
+          break;
+        }
+      }
 
       publications.push({
         tenant_id: tenantId,
-        oab_number: oabNumbers[0],
-        source: 'TRF4',
+        oab_number: matchedOab,
+        source: tribunal,
         publication_date: pubDate,
-        title: rowText.substring(0, 300),
-        content: rowText.substring(0, 5000),
+        title: title.substring(0, 300),
+        content: content.substring(0, 5000),
         publication_type: pubType,
-        process_number: null,
-        organ,
+        process_number: formattedProcess,
+        organ: tribunal,
         unique_hash: hash,
-        external_url: externalUrl,
+        external_url: null,
+        case_id: matchingCase?.id || null,
       });
     }
   }
 
-  console.log(`Parsed ${publications.length} publications total`);
   return publications;
 }
 
-function buildPublication(href: string, linkText: string, context: string, oabNumbers: string[], tenantId: string): any | null {
-  const processMatch = context.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
-  const dateMatch = context.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
-
-  let pubType = 'Publicação';
-  for (const tp of [
-    { pattern: /ato\s*ordinat[óo]rio/i, type: 'Ato Ordinatório' },
-    { pattern: /despacho/i, type: 'Despacho' },
-    { pattern: /decis[ãa]o/i, type: 'Decisão' },
-    { pattern: /senten[çc]a/i, type: 'Sentença' },
-    { pattern: /intima[çc][ãa]o/i, type: 'Intimação' },
-    { pattern: /ac[óo]rd[ãa]o/i, type: 'Acórdão' },
-  ]) {
-    if (tp.pattern.test(context)) { pubType = tp.type; break; }
+function formatProcessNumber(num: string): string {
+  const clean = num.replace(/[^0-9]/g, '');
+  if (clean.length === 20) {
+    return `${clean.slice(0, 7)}-${clean.slice(7, 9)}.${clean.slice(9, 13)}.${clean.slice(13, 14)}.${clean.slice(14, 16)}.${clean.slice(16, 20)}`;
   }
-
-  let matchedOab = oabNumbers[0];
-  for (const o of oabNumbers) {
-    if (context.includes(o)) { matchedOab = o; break; }
-  }
-
-  const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br/trf4/diario/${href}`;
-  const hash = `trf4_${matchedOab}_${pubDate}_${simpleHash(linkText + href)}`;
-
-  return {
-    tenant_id: tenantId,
-    oab_number: matchedOab,
-    source: 'TRF4',
-    publication_date: pubDate,
-    title: linkText.substring(0, 300),
-    content: context.substring(0, 5000),
-    publication_type: pubType,
-    process_number: processMatch?.[1] || null,
-    organ: 'TRF4',
-    unique_hash: hash,
-    external_url: externalUrl,
-  };
+  return num;
 }
 
 function simpleHash(str: string): string {
