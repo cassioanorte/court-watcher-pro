@@ -416,6 +416,45 @@ const Publicacoes = () => {
                 {selectedPub.process_number && (
                   <p className="text-sm font-mono text-muted-foreground">Processo: {selectedPub.process_number}</p>
                 )}
+                {/* Extract parties from content */}
+                {selectedPub.content && (() => {
+                  const patterns: [RegExp, string, string][] = [
+                    [/Cliente:\s*(.+)/i, '👤', 'Cliente'],
+                    [/Advogado:\s*(.+)/i, '⚖️', 'Advogado'],
+                    [/Autor(?:a)?:\s*(.+)/i, '🔵', 'Autor'],
+                    [/R[ée]u:\s*(.+)/i, '🔴', 'Réu'],
+                    [/Requerente:\s*(.+)/i, '🔵', 'Requerente'],
+                    [/Requerido(?:a)?:\s*(.+)/i, '🔴', 'Requerido'],
+                    [/Impetrante:\s*(.+)/i, '🔵', 'Impetrante'],
+                    [/Impetrado(?:a)?:\s*(.+)/i, '🔴', 'Impetrado'],
+                    [/Agravante:\s*(.+)/i, '🔵', 'Agravante'],
+                    [/Agravado(?:a)?:\s*(.+)/i, '🔴', 'Agravado'],
+                    [/Apelante:\s*(.+)/i, '🔵', 'Apelante'],
+                    [/Apelado(?:a)?:\s*(.+)/i, '🔴', 'Apelado'],
+                    [/Recorrente:\s*(.+)/i, '🔵', 'Recorrente'],
+                    [/Recorrido(?:a)?:\s*(.+)/i, '🔴', 'Recorrido'],
+                    [/Exequente:\s*(.+)/i, '🔵', 'Exequente'],
+                    [/Executado(?:a)?:\s*(.+)/i, '🔴', 'Executado'],
+                  ];
+                  const found: { icon: string; label: string; name: string }[] = [];
+                  for (const [regex, icon, label] of patterns) {
+                    const m = selectedPub.content!.match(regex);
+                    if (m) found.push({ icon, label, name: m[1].trim() });
+                  }
+                  if (found.length === 0) return null;
+                  return (
+                    <div className="bg-muted/30 rounded-lg p-3 space-y-1.5">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Partes</p>
+                      {found.map((p, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span>{p.icon}</span>
+                          <span className="text-muted-foreground font-medium">{p.label}:</span>
+                          <span className="text-foreground">{p.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {selectedPub.content && (
                   <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap leading-relaxed">
                     {selectedPub.content}
