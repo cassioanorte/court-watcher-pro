@@ -244,6 +244,34 @@ async function queryDataJud(
   const hits = data.hits?.hits || [];
   console.log(`DataJud returned ${hits.length} results for ${endpoint}`);
 
+  // Log the structure of the first hit to understand the data format
+  if (hits.length > 0) {
+    const firstSource = hits[0]._source;
+    const topKeys = Object.keys(firstSource || {});
+    console.log(`DataJud _source keys: ${topKeys.join(', ')}`);
+    
+    // Check for movements in various possible field names
+    const movKeys = topKeys.filter(k => /mov|compl|ato|andamento|publicacao|intimacao/i.test(k));
+    console.log(`Movement-like keys: ${movKeys.join(', ') || '(none)'}`);
+    
+    // Log dadosBasicos if present
+    if (firstSource?.dadosBasicos) {
+      console.log(`dadosBasicos keys: ${Object.keys(firstSource.dadosBasicos).join(', ')}`);
+    }
+    
+    // Check movimento array
+    for (const key of ['movimentos', 'movimento', 'listaMovimentos', 'movimentacao']) {
+      if (firstSource?.[key]) {
+        const arr = Array.isArray(firstSource[key]) ? firstSource[key] : [firstSource[key]];
+        console.log(`Found ${key}: ${arr.length} items, first: ${JSON.stringify(arr[0]).substring(0, 300)}`);
+      }
+    }
+    
+    // Log a snippet of the full source to find movements
+    const sourceStr = JSON.stringify(firstSource);
+    console.log(`Full source snippet (first 1500): ${sourceStr.substring(0, 1500)}`);
+  }
+
   const publications: any[] = [];
 
   for (const hit of hits) {
@@ -258,17 +286,26 @@ async function queryDataJud(
       c.process_number.replace(/[^0-9]/g, '') === processNumber.replace(/[^0-9]/g, '')
     );
 
-    // Extract movements as publications
-    const movements = source.movimentos || source.movimento || [];
-    if (!Array.isArray(movements)) continue;
+    // Extract movements - try all possible field names
+    let movements = source.movimentos || source.movimento || source.listaMovimentos || source.movimentacao || [];
+    if (!Array.isArray(movements)) {
+      movements = [movements];
+    }
+    
+    // Also check nested dadosBasicos
+    if (movements.length === 0 && source.dadosBasicos?.movimentos) {
+      movements = source.dadosBasicos.movimentos;
+    }
+    
+    console.log(`Process ${processNumber}: ${movements.length} movements found`);
 
-    // Get last 30 days of movements
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Get last 365 days of movements (DataJud has indexing delay)
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 365);
 
     for (const mov of movements) {
       const movDate = mov.dataHora ? new Date(mov.dataHora) : null;
-      if (!movDate || movDate < thirtyDaysAgo) continue;
+      if (!movDate || movDate < cutoffDate) continue;
 
       const movName = mov.nome || mov.complementosTabelados?.map((c: any) => c.nome || c.descricao).join(' - ') || 'Movimentação';
       const pubDate = movDate.toISOString().split('T')[0];
