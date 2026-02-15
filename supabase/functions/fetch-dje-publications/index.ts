@@ -109,10 +109,25 @@ async function fetchDirectFromTRF4(oabNumbers: string[], tenantId: string): Prom
     params.set(`oab${i + 1}`, oab);
   });
 
-  const url = 'https://www2.trf4.jus.br/trf4/diario/resultado_consulta.php';
+  // The form posts to this URL - the search button is type="button" and uses JS,
+  // but the form action itself works with a direct POST
+  const url = 'https://www.trf4.jus.br/trf4/diario/resultado_consulta.php';
   console.log(`POST ${url} with params: ${params.toString()}`);
 
   try {
+    // First, GET the search page to establish a session/cookies
+    const sessionResp = await fetch('https://www.trf4.jus.br/trf4/diario/consulta_diario.php', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    
+    // Extract cookies from the session response
+    const cookies = sessionResp.headers.getSetCookie?.() || [];
+    const cookieString = cookies.map(c => c.split(';')[0]).join('; ');
+    console.log(`Session cookies: ${cookieString || '(none)'}`);
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -120,8 +135,9 @@ async function fetchDirectFromTRF4(oabNumbers: string[], tenantId: string): Prom
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'Referer': 'https://www2.trf4.jus.br/trf4/diario/consulta_diario.php',
-        'Origin': 'https://www2.trf4.jus.br',
+        'Referer': 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php',
+        'Origin': 'https://www.trf4.jus.br',
+        ...(cookieString ? { 'Cookie': cookieString } : {}),
       },
       body: params.toString(),
     });
@@ -148,38 +164,7 @@ async function fetchDirectFromTRF4(oabNumbers: string[], tenantId: string): Prom
     return parseResults(html, oabNumbers, tenantId);
   } catch (err) {
     console.error('TRF4 fetch error:', err);
-    
-    // Fallback: try www instead of www2
-    try {
-      const fallbackUrl = 'https://www.trf4.jus.br/trf4/diario/resultado_consulta.php';
-      console.log(`Fallback POST ${fallbackUrl}`);
-      
-      const response = await fetch(fallbackUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://www.trf4.jus.br/trf4/diario/consulta_diario.php',
-        },
-        body: params.toString(),
-      });
-
-      console.log(`Fallback response status: ${response.status}`);
-      const html = await response.text();
-      console.log(`Fallback response length: ${html.length} chars`);
-      
-      const cleanText = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      console.log(`Fallback snippet: ${cleanText.substring(0, 500)}`);
-
-      if (/Nenhum documento encontrado/i.test(cleanText)) {
-        return [];
-      }
-
-      return parseResults(html, oabNumbers, tenantId);
-    } catch (err2) {
-      console.error('Fallback also failed:', err2);
-      return [];
-    }
+    return [];
   }
 }
 
