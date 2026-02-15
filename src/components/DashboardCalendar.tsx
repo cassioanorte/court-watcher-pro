@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, CalendarIcon, Clock } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, MessageSquare, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -140,33 +140,67 @@ const DashboardCalendar = () => {
             <p className="text-sm text-muted-foreground">Nenhum compromisso neste dia.</p>
           ) : (
             <div className="space-y-2">
-              {dayAppointments.map((appt, i) => (
-                <motion.div
-                  key={appt.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 p-3 rounded-md bg-muted/50 group"
-                >
-                  <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{appt.title}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3" />
-                      {format(new Date(appt.start_at), "HH:mm")} – {format(new Date(appt.end_at), "HH:mm")}
-                    </p>
-                    {appt.description && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">{appt.description}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleDelete(appt.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+              {dayAppointments.map((appt, i) => {
+                const videoLinkMatch = appt.description?.match(/(https:\/\/meet\.jit\.si\/[^\s]+)/);
+                const videoLink = videoLinkMatch ? videoLinkMatch[1] : null;
+                const descWithoutLink = appt.description?.replace(/\n\n🔗 Link da videochamada: https:\/\/meet\.jit\.si\/[^\s]+/, "").trim();
+                return (
+                  <motion.div
+                    key={appt.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="rounded-md bg-muted/50 group"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </motion.div>
-              ))}
+                    <div className="flex items-start gap-3 p-3">
+                      <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{appt.title}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(appt.start_at), "HH:mm")} – {format(new Date(appt.end_at), "HH:mm")}
+                        </p>
+                        {descWithoutLink && (
+                          <p className="text-xs text-muted-foreground mt-1 truncate">{descWithoutLink}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDelete(appt.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {videoLink && (
+                      <div className="border-t border-border/50 px-3 py-2.5 space-y-2">
+                        <div className="flex items-center gap-2 bg-background/50 rounded-md px-2.5 py-1.5">
+                          <LinkIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-foreground font-mono truncate flex-1">{videoLink}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <a
+                            href={videoLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                          >
+                            <Video className="w-3.5 h-3.5" /> Entrar
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(videoLink);
+                              toast.success("Link copiado!");
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Copy className="w-3.5 h-3.5" /> Copiar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>
