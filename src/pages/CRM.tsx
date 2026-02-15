@@ -9,7 +9,7 @@ import {
   UserPlus, Phone, Mail, MessageSquare, Calendar, ChevronRight,
   Plus, X, Search, Filter, BarChart3, Users, DollarSign, Clock,
   Check, Trash2, Edit2, Save, Loader2, ArrowRight, Building2,
-  PhoneCall, Video, StickyNote, Send, CalendarIcon, LinkIcon, ExternalLink,
+  PhoneCall, Video, StickyNote, Send, CalendarIcon, LinkIcon, ExternalLink, Copy,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -873,32 +873,68 @@ const CRM = () => {
                         const videoLink = videoLinkMatch ? videoLinkMatch[1] : null;
                         const descWithoutLink = appt.description?.replace(/\n\n🔗 Link da videochamada: https:\/\/meet\.jit\.si\/[^\s]+/, "").trim();
                         return (
-                          <div key={appt.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${isPast ? "opacity-60 bg-muted/20" : "bg-card"}`}>
-                            <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-foreground">{appt.title}</p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <Clock className="w-3 h-3" />
-                                {format(new Date(appt.start_at), "dd/MM/yyyy HH:mm", { locale: ptBR })} – {format(new Date(appt.end_at), "HH:mm", { locale: ptBR })}
-                              </p>
-                              {descWithoutLink && (
-                                <p className="text-xs text-muted-foreground mt-1">{descWithoutLink}</p>
-                              )}
-                              {videoLink && (
-                                <a
-                                  href={videoLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={e => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-                                >
-                                  <Video className="w-3.5 h-3.5" />
-                                  Entrar na videochamada
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              )}
+                          <div key={appt.id} className={`rounded-lg border transition-colors ${isPast ? "opacity-60 bg-muted/20" : "bg-card"}`}>
+                            <div className="flex items-start gap-3 p-3">
+                              <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground">{appt.title}</p>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Clock className="w-3 h-3" />
+                                  {format(new Date(appt.start_at), "dd/MM/yyyy HH:mm", { locale: ptBR })} – {format(new Date(appt.end_at), "HH:mm", { locale: ptBR })}
+                                </p>
+                                {descWithoutLink && (
+                                  <p className="text-xs text-muted-foreground mt-1">{descWithoutLink}</p>
+                                )}
+                              </div>
+                              {isPast && <Badge variant="outline" className="text-[10px] shrink-0">Passado</Badge>}
                             </div>
-                            {isPast && <Badge variant="outline" className="text-[10px] shrink-0">Passado</Badge>}
+                            {videoLink && (
+                              <div className="border-t px-3 py-2.5 space-y-2">
+                                <div className="flex items-center gap-2 bg-muted/50 rounded-md px-2.5 py-1.5">
+                                  <LinkIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-xs text-foreground font-mono truncate flex-1">{videoLink}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  <a
+                                    href={videoLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                                  >
+                                    <Video className="w-3.5 h-3.5" /> Entrar
+                                  </a>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(videoLink);
+                                      toast({ title: "Link copiado!" });
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" /> Copiar link
+                                  </button>
+                                  <a
+                                    href={`https://wa.me/${selectedLead?.phone?.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${selectedLead?.name}! Segue o link da nossa reunião: ${videoLink}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                                  </a>
+                                  {selectedLead?.email && (
+                                    <a
+                                      href={`mailto:${selectedLead.email}?subject=${encodeURIComponent(`Reunião - ${selectedLead.name}`)}&body=${encodeURIComponent(`Olá ${selectedLead.name},\n\nSegue o link da nossa reunião:\n${videoLink}\n\nData: ${format(new Date(appt.start_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}\n\nAtenciosamente.`)}`}
+                                      onClick={e => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                                    >
+                                      <Mail className="w-3.5 h-3.5" /> E-mail
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
