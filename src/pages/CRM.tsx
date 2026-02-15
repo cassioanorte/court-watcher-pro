@@ -95,6 +95,7 @@ const CRM = () => {
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [allAppointments, setAllAppointments] = useState<LeadAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
@@ -143,12 +144,12 @@ const CRM = () => {
   const fetchLeads = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("crm_leads")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("updated_at", { ascending: false });
+    const [{ data, error }, { data: apptsData }] = await Promise.all([
+      supabase.from("crm_leads").select("*").eq("tenant_id", tenantId).order("updated_at", { ascending: false }),
+      supabase.from("appointments").select("id, title, description, start_at, end_at, lead_id").eq("tenant_id", tenantId).not("lead_id", "is", null),
+    ]);
     if (!error) setLeads((data || []) as Lead[]);
+    setAllAppointments((apptsData || []) as LeadAppointment[]);
     setLoading(false);
   };
 
@@ -461,37 +462,73 @@ const CRM = () => {
                   <span className={`text-xs font-medium ${stage.color}`}>{stageLeads.length}</span>
                 </div>
                 <div className={`bg-muted/30 rounded-b-lg border border-t-0 min-h-[200px] p-2 space-y-2 transition-colors ${isOver ? "bg-primary/5 border-primary/30" : ""}`}>
-                  {stageLeads.map((lead, i) => (
-                    <motion.div
-                      key={lead.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent, lead.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => openLeadDetail(lead)}
-                      className={`bg-card border rounded-lg p-3 cursor-grab hover:border-accent/30 transition-all shadow-sm active:cursor-grabbing ${draggedLeadId === lead.id ? "opacity-40" : ""}`}
-                    >
-                      <p className="text-sm font-medium text-foreground truncate">{lead.name}</p>
-                      {lead.company && <p className="text-[10px] text-muted-foreground mt-0.5">{lead.company}</p>}
-                      <div className="flex items-center gap-2 mt-2">
-                        {lead.estimated_value > 0 && (
-                          <span className="text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                            R$ {lead.estimated_value.toLocaleString("pt-BR")}
-                          </span>
+                  {stageLeads.map((lead, i) => {
+                    const nextAppt = allAppointments
+                      .filter(a => a.lead_id === lead.id && new Date(a.end_at) >= new Date())
+                      .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())[0];
+                    const videoLinkMatch = nextAppt?.description?.match(/(https:\/\/meet\.jit\.si\/[^\s]+)/);
+                    const videoLink = videoLinkMatch ? videoLinkMatch[1] : null;
+                    return (
+                      <motion.div
+                        key={lead.id}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent, lead.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => openLeadDetail(lead)}
+                        className={`bg-card border rounded-lg p-3 cursor-grab hover:border-accent/30 transition-all shadow-sm active:cursor-grabbing ${draggedLeadId === lead.id ? "opacity-40" : ""}`}
+                      >
+                        <p className="text-sm font-medium text-foreground truncate">{lead.name}</p>
+                        {lead.company && <p className="text-[10px] text-muted-foreground mt-0.5">{lead.company}</p>}
+                        <div className="flex items-center gap-2 mt-2">
+                          {lead.estimated_value > 0 && (
+                            <span className="text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                              R$ {lead.estimated_value.toLocaleString("pt-BR")}
+                            </span>
+                          )}
+                          {lead.origin && (
+                            <span className="text-[10px] text-muted-foreground">{lead.origin}</span>
+                          )}
+                        </div>
+                        {lead.phone && (
+                          <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                            <Phone className="w-3 h-3" /> {lead.phone}
+                          </p>
                         )}
-                        {lead.origin && (
-                          <span className="text-[10px] text-muted-foreground">{lead.origin}</span>
+                        {nextAppt && (
+                          <div className="mt-2 pt-2 border-t border-border/50">
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3" />
+                              {format(new Date(nextAppt.start_at), "dd/MM HH:mm", { locale: ptBR })}
+                              {videoLink && <Video className="w-3 h-3 ml-1 text-primary" />}
+                            </p>
+                            {videoLink && (
+                              <div className="flex flex-wrap gap-1 mt-1.5" onClick={e => e.stopPropagation()}>
+                                <a href={videoLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary text-primary-foreground text-[10px] font-medium hover:bg-primary/90 transition-colors">
+                                  <Video className="w-3 h-3" /> Entrar
+                                </a>
+                                <button onClick={() => { navigator.clipboard.writeText(videoLink); toast({ title: "Link copiado!" }); }} className="inline-flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-medium text-foreground hover:bg-muted transition-colors">
+                                  <Copy className="w-3 h-3" /> Copiar
+                                </button>
+                                {lead.phone && (
+                                  <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${lead.name}! Segue o link da nossa reunião: ${videoLink}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-medium text-foreground hover:bg-muted transition-colors">
+                                    <MessageSquare className="w-3 h-3" /> WhatsApp
+                                  </a>
+                                )}
+                                {lead.email && (
+                                  <a href={`mailto:${lead.email}?subject=${encodeURIComponent(`Reunião - ${lead.name}`)}&body=${encodeURIComponent(`Olá ${lead.name},\n\nSegue o link da nossa reunião:\n${videoLink}\n\nData: ${format(new Date(nextAppt.start_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}\n\nAtenciosamente.`)}`} className="inline-flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-medium text-foreground hover:bg-muted transition-colors">
+                                    <Mail className="w-3 h-3" /> E-mail
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
-                      </div>
-                      {lead.phone && (
-                        <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                          <Phone className="w-3 h-3" /> {lead.phone}
-                        </p>
-                      )}
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                   {stageLeads.length === 0 && (
                     <p className="text-xs text-muted-foreground/50 text-center py-8">
                       {isOver ? "Solte aqui" : "Nenhum lead"}
