@@ -110,29 +110,30 @@ async function fetchWithFirecrawl(apiKey: string, oabNumbers: string[], tenantId
 
   console.log(`Scraping ${searchUrl} with Firecrawl for OABs: ${oabNumbers.join(', ')}`);
 
-  // Use executeJavascript to select radio and fill OAB fields (hidden by default)
-  // Then click the search button separately so the page's own JS handles AJAX submission
-  const oabAssignments = oabNumbers
+  // Use executeJavascript to POST directly to resultado_consulta.php with correct params,
+  // then inject the response HTML into the DOM so Firecrawl can capture it
+  const oabParams = oabNumbers
     .slice(0, 7)
-    .map((oab, i) => `document.getElementById('oab${i + 1}').value = '${oab}';`)
-    .join('\n');
+    .map((oab, i) => `oab${i + 1}=${encodeURIComponent(oab)}`)
+    .join('&');
 
-  const setupScript = `
-    // Select Judicial II radio and trigger its change handler
-    var radio = document.getElementById('tipo_publicacao_C');
-    radio.checked = true;
-    radio.click();
-    // Force show the OAB fields container
-    var oabSpan = document.getElementById('processo_oab');
-    if (oabSpan) oabSpan.style.display = '';
-    // Fill OAB fields
-    ${oabAssignments}
+  const fetchScript = `
+    (async function() {
+      var params = 'tipo_publicacao=3&${oabParams}&docsPagina=100';
+      var resp = await fetch('https://www.trf4.jus.br/trf4/diario/resultado_consulta.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      });
+      var html = await resp.text();
+      document.open();
+      document.write(html);
+      document.close();
+    })();
   `;
 
   const actions = [
-    { type: "executeJavascript", script: setupScript },
-    { type: "wait", milliseconds: 1000 },
-    { type: "click", selector: "#botaoPesquisar" },
+    { type: "executeJavascript", script: fetchScript },
     { type: "wait", milliseconds: 5000 },
   ];
 
