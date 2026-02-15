@@ -228,6 +228,18 @@ const Publicacoes = () => {
                   <p className={`text-sm ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"} line-clamp-2`}>
                     {pub.title}
                   </p>
+                  {/* Extract client and lawyer from content */}
+                  {pub.content && (() => {
+                    const clientMatch = pub.content.match(/Cliente: (.+)/);
+                    const lawyerMatch = pub.content.match(/Advogado: (.+)/);
+                    if (!clientMatch && !lawyerMatch) return null;
+                    return (
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        {clientMatch && <span>👤 {clientMatch[1]}</span>}
+                        {lawyerMatch && <span>⚖️ {lawyerMatch[1]}</span>}
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     {pub.process_number && <span className="font-mono">{pub.process_number}</span>}
                     <span>{new Date(pub.publication_date).toLocaleDateString("pt-BR")}</span>

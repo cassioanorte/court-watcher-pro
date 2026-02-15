@@ -113,8 +113,20 @@ Deno.serve(async (req) => {
     // Get all cases for this tenant to query DataJud by process number
     const { data: cases } = await serviceClient
       .from('cases')
-      .select('id, process_number, source, client_user_id')
+      .select('id, process_number, source, client_user_id, responsible_user_id, subject')
       .eq('tenant_id', tenantId);
+
+    // Build a map of user_id -> full_name for clients and lawyers
+    const allProfiles = profiles || [];
+    const { data: allTenantProfiles } = await serviceClient
+      .from('profiles')
+      .select('user_id, full_name, oab_number')
+      .eq('tenant_id', tenantId);
+    
+    const profileMap: Record<string, { full_name: string; oab_number: string | null }> = {};
+    for (const p of (allTenantProfiles || [])) {
+      profileMap[p.user_id] = { full_name: p.full_name, oab_number: p.oab_number };
+    }
 
     if (!cases || cases.length === 0) {
       return new Response(JSON.stringify({ error: 'Nenhum processo cadastrado.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -146,7 +158,7 @@ Deno.serve(async (req) => {
         console.log(`Querying DataJud ${endpoint} for ${processNumbers.length} processes`);
 
         try {
-          const publications = await queryDataJud(datajudApiKey, endpoint, processNumbers, batch, tenantId, oabNumbers);
+          const publications = await queryDataJud(datajudApiKey, endpoint, processNumbers, batch, tenantId, oabNumbers, profileMap);
           allPublications.push(...publications);
         } catch (err) {
           console.error(`DataJud error for ${endpoint}:`, err);
@@ -207,7 +219,8 @@ async function queryDataJud(
   processNumbers: string[],
   cases: any[],
   tenantId: string,
-  oabNumbers: string[]
+  oabNumbers: string[],
+  profileMap: Record<string, { full_name: string; oab_number: string | null }>
 ): Promise<any[]> {
   const url = `https://api-publica.datajud.cnj.jus.br/${endpoint}/_search`;
 
@@ -313,10 +326,19 @@ async function queryDataJud(
       // Format process number for display
       const formattedProcess = formatProcessNumber(processNumber);
 
+      // Get client and lawyer names from our database
+      const clientName = matchingCase?.client_user_id ? profileMap[matchingCase.client_user_id]?.full_name : null;
+      const lawyerName = matchingCase?.responsible_user_id ? profileMap[matchingCase.responsible_user_id]?.full_name : null;
+      const lawyerOab = matchingCase?.responsible_user_id ? profileMap[matchingCase.responsible_user_id]?.oab_number : null;
+      const caseSubject = matchingCase?.subject || null;
+
       const title = `${movName} - Processo ${formattedProcess}`;
       const content = [
         `Processo: ${formattedProcess}`,
         `Tribunal: ${tribunal}`,
+        clientName ? `Cliente: ${clientName}` : '',
+        lawyerName ? `Advogado: ${lawyerName}${lawyerOab ? ` (OAB ${lawyerOab})` : ''}` : '',
+        caseSubject ? `Assunto: ${caseSubject}` : '',
         `Data: ${pubDate}`,
         `Movimento: ${movName}`,
         mov.complementosTabelados?.map((c: any) => `${c.nome || ''}: ${c.descricao || c.valor || ''}`).join('\n') || '',
