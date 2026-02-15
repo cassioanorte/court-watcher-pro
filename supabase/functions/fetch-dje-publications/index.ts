@@ -110,26 +110,29 @@ async function fetchWithFirecrawl(apiKey: string, oabNumbers: string[], tenantId
 
   console.log(`Scraping ${searchUrl} with Firecrawl for OABs: ${oabNumbers.join(', ')}`);
 
-  // Build JS script to fill form and submit programmatically
-  // The OAB fields are hidden until "Judicial II" is selected via JS
+  // Use executeJavascript to select radio and fill OAB fields (hidden by default)
+  // Then click the search button separately so the page's own JS handles AJAX submission
   const oabAssignments = oabNumbers
     .slice(0, 7)
     .map((oab, i) => `document.getElementById('oab${i + 1}').value = '${oab}';`)
     .join('\n');
 
-  const formScript = `
-    // Select Judicial II radio
-    document.getElementById('tipo_publicacao_C').click();
-    // Show OAB fields (they are hidden by default)
-    document.getElementById('processo_oab').style.display = '';
+  const setupScript = `
+    // Select Judicial II radio and trigger its change handler
+    var radio = document.getElementById('tipo_publicacao_C');
+    radio.checked = true;
+    radio.click();
+    // Force show the OAB fields container
+    var oabSpan = document.getElementById('processo_oab');
+    if (oabSpan) oabSpan.style.display = '';
     // Fill OAB fields
     ${oabAssignments}
-    // Submit the form
-    document.forms['form'].submit();
   `;
 
   const actions = [
-    { type: "executeJavascript", script: formScript },
+    { type: "executeJavascript", script: setupScript },
+    { type: "wait", milliseconds: 1000 },
+    { type: "click", selector: "#botaoPesquisar" },
     { type: "wait", milliseconds: 5000 },
   ];
 
