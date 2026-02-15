@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.signup-owner]
 verify_jwt = false
+
+[functions.fetch-dje-publications]
+verify_jwt = false
