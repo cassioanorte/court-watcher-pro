@@ -284,6 +284,40 @@ const CRM = () => {
   const stageLabel = (s: CrmStage) => STAGES.find(st => st.key === s)?.label || s;
   const stageInfo = (s: CrmStage) => STAGES.find(st => st.key === s);
 
+  // Drag and drop state
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<CrmStage | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, leadId: string) => {
+    e.dataTransfer.setData("text/plain", leadId);
+    setDraggedLeadId(leadId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, stage: CrmStage) => {
+    e.preventDefault();
+    setDragOverStage(stage);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStage(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, stage: CrmStage) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData("text/plain");
+    const lead = leads.find(l => l.id === leadId);
+    if (lead && lead.stage !== stage) {
+      handleMoveStage(lead, stage);
+    }
+    setDraggedLeadId(null);
+    setDragOverStage(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedLeadId(null);
+    setDragOverStage(null);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -352,21 +386,31 @@ const CRM = () => {
         <div className="flex gap-4 overflow-x-auto pb-4">
           {STAGES.filter(s => s.key !== "fechado_perdido").map(stage => {
             const stageLeads = filtered.filter(l => l.stage === stage.key);
+            const isOver = dragOverStage === stage.key;
             return (
-              <div key={stage.key} className="min-w-[280px] flex-shrink-0">
+              <div
+                key={stage.key}
+                className="min-w-[280px] flex-shrink-0"
+                onDragOver={(e) => handleDragOver(e, stage.key)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, stage.key)}
+              >
                 <div className={`flex items-center justify-between px-3 py-2 rounded-t-lg border ${stage.bgColor}`}>
                   <span className={`text-sm font-semibold ${stage.color}`}>{stage.label}</span>
                   <span className={`text-xs font-medium ${stage.color}`}>{stageLeads.length}</span>
                 </div>
-                <div className="bg-muted/30 rounded-b-lg border border-t-0 min-h-[200px] p-2 space-y-2">
+                <div className={`bg-muted/30 rounded-b-lg border border-t-0 min-h-[200px] p-2 space-y-2 transition-colors ${isOver ? "bg-primary/5 border-primary/30" : ""}`}>
                   {stageLeads.map((lead, i) => (
                     <motion.div
                       key={lead.id}
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent, lead.id)}
+                      onDragEnd={handleDragEnd}
                       onClick={() => openLeadDetail(lead)}
-                      className="bg-card border rounded-lg p-3 cursor-pointer hover:border-accent/30 transition-all shadow-sm"
+                      className={`bg-card border rounded-lg p-3 cursor-grab hover:border-accent/30 transition-all shadow-sm active:cursor-grabbing ${draggedLeadId === lead.id ? "opacity-40" : ""}`}
                     >
                       <p className="text-sm font-medium text-foreground truncate">{lead.name}</p>
                       {lead.company && <p className="text-[10px] text-muted-foreground mt-0.5">{lead.company}</p>}
@@ -388,7 +432,9 @@ const CRM = () => {
                     </motion.div>
                   ))}
                   {stageLeads.length === 0 && (
-                    <p className="text-xs text-muted-foreground/50 text-center py-8">Nenhum lead</p>
+                    <p className="text-xs text-muted-foreground/50 text-center py-8">
+                      {isOver ? "Solte aqui" : "Nenhum lead"}
+                    </p>
                   )}
                 </div>
               </div>
