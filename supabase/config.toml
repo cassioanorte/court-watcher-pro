@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.poll-email-imap]
 verify_jwt = false
+
+[functions.test-email-connection]
+verify_jwt = false
