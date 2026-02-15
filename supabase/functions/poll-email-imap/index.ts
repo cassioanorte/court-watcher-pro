@@ -78,11 +78,14 @@ async function processMailbox(serviceClient: any, cred: any) {
       pass: cred.imap_password,
     },
     logger: false,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
   });
 
   let totalFound = 0;
   let totalInserted = 0;
   let emailsScanned = 0;
+  let errors = 0;
 
   try {
     await client.connect();
@@ -93,63 +96,72 @@ async function processMailbox(serviceClient: any, cred: any) {
     try {
       const senders: string[] = cred.senders || [];
       
-      // Search for recent emails from configured senders (last 7 days)
+      // Search for emails from last 30 days
       const since = new Date();
-      since.setDate(since.getDate() - 7);
+      since.setDate(since.getDate() - 30);
 
       for (const sender of senders) {
-        console.log(`Searching emails from: ${sender}`);
+        console.log(`Searching emails from: ${sender} (since ${since.toISOString().split('T')[0]})`);
         
         const searchCriteria = {
           from: sender,
           since: since,
         };
 
-        const messages = client.fetch(searchCriteria, {
-          source: true,
-          envelope: true,
-          uid: true,
-        });
+        try {
+          const messages = client.fetch(searchCriteria, {
+            source: true,
+            envelope: true,
+            uid: true,
+          });
 
-        for await (const msg of messages) {
-          emailsScanned++;
-          
-          try {
-            const parsed = await simpleParser(msg.source);
-            const subject = parsed.subject || '';
-            const textBody = parsed.text || '';
+          for await (const msg of messages) {
+            emailsScanned++;
             
-            if (!textBody && !subject) continue;
+            try {
+              const parsed = await simpleParser(msg.source);
+              const subject = parsed.subject || '';
+              const textBody = parsed.text || '';
+              
+              if (!textBody && !subject) continue;
 
-            console.log(`Processing email: ${subject.substring(0, 80)}`);
+              console.log(`Processing email ${emailsScanned}: ${subject.substring(0, 80)}`);
 
-            // Call parse function
-            const apiKey = await generateApiKey(cred.tenant_id);
-            const parseResponse = await fetch(
-              `${Deno.env.get('SUPABASE_URL')}/functions/v1/parse-email-publications`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email_body: textBody.substring(0, 50000),
-                  email_subject: subject,
-                  email_from: sender,
-                  tenant_id: cred.tenant_id,
-                  api_key: apiKey,
-                }),
+              const apiKey = await generateApiKey(cred.tenant_id);
+              const parseResponse = await fetch(
+                `${Deno.env.get('SUPABASE_URL')}/functions/v1/parse-email-publications`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    email_body: textBody.substring(0, 50000),
+                    email_subject: subject,
+                    email_from: sender,
+                    tenant_id: cred.tenant_id,
+                    api_key: apiKey,
+                  }),
+                }
+              );
+
+              if (parseResponse.ok) {
+                const result = await parseResponse.json();
+                totalFound += result.found || 0;
+                totalInserted += result.inserted || 0;
+              } else {
+                const errText = await parseResponse.text();
+                console.error(`Parse error for "${subject.substring(0, 40)}": ${errText.substring(0, 200)}`);
+                errors++;
               }
-            );
-
-            if (parseResponse.ok) {
-              const result = await parseResponse.json();
-              totalFound += result.found || 0;
-              totalInserted += result.inserted || 0;
-            } else {
-              console.error('Parse error:', await parseResponse.text());
+            } catch (parseErr) {
+              console.error(`Error parsing message ${emailsScanned}:`, parseErr instanceof Error ? parseErr.message : parseErr);
+              errors++;
+              // Continue processing remaining emails
             }
-          } catch (parseErr) {
-            console.error('Error parsing message:', parseErr);
           }
+        } catch (fetchErr) {
+          console.error(`Error fetching from sender ${sender}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
+          errors++;
+          // Continue with next sender
         }
       }
     } finally {
@@ -159,8 +171,8 @@ async function processMailbox(serviceClient: any, cred: any) {
     await client.logout().catch(() => {});
   }
 
-  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}`);
-  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned };
+  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}, errors ${errors}`);
+  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned, errors };
 }
 
 async function generateApiKey(tenantId: string): Promise<string> {
