@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -109,9 +110,9 @@ const AdminDashboard = () => {
   };
 
   const cards = [
-    { label: "Escritórios", value: stats.tenants, icon: Building2, color: "from-violet-500 to-indigo-600" },
-    { label: "Usuários", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600" },
-    { label: "Logs de Atividade", value: stats.recentLogs, icon: Activity, color: "from-rose-500 to-pink-600" },
+    { label: "Escritórios", value: stats.tenants, icon: Building2, color: "from-violet-500 to-indigo-600", link: "/admin/escritorios" },
+    { label: "Usuários", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600", link: "/admin/usuarios" },
+    { label: "Logs de Atividade", value: stats.recentLogs, icon: Activity, color: "from-rose-500 to-pink-600", link: "/admin/atividade" },
   ];
 
   if (loading) return <p className="text-slate-400">Carregando...</p>;
@@ -130,16 +131,20 @@ const AdminDashboard = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center shadow-lg`}>
-                <card.icon className="w-5 h-5 text-white" />
+            <Link
+              to={card.link}
+              className="block bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur hover:border-slate-600 hover:bg-slate-800/60 transition-all"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center shadow-lg`}>
+                  <card.icon className="w-5 h-5 text-white" />
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
               </div>
-              <TrendingUp className="w-4 h-4 text-slate-500" />
-            </div>
-            <p className="text-2xl font-bold text-white">{card.value.toLocaleString("pt-BR")}</p>
-            <p className="text-xs text-slate-400 mt-1">{card.label}</p>
+              <p className="text-2xl font-bold text-white">{card.value.toLocaleString("pt-BR")}</p>
+              <p className="text-xs text-slate-400 mt-1">{card.label}</p>
+            </Link>
           </motion.div>
         ))}
       </div>
