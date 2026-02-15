@@ -22,6 +22,7 @@ export type Database = {
           description: string | null
           end_at: string
           id: string
+          lead_id: string | null
           start_at: string
           tenant_id: string
           title: string
@@ -35,6 +36,7 @@ export type Database = {
           description?: string | null
           end_at: string
           id?: string
+          lead_id?: string | null
           start_at: string
           tenant_id: string
           title: string
@@ -48,6 +50,7 @@ export type Database = {
           description?: string | null
           end_at?: string
           id?: string
+          lead_id?: string | null
           start_at?: string
           tenant_id?: string
           title?: string
@@ -60,6 +63,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
             referencedColumns: ["id"]
           },
           {

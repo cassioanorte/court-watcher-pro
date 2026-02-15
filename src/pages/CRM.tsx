@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   UserPlus, Phone, Mail, MessageSquare, Calendar, ChevronRight,
   Plus, X, Search, Filter, BarChart3, Users, DollarSign, Clock,
   Check, Trash2, Edit2, Save, Loader2, ArrowRight, Building2,
-  PhoneCall, Video, StickyNote, Send,
+  PhoneCall, Video, StickyNote, Send, CalendarIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,15 @@ interface Interaction {
   description: string;
   created_by: string | null;
   created_at: string;
+}
+
+interface LeadAppointment {
+  id: string;
+  title: string;
+  description: string | null;
+  start_at: string;
+  end_at: string;
+  lead_id: string | null;
 }
 
 interface CrmTask {
@@ -97,12 +108,18 @@ const CRM = () => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [tasks, setTasks] = useState<CrmTask[]>([]);
+  const [leadAppointments, setLeadAppointments] = useState<LeadAppointment[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // New interaction
   const [newInteractionType, setNewInteractionType] = useState("note");
   const [newInteractionDesc, setNewInteractionDesc] = useState("");
   const [savingInteraction, setSavingInteraction] = useState(false);
+
+  // Meeting scheduling (when interaction type = meeting)
+  const [meetingDate, setMeetingDate] = useState("");
+  const [meetingStartTime, setMeetingStartTime] = useState("09:00");
+  const [meetingEndTime, setMeetingEndTime] = useState("10:00");
 
   // New task
   const [showNewTask, setShowNewTask] = useState(false);
@@ -184,12 +201,14 @@ const CRM = () => {
     setSelectedLead(lead);
     setEditingLead(false);
     setLoadingDetail(true);
-    const [intRes, taskRes] = await Promise.all([
+    const [intRes, taskRes, apptRes] = await Promise.all([
       supabase.from("crm_interactions").select("*").eq("lead_id", lead.id).order("created_at", { ascending: false }),
       supabase.from("crm_tasks").select("*").eq("lead_id", lead.id).order("due_date", { ascending: true }),
+      supabase.from("appointments").select("id, title, description, start_at, end_at, lead_id").eq("lead_id", lead.id).order("start_at", { ascending: true }),
     ]);
     setInteractions((intRes.data || []) as Interaction[]);
     setTasks((taskRes.data || []) as CrmTask[]);
+    setLeadAppointments((apptRes.data || []) as LeadAppointment[]);
     setLoadingDetail(false);
   };
 
@@ -205,8 +224,32 @@ const CRM = () => {
     }).select("*").single();
     if (!error && data) {
       setInteractions(prev => [data as Interaction, ...prev]);
+
+      // Auto-create appointment when interaction is a meeting with date
+      if (newInteractionType === "meeting" && meetingDate) {
+        const start_at = `${meetingDate}T${meetingStartTime}:00`;
+        const end_at = `${meetingDate}T${meetingEndTime}:00`;
+        const { data: apptData } = await supabase.from("appointments").insert({
+          tenant_id: tenantId,
+          user_id: user.id,
+          title: `Reunião: ${selectedLead.name}`,
+          description: newInteractionDesc.trim(),
+          start_at,
+          end_at,
+          lead_id: selectedLead.id,
+        }).select("id, title, description, start_at, end_at, lead_id").single();
+        if (apptData) {
+          setLeadAppointments(prev => [...prev, apptData as LeadAppointment]);
+          toast({ title: "Reunião adicionada à agenda!" });
+        }
+        setMeetingDate("");
+        setMeetingStartTime("09:00");
+        setMeetingEndTime("10:00");
+      } else {
+        toast({ title: "Interação registrada!" });
+      }
+
       setNewInteractionDesc("");
-      toast({ title: "Interação registrada!" });
     }
     setSavingInteraction(false);
   };
@@ -657,11 +700,12 @@ const CRM = () => {
                 </div>
               )}
 
-              {/* Tabs: Interactions / Tasks */}
+              {/* Tabs: Interactions / Tasks / Agenda */}
               <Tabs defaultValue="interactions" className="mt-4">
                 <TabsList className="w-full">
                   <TabsTrigger value="interactions" className="flex-1">Interações</TabsTrigger>
                   <TabsTrigger value="tasks" className="flex-1">Tarefas</TabsTrigger>
+                  <TabsTrigger value="agenda" className="flex-1">Agenda</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="interactions" className="space-y-3 mt-3">
@@ -679,11 +723,31 @@ const CRM = () => {
                       ))}
                     </div>
                     <div className="flex gap-2">
-                      <Input placeholder="Descreva a interação..." value={newInteractionDesc} onChange={e => setNewInteractionDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddInteraction()} className="flex-1" />
-                      <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !newInteractionDesc.trim()}>
+                      <Input placeholder="Descreva a interação..." value={newInteractionDesc} onChange={e => setNewInteractionDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && newInteractionType !== "meeting" && handleAddInteraction()} className="flex-1" />
+                      <Button size="sm" onClick={handleAddInteraction} disabled={savingInteraction || !newInteractionDesc.trim() || (newInteractionType === "meeting" && !meetingDate)}>
                         {savingInteraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       </Button>
                     </div>
+                    {/* Meeting date/time fields */}
+                    {newInteractionType === "meeting" && (
+                      <div className="grid grid-cols-3 gap-2 bg-muted/30 rounded-lg p-2">
+                        <div>
+                          <label className="text-[10px] font-medium text-muted-foreground">Data *</label>
+                          <Input type="date" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} className="h-8 text-xs mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-medium text-muted-foreground">Início</label>
+                          <Input type="time" value={meetingStartTime} onChange={e => setMeetingStartTime(e.target.value)} className="h-8 text-xs mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-medium text-muted-foreground">Fim</label>
+                          <Input type="time" value={meetingEndTime} onChange={e => setMeetingEndTime(e.target.value)} className="h-8 text-xs mt-0.5" />
+                        </div>
+                        <p className="col-span-3 text-[10px] text-muted-foreground flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" /> A reunião será adicionada automaticamente à agenda
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {loadingDetail ? (
@@ -750,6 +814,40 @@ const CRM = () => {
                                 {task.description && ` · ${task.description}`}
                               </p>
                             </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="agenda" className="space-y-3 mt-3">
+                  {loadingDetail ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">Carregando...</p>
+                  ) : leadAppointments.length === 0 ? (
+                    <div className="text-center py-6">
+                      <CalendarIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">Nenhum compromisso vinculado</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Registre uma interação do tipo "Reunião" para criar automaticamente</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {leadAppointments.map(appt => {
+                        const isPast = new Date(appt.end_at) < new Date();
+                        return (
+                          <div key={appt.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${isPast ? "opacity-60 bg-muted/20" : "bg-card"}`}>
+                            <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground">{appt.title}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3" />
+                                {format(new Date(appt.start_at), "dd/MM/yyyy HH:mm", { locale: ptBR })} – {format(new Date(appt.end_at), "HH:mm", { locale: ptBR })}
+                              </p>
+                              {appt.description && (
+                                <p className="text-xs text-muted-foreground mt-1">{appt.description}</p>
+                              )}
+                            </div>
+                            {isPast && <Badge variant="outline" className="text-[10px] shrink-0">Passado</Badge>}
                           </div>
                         );
                       })}
