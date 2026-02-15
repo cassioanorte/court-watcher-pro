@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.fetch-dje-publications]
 verify_jwt = false
+
+[functions.fetch-dje-by-oab]
+verify_jwt = false
+
+[functions.parse-email-publications]
+verify_jwt = false
