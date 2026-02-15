@@ -77,28 +77,22 @@ const Publicacoes = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Não autenticado");
 
-      // Run both searches in parallel:
-      // 1. DataJud (by process number - existing processes)
-      // 2. DJE scraping (by OAB - ALL publications)
-      const [datajudResult, djeResult] = await Promise.allSettled([
-        supabase.functions.invoke("fetch-dje-publications", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        }),
-        supabase.functions.invoke("fetch-dje-by-oab", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        }),
-      ]);
+      const { data, error } = await supabase.functions.invoke("poll-email-imap", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { tenant_id: tenantId },
+      });
 
-      const datajudFound = datajudResult.status === 'fulfilled' ? datajudResult.value.data?.found || 0 : 0;
-      const djeFound = djeResult.status === 'fulfilled' ? djeResult.value.data?.found || 0 : 0;
-      const total = datajudFound + djeFound;
+      if (error) throw error;
 
-      if (datajudResult.status === 'rejected') console.error('DataJud error:', datajudResult.reason);
-      if (djeResult.status === 'rejected') console.error('DJE error:', djeResult.reason);
+      const result = data?.results?.[0] || {};
+      const inserted = result.inserted || 0;
+      const scanned = result.emails_scanned || 0;
 
       toast({
-        title: "Sincronização concluída",
-        description: `${total} publicação(ões) encontrada(s) (${datajudFound} via DataJud, ${djeFound} via DJE).`,
+        title: "Verificação concluída",
+        description: inserted > 0
+          ? `${inserted} publicação(ões) nova(s) encontrada(s) em ${scanned} e-mail(s).`
+          : `Nenhuma publicação nova (${scanned} e-mail(s) verificados).`,
       });
       fetchPublications();
     } catch (err: any) {
@@ -147,9 +141,9 @@ const Publicacoes = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground font-display">Publicações DJE</h1>
+      <h1 className="text-2xl font-bold text-foreground font-display">Publicações</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Notas de expediente dos diários eletrônicos
+            Notas de expediente capturadas via e-mail
             {unreadCount > 0 && (
               <span className="ml-2 text-accent font-medium">• {unreadCount} não lida(s)</span>
             )}
@@ -157,21 +151,16 @@ const Publicacoes = () => {
         </div>
         <Button
           onClick={handleSync}
-          disabled={syncing || !profile?.oab_number}
+          disabled={syncing}
           className="gap-2"
         >
           <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Buscando..." : "Buscar Publicações"}
+          {syncing ? "Verificando e-mails..." : "Verificar E-mails"}
         </Button>
       </div>
 
       <EmailIntegrationSetup />
 
-      {!profile?.oab_number && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 text-sm text-amber-700 dark:text-amber-400">
-          ⚠️ Configure seu número da OAB nas <a href="/configuracoes" className="underline font-medium">Configurações</a> para buscar publicações automaticamente.
-        </div>
-      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -190,6 +179,8 @@ const Publicacoes = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas fontes</SelectItem>
+            <SelectItem value="EMAIL">E-mail</SelectItem>
+            <SelectItem value="DJE">DJE</SelectItem>
             <SelectItem value="TRF4">TRF4</SelectItem>
             <SelectItem value="TJRS">TJRS</SelectItem>
           </SelectContent>
@@ -214,7 +205,7 @@ const Publicacoes = () => {
           <Newspaper className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-muted-foreground">Nenhuma publicação encontrada</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            Clique em "Buscar Publicações" para verificar os diários eletrônicos
+            Configure a integração de e-mail e clique em "Verificar E-mails"
           </p>
         </div>
       ) : (

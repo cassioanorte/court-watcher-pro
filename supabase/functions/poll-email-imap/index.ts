@@ -4,7 +4,8 @@ const corsHeaders = {
 };
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ImapClient, searchAndFetchMessages } from "jsr:@workingdevshero/deno-imap";
+import { ImapFlow } from "npm:imapflow@1.0.164";
+import { simpleParser } from "npm:mailparser@3.7.2";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
     const { data: credentials, error: credErr } = await query;
     if (credErr) throw new Error(`DB error: ${credErr.message}`);
     if (!credentials || credentials.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: 'Nenhuma credencial ativa' }),
+      return new Response(JSON.stringify({ success: true, message: 'Nenhuma credencial ativa', results: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -43,6 +44,7 @@ Deno.serve(async (req) => {
 
     for (const cred of credentials) {
       try {
+        console.log(`Processing mailbox for tenant ${cred.tenant_id}: ${cred.imap_user}@${cred.imap_host}`);
         const result = await processMailbox(serviceClient, cred);
         results.push({ tenant_id: cred.tenant_id, ...result });
 
@@ -52,7 +54,7 @@ Deno.serve(async (req) => {
           .eq('id', cred.id);
       } catch (err) {
         console.error(`Error tenant ${cred.tenant_id}:`, err);
-        results.push({ tenant_id: cred.tenant_id, error: err instanceof Error ? err.message : 'Erro' });
+        results.push({ tenant_id: cred.tenant_id, error: err instanceof Error ? err.message : 'Erro', emails_scanned: 0, inserted: 0, found: 0 });
       }
     }
 
@@ -67,78 +69,98 @@ Deno.serve(async (req) => {
 });
 
 async function processMailbox(serviceClient: any, cred: any) {
-  const client = new ImapClient({
+  const client = new ImapFlow({
     host: cred.imap_host,
     port: cred.imap_port,
-    tls: cred.use_tls,
-    username: cred.imap_user,
-    password: cred.imap_password,
+    secure: cred.use_tls,
+    auth: {
+      user: cred.imap_user,
+      pass: cred.imap_password,
+    },
+    logger: false,
   });
+
+  let totalFound = 0;
+  let totalInserted = 0;
+  let emailsScanned = 0;
 
   try {
     await client.connect();
-    await client.authenticate();
+    console.log('IMAP connected successfully');
 
-    const senders: string[] = cred.senders || [];
-    let totalFound = 0;
-    let totalInserted = 0;
-    let emailsScanned = 0;
+    const lock = await client.getMailboxLock('INBOX');
 
-    for (const sender of senders) {
-      try {
-        // Use searchAndFetchMessages utility - searches in INBOX
-        const messages = await searchAndFetchMessages(
-          client,
-          "INBOX",
-          { from: sender },
-          { body: true, envelope: true }
-        );
+    try {
+      const senders: string[] = cred.senders || [];
+      
+      // Search for recent emails from configured senders (last 7 days)
+      const since = new Date();
+      since.setDate(since.getDate() - 7);
 
-        if (!messages || messages.length === 0) continue;
+      for (const sender of senders) {
+        console.log(`Searching emails from: ${sender}`);
+        
+        const searchCriteria = {
+          from: sender,
+          since: since,
+        };
 
-        // Process only last 10 messages per sender
-        const recentMsgs = messages.slice(-10);
+        const messages = client.fetch(searchCriteria, {
+          source: true,
+          envelope: true,
+          uid: true,
+        });
 
-        for (const msg of recentMsgs) {
+        for await (const msg of messages) {
           emailsScanned++;
+          
+          try {
+            const parsed = await simpleParser(msg.source);
+            const subject = parsed.subject || '';
+            const textBody = parsed.text || '';
+            
+            if (!textBody && !subject) continue;
 
-          const subject = msg.envelope?.subject || '';
-          const body = typeof msg.body === 'string' ? msg.body : '';
-          const plainBody = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            console.log(`Processing email: ${subject.substring(0, 80)}`);
 
-          if (!plainBody && !subject) continue;
+            // Call parse function
+            const apiKey = await generateApiKey(cred.tenant_id);
+            const parseResponse = await fetch(
+              `${Deno.env.get('SUPABASE_URL')}/functions/v1/parse-email-publications`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email_body: textBody.substring(0, 50000),
+                  email_subject: subject,
+                  email_from: sender,
+                  tenant_id: cred.tenant_id,
+                  api_key: apiKey,
+                }),
+              }
+            );
 
-          const apiKey = await generateApiKey(cred.tenant_id);
-          const parseResponse = await fetch(
-            `${Deno.env.get('SUPABASE_URL')}/functions/v1/parse-email-publications`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email_body: plainBody.substring(0, 50000),
-                email_subject: subject,
-                email_from: sender,
-                tenant_id: cred.tenant_id,
-                api_key: apiKey,
-              }),
+            if (parseResponse.ok) {
+              const result = await parseResponse.json();
+              totalFound += result.found || 0;
+              totalInserted += result.inserted || 0;
+            } else {
+              console.error('Parse error:', await parseResponse.text());
             }
-          );
-
-          if (parseResponse.ok) {
-            const result = await parseResponse.json();
-            totalFound += result.found || 0;
-            totalInserted += result.inserted || 0;
+          } catch (parseErr) {
+            console.error('Error parsing message:', parseErr);
           }
         }
-      } catch (e) {
-        console.log(`Search error for ${sender}:`, e);
       }
+    } finally {
+      lock.release();
     }
-
-    return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned };
   } finally {
-    try { await client.disconnect(); } catch { /* ignore */ }
+    await client.logout().catch(() => {});
   }
+
+  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}`);
+  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned };
 }
 
 async function generateApiKey(tenantId: string): Promise<string> {
