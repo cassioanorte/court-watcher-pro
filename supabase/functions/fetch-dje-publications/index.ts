@@ -112,89 +112,139 @@ Deno.serve(async (req) => {
 
 // === TRF4: Search for notas de expediente by OAB ===
 async function fetchTrf4NotasExpediente(oab: string, tenantId: string): Promise<any[]> {
-  // Step 1: GET the search page to obtain cookies and form structure
   const baseUrl = 'https://www2.trf4.jus.br/trf4/diario';
   const searchPageUrl = `${baseUrl}/consulta_diario.php`;
-  
+
+  // Step 1: GET the search page to get cookies and find the DJE form
   const getResponse = await fetch(searchPageUrl, {
     method: 'GET',
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
     },
   });
 
   const cookies = getResponse.headers.get('set-cookie') || '';
   const pageHtml = await getResponse.text();
-  
   console.log(`GET page: ${getResponse.status}, ${pageHtml.length} chars`);
 
-  // Extract form action URL from HTML
-  const formActionMatch = pageHtml.match(/<form[^>]*action="([^"]*)"[^>]*>/i);
-  const formAction = formActionMatch ? formActionMatch[1] : 'consulta_diario.php';
-  console.log(`Form action: ${formAction}`);
-  
-  // Extract any hidden fields
+  // Find ALL forms and their actions
+  const formRegex = /<form[^>]*>([\s\S]*?)<\/form>/gi;
+  let formMatch;
+  let djeFormHtml = '';
+  let djeFormAction = '';
+  let formIndex = 0;
+
+  while ((formMatch = formRegex.exec(pageHtml)) !== null) {
+    const formTag = pageHtml.substring(formMatch.index, formMatch.index + 500);
+    const actionMatch = formTag.match(/action="([^"]*)"/i);
+    const action = actionMatch ? actionMatch[1] : '';
+    const formContent = formMatch[1];
+    
+    console.log(`Form ${formIndex}: action="${action}", has oab fields: ${formContent.includes('oab1')}`);
+    
+    // The DJE form is the one that contains oab fields
+    if (formContent.includes('oab1') || formContent.includes('name="oab')) {
+      djeFormHtml = formContent;
+      djeFormAction = action;
+      console.log(`Found DJE form! Action: ${action}`);
+    }
+    formIndex++;
+  }
+
+  if (!djeFormHtml) {
+    console.error('DJE form not found on page!');
+    // Log section around 'oab' to find it
+    const oabIdx = pageHtml.indexOf('oab');
+    if (oabIdx > -1) {
+      console.log(`OAB context: ${pageHtml.substring(Math.max(0, oabIdx - 200), oabIdx + 500)}`);
+    }
+    return [];
+  }
+
+  // Parse OAB field structure - the fields are oab1-oab7
+  // For OAB "RS073679" (8 chars), the fields might be:
+  // oab1=R, oab2=S, oab3=0, oab4=7, oab5=3, oab6=6, oab7=79
+  // OR they might be structured differently
+  // Let's look at the actual input elements to understand maxlength
+  const oabFieldInfo: string[] = [];
+  for (let i = 1; i <= 7; i++) {
+    const fieldRegex = new RegExp(`<input[^>]*name="oab${i}"[^>]*>`, 'i');
+    const fieldMatch = djeFormHtml.match(fieldRegex);
+    if (fieldMatch) {
+      const maxLengthMatch = fieldMatch[0].match(/maxlength="(\d+)"/i);
+      const sizeMatch = fieldMatch[0].match(/size="(\d+)"/i);
+      oabFieldInfo.push(`oab${i}: maxlength=${maxLengthMatch?.[1] || '?'}, size=${sizeMatch?.[1] || '?'}`);
+    }
+  }
+  console.log(`OAB fields: ${oabFieldInfo.join(', ')}`);
+
+  // Extract hidden fields from the DJE form
   const hiddenFields: Record<string, string> = {};
   const hiddenRegex = /<input[^>]*type="hidden"[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*/gi;
   let hiddenMatch;
-  while ((hiddenMatch = hiddenRegex.exec(pageHtml)) !== null) {
+  while ((hiddenMatch = hiddenRegex.exec(djeFormHtml)) !== null) {
     hiddenFields[hiddenMatch[1]] = hiddenMatch[2];
-    console.log(`Hidden field: ${hiddenMatch[1]}=${hiddenMatch[2]}`);
   }
 
-  // Extract form field names from the page
-  const inputNames: string[] = [];
-  const inputRegex = /<input[^>]*name="([^"]*)"[^>]*/gi;
-  let inputMatch;
-  while ((inputMatch = inputRegex.exec(pageHtml)) !== null) {
-    inputNames.push(inputMatch[1]);
-  }
-  const selectNames: string[] = [];
-  const selectRegex = /<select[^>]*name="([^"]*)"[^>]*/gi;
-  let selectMatch;
-  while ((selectMatch = selectRegex.exec(pageHtml)) !== null) {
-    selectNames.push(selectMatch[1]);
-  }
-  console.log(`Input fields: ${inputNames.join(', ')}`);
-  console.log(`Select fields: ${selectNames.join(', ')}`);
+  // Build POST data
+  const actionUrl = djeFormAction.startsWith('http')
+    ? djeFormAction
+    : djeFormAction.startsWith('/')
+      ? `https://www2.trf4.jus.br${djeFormAction}`
+      : `${baseUrl}/${djeFormAction.replace(/^\.\.\//, '../')}`.replace('/diario/../', '/');
 
-  // Step 2: POST the search form with OAB number
-  const actionUrl = formAction.startsWith('http') ? formAction : `${baseUrl}/${formAction}`;
-  
+  console.log(`Resolved action URL: ${actionUrl}`);
+
   const formData = new URLSearchParams();
+
   // Add hidden fields
   for (const [key, value] of Object.entries(hiddenFields)) {
     formData.append(key, value);
   }
-  // Add OAB search
-  formData.append('txtOAB', oab);
-  formData.append('txtNumero', '');
-  formData.append('txtProcesso', '');
-  formData.append('txtQtdPorPagina', '50');
+
+  // Fill OAB fields character by character
+  // OAB format: RS073679 = 8 chars for 7 fields
+  // Likely: oab1=R, oab2=S, oab3=0, oab4=7, oab5=3, oab6=6, oab7=79
+  // But let's check maxlength to determine proper splitting
+  const oabChars = oab.split('');
   
-  // Select "Judicial" publication type for notas de expediente
-  if (selectNames.includes('selPublicacao')) {
-    formData.append('selPublicacao', 'JU');
-  }
-  if (selectNames.includes('selOrigem')) {
-    formData.append('selOrigem', '');
-  }
-  if (selectNames.includes('selTipo')) {
-    formData.append('selTipo', '');
+  // Try splitting based on common TRF4 pattern:
+  // The OAB input on TRF4 is typically a single visible field that
+  // may be split by JS. Let's try the most common patterns:
+  
+  // Pattern: Each field = 1 char, but 8 chars / 7 fields means last field gets 2
+  if (oabChars.length >= 7) {
+    formData.append('oab1', oabChars[0]);
+    formData.append('oab2', oabChars[1]);
+    formData.append('oab3', oabChars[2]);
+    formData.append('oab4', oabChars[3]);
+    formData.append('oab5', oabChars[4]);
+    formData.append('oab6', oabChars[5]);
+    formData.append('oab7', oabChars.slice(6).join(''));
   }
 
-  console.log(`POST to: ${actionUrl}`);
-  console.log(`Form data: ${formData.toString().substring(0, 500)}`);
+  // Also add a single oab field in case it's a unified field
+  formData.append('oab', oab);
+
+  // Add publication type (Judicial)
+  formData.append('tipo_publicacao', 'JU');
+
+  // Add other fields
+  formData.append('numero', '');
+  formData.append('processo', '');
+  formData.append('pesquisa_textual', '');
+
+  console.log(`POST data: ${formData.toString().substring(0, 500)}`);
 
   const postResponse = await fetch(actionUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
       'Origin': 'https://www2.trf4.jus.br',
       'Referer': searchPageUrl,
       ...(cookies ? { 'Cookie': cookies.split(';')[0] } : {}),
@@ -204,84 +254,78 @@ async function fetchTrf4NotasExpediente(oab: string, tenantId: string): Promise<
 
   const resultHtml = await postResponse.text();
   console.log(`POST response: ${postResponse.status}, ${resultHtml.length} chars`);
-  
-  // Log a meaningful snippet of the result to debug
-  // Remove scripts, styles, etc. and find the main content
+
+  // Log clean text of result
   const cleanText = resultHtml
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  
-  console.log(`Clean result (first 1000 chars): ${cleanText.substring(0, 1000)}`);
-  
-  // Parse the results
+
+  console.log(`Result snippet: ${cleanText.substring(0, 1500)}`);
+
   return parseNotasExpediente(resultHtml, oab, tenantId);
 }
 
 function parseNotasExpediente(html: string, oabNumber: string, tenantId: string): any[] {
   const publications: any[] = [];
+
+  // Look for result rows - TRF4 DJE results contain document entries
+  // Pattern: rows with document type, process number, date, and link
   
-  // Look for result entries - TRF4 DJE search results typically have:
-  // - Document title/type
-  // - Process number
-  // - Publication date
-  // - Link to the document
-  
-  // Pattern 1: Look for result table rows with document info
-  // The TRF4 search results usually contain tables with document entries
-  const resultSectionMatch = html.match(/resultado[s]?\s*da\s*pesquisa|documento[s]?\s*encontrado[s]?|registros?\s*encontrado/i);
-  if (resultSectionMatch) {
-    console.log('Found results section indicator');
+  // Try to find result table or list
+  const resultIndicators = [
+    /documento[s]?\s*encontrado/i,
+    /resultado[s]?\s*da\s*pesquisa/i,
+    /registro[s]?\s*encontrado/i,
+    /exibe_documento/i,
+  ];
+
+  let hasResults = false;
+  for (const indicator of resultIndicators) {
+    if (indicator.test(html)) {
+      hasResults = true;
+      console.log(`Found result indicator: ${indicator.source}`);
+      break;
+    }
   }
 
-  // Extract individual document entries
-  // Pattern: links to exibe_documento.php or download.php with surrounding context
-  const docLinkRegex = /(?:<tr[^>]*>[\s\S]*?)?<a[^>]*href="([^"]*(?:exibe_documento|download)[^"]*)"[^>]*>([\s\S]*?)<\/a>([\s\S]*?)(?:<\/tr>|<br|<\/td>)/gi;
+  // Extract document entries by looking for links to documents
+  const docRegex = /<a[^>]*href="([^"]*exibe_documento[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let docMatch;
-  
-  while ((docMatch = docLinkRegex.exec(html)) !== null) {
+
+  while ((docMatch = docRegex.exec(html)) !== null) {
     const href = docMatch[1];
     const linkText = docMatch[2].replace(/<[^>]+>/g, '').trim();
-    const context = docMatch[3].replace(/<[^>]+>/g, '').trim();
-    
+
     if (!linkText || linkText.length < 3) continue;
-    // Skip edition links (we want document-level results, not edition PDFs)
-    if (/^Edi[çc][ãa]o\s+(Judicial|Administrativ)/i.test(linkText)) continue;
-    
-    const fullText = `${linkText} ${context}`;
-    
-    // Extract process number
-    const processMatch = fullText.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
-    
-    // Extract date
-    let pubDate = new Date().toISOString().split('T')[0];
-    const dateMatch = fullText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    if (dateMatch) {
-      pubDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
-    }
-    
-    // Determine type
+
+    // Get surrounding context (the table row or containing element)
+    const contextStart = Math.max(0, docMatch.index - 500);
+    const contextEnd = Math.min(html.length, docMatch.index + docMatch[0].length + 500);
+    const context = html.substring(contextStart, contextEnd).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const processMatch = context.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+    const dateMatch = context.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
+
     let pubType = 'Nota de Expediente';
-    const typePatterns = [
+    for (const tp of [
       { pattern: /despacho/i, type: 'Despacho' },
       { pattern: /decisão|decisao/i, type: 'Decisão' },
       { pattern: /sentença|sentenca/i, type: 'Sentença' },
       { pattern: /intimação|intimacao/i, type: 'Intimação' },
-      { pattern: /acórdão|acordao/i, type: 'Acórdão' },
-      { pattern: /ato\s*ordinat/i, type: 'Ato Ordinatório' },
-      { pattern: /certidão|certidao/i, type: 'Certidão' },
-      { pattern: /edital/i, type: 'Edital' },
-    ];
-    for (const tp of typePatterns) {
-      if (tp.pattern.test(fullText)) {
+      { pattern: /ato\s*ordinat[óo]rio/i, type: 'Ato Ordinatório' },
+      { pattern: /certid[ãa]o/i, type: 'Certidão' },
+    ]) {
+      if (tp.pattern.test(context)) {
         pubType = tp.type;
         break;
       }
     }
 
-    const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br/trf4/diario/${href}`;
+    const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br${href}`;
     const hash = `trf4_${oabNumber}_${pubDate}_${simpleHash(linkText + href)}`;
 
     publications.push({
@@ -290,7 +334,7 @@ function parseNotasExpediente(html: string, oabNumber: string, tenantId: string)
       source: 'TRF4',
       publication_date: pubDate,
       title: linkText.substring(0, 300),
-      content: fullText.substring(0, 5000),
+      content: context.substring(0, 5000),
       publication_type: pubType,
       process_number: processMatch?.[1] || null,
       organ: 'TRF4',
@@ -299,57 +343,37 @@ function parseNotasExpediente(html: string, oabNumber: string, tenantId: string)
     });
   }
 
-  // Pattern 2: If no document links found, try parsing text blocks
+  // Also try download.php links (DJE edition PDFs that contain OAB mentions)
   if (publications.length === 0) {
-    console.log('No document links found, trying text block parsing...');
-    
-    // Look for structured content blocks that contain OAB mentions
-    // The search results might show text excerpts from the DJE
-    const textBlocks = html.split(/<hr|<br\s*\/?>\s*<br|<\/tr>/i);
-    
-    for (const block of textBlocks) {
-      const text = block.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (text.length < 50) continue;
-      
-      // Only include blocks that mention the OAB number or process numbers
-      const oabClean = oabNumber.replace(/^([A-Z]{2})0*/, '$1');
-      if (!text.includes(oabNumber) && !text.includes(oabClean) && !/\d{7}-\d{2}\.\d{4}/.test(text)) continue;
-      
-      const processMatch = text.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
-      const dateMatch = text.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const dlRegex = /<a[^>]*href="([^"]*download\.php[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+    let dlMatch;
+
+    while ((dlMatch = dlRegex.exec(html)) !== null) {
+      const href = dlMatch[1];
+      const linkText = dlMatch[2].replace(/<[^>]+>/g, '').trim();
+      if (!linkText || linkText.length < 3) continue;
+      // Skip if it's just edition listings without search context
+      if (/^Edi[çc][ãa]o/i.test(linkText) && !html.includes('encontrad')) continue;
+
+      const contextStart = Math.max(0, dlMatch.index - 500);
+      const contextEnd = Math.min(html.length, dlMatch.index + dlMatch[0].length + 500);
+      const context = html.substring(contextStart, contextEnd).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+      const processMatch = context.match(/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+      const dateMatch = context.match(/(\d{2})\/(\d{2})\/(\d{4})/);
       const pubDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : new Date().toISOString().split('T')[0];
-      
-      let pubType = 'Nota de Expediente';
-      for (const tp of [
-        { pattern: /despacho/i, type: 'Despacho' },
-        { pattern: /decisão|decisao/i, type: 'Decisão' },
-        { pattern: /sentença|sentenca/i, type: 'Sentença' },
-        { pattern: /intimação|intimacao/i, type: 'Intimação' },
-        { pattern: /ato\s*ordinat/i, type: 'Ato Ordinatório' },
-      ]) {
-        if (tp.pattern.test(text)) {
-          pubType = tp.type;
-          break;
-        }
-      }
-      
-      const title = text.substring(0, 200).trim();
-      const hash = `trf4_${oabNumber}_${pubDate}_${simpleHash(title)}`;
-      
-      // Find any link in the original block
-      const linkMatch = block.match(/href="([^"]*(?:exibe_documento|download)[^"]*)"/i);
-      const externalUrl = linkMatch 
-        ? (linkMatch[1].startsWith('http') ? linkMatch[1] : `https://www2.trf4.jus.br/trf4/diario/${linkMatch[1]}`)
-        : null;
+
+      const externalUrl = href.startsWith('http') ? href : `https://www2.trf4.jus.br/trf4/diario/${href}`;
+      const hash = `trf4_${oabNumber}_${pubDate}_${simpleHash(linkText + href)}`;
 
       publications.push({
         tenant_id: tenantId,
         oab_number: oabNumber,
         source: 'TRF4',
         publication_date: pubDate,
-        title,
-        content: text.substring(0, 5000),
-        publication_type: pubType,
+        title: linkText.substring(0, 300),
+        content: context.substring(0, 5000),
+        publication_type: 'Publicação DJE',
         process_number: processMatch?.[1] || null,
         organ: 'TRF4',
         unique_hash: hash,
@@ -375,16 +399,16 @@ function normalizeOab(raw: string | null): string {
   if (!raw) return '';
   const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   const withoutOab = clean.replace(/^OAB/, '');
-  
+
   const match = withoutOab.match(/^([A-Z]{2})(\d+)$/);
   if (match) {
     return `${match[1]}${match[2].padStart(6, '0')}`;
   }
-  
+
   const match2 = withoutOab.match(/^(\d+)([A-Z]{2})$/);
   if (match2) {
     return `${match2[2]}${match2[1].padStart(6, '0')}`;
   }
-  
+
   return withoutOab;
 }
