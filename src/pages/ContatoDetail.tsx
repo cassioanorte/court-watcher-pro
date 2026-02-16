@@ -100,7 +100,8 @@ const ContatoDetail = () => {
     }
     setUploading(true);
     try {
-      const filePath = `contacts/${id}/${Date.now()}_${file.name}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const filePath = `contacts/${id}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, file);
       if (uploadError) {
         toast({ title: "Erro no upload", description: uploadError.message, variant: "destructive" });
