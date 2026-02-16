@@ -21,10 +21,20 @@ function getMassImportBookmarkletCode(tenantId: string): string {
     numText=numText.replace(/\\s/g,'').trim();
     if(!cnj.test(numText)) continue;
     var num=numText.match(cnj)[0];
-    var autor=(cells[4]?cells[4].textContent:'').trim();
-    var reu=(cells[5]?cells[5].textContent:'').trim();
-    var classe=(cells[6]?cells[6].textContent:'').trim();
-    var assunto=(cells[7]?cells[7].textContent:'').trim();
+    var hdr=document.querySelectorAll('table tr th,table tr td');
+    var colMap={autor:3,reu:4,classe:5,assunto:7};
+    var ths=rows[0]?rows[0].querySelectorAll('th,td'):[];
+    for(var h=0;h<ths.length;h++){
+      var t=(ths[h].textContent||'').toLowerCase().trim();
+      if(t.indexOf('autor')>=0) colMap.autor=h;
+      else if(t.indexOf('réu')>=0||t.indexOf('reu')>=0) colMap.reu=h;
+      else if(t.indexOf('classe')>=0) colMap.classe=h;
+      else if(t.indexOf('assunto')>=0) colMap.assunto=h;
+    }
+    var autor=(cells[colMap.autor]?cells[colMap.autor].textContent:'').trim();
+    var reu=(cells[colMap.reu]?cells[colMap.reu].textContent:'').trim();
+    var classe=(cells[colMap.classe]?cells[colMap.classe].textContent:'').trim();
+    var assunto=(cells[colMap.assunto]?cells[colMap.assunto].textContent:'').trim();
     procs.push({process_number:num,author:autor||null,defendant:reu||null,classe:classe||null,subject:assunto||null});
   }
   if(procs.length===0){
