@@ -8,102 +8,17 @@ const corsHeaders = {
 
 interface ParsedProcess {
   process_number: string;
-  parties: string[];
   subject: string | null;
-  court: string | null;
   status: string | null;
 }
 
 /**
- * Clean a name string: trim, remove extra spaces, title-case if all-caps.
- */
-function cleanName(name: string): string {
-  let n = name.replace(/\s+/g, " ").trim();
-  // Remove trailing/leading punctuation
-  n = n.replace(/^[,;:\-–—.]+|[,;:\-–—.]+$/g, "").trim();
-  // Skip very short or very long
-  if (n.length < 3 || n.length > 200) return "";
-  // Skip strings that look like process numbers or dates
-  if (/^\d{7}/.test(n) || /^\d{2}\/\d{2}\/\d{4}/.test(n)) return "";
-  // Skip common non-name strings
-  const skipWords = ["processo", "classe", "assunto", "vara", "comarca", "juiz", "distribuição", "localização", "situação", "área", "orgão", "ação", "protocolo", "segredo", "justiça", "digital", "eletrônico", "petição", "evento", "documento", "julgador", "relator"];
-  if (skipWords.some(w => n.toLowerCase().startsWith(w))) return "";
-  return n;
-}
-
-/**
- * Extract party names from text near a process number.
- * Handles multiple eproc formats:
- * - "NOME1 x NOME2" or "NOME1 X NOME2" 
- * - "Autor: NOME" / "Réu: NOME" patterns
- * - "Parte(s): NOME1, NOME2"
- * - Names in ALL CAPS near the process number
- */
-function extractParties(context: string): string[] {
-  const parties: string[] = [];
-  const seen = new Set<string>();
-
-  const addParty = (name: string) => {
-    const cleaned = cleanName(name);
-    if (cleaned && !seen.has(cleaned.toLowerCase())) {
-      seen.add(cleaned.toLowerCase());
-      parties.push(cleaned);
-    }
-  };
-
-  // Pattern 1: "NOME1 x NOME2" or "NOME1 X NOME2" or "NOME1 vs NOME2"
-  const vsPatterns = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.,]+?)\s+(?:x|X|vs\.?|VS\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.,]+?)(?:\s*[-–—\n|]|$)/g);
-  if (vsPatterns) {
-    for (const match of vsPatterns) {
-      const parts = match.split(/\s+(?:x|X|vs\.?|VS\.?)\s+/);
-      for (const p of parts) {
-        addParty(p);
-      }
-    }
-  }
-
-  // Pattern 2: Labeled parties - "Autor:", "Réu:", "Requerente:", etc.
-  const labeledPatterns = [
-    /(?:Autor|Autora|Requerente|Exequente|Reclamante|Impetrante|Apelante|Agravante|Embargante|Recorrente)\s*:\s*([^\n|<]{3,100})/gi,
-    /(?:Réu|Ré|Requerido|Requerida|Executado|Executada|Reclamado|Reclamada|Impetrado|Impetrada|Apelado|Apelada|Agravado|Agravada|Embargado|Embargada|Recorrido|Recorrida)\s*:\s*([^\n|<]{3,100})/gi,
-    /(?:Parte|Partes|Interessado|Interessada)\s*(?:\(s\))?\s*:\s*([^\n|<]{3,100})/gi,
-  ];
-  for (const pattern of labeledPatterns) {
-    let m;
-    while ((m = pattern.exec(context)) !== null) {
-      // Split by comma or "e" for multiple names
-      const names = m[1].split(/\s*,\s*|\s+e\s+/);
-      for (const name of names) {
-        addParty(name);
-      }
-    }
-  }
-
-  // Pattern 3: ALL CAPS names (likely party names in eproc tables)
-  // Look for sequences of capitalized words (at least 2 words, each 2+ chars)
-  const capsPattern = /(?:^|\s|>|:|\|)([A-ZÀ-Ú][A-ZÀ-Ú]+(?:\s+(?:DE|DA|DO|DOS|DAS|E|DI|DEL|VAN|VON)?\s*[A-ZÀ-Ú][A-ZÀ-Ú]+)+)/g;
-  let capsMatch;
-  while ((capsMatch = capsPattern.exec(context)) !== null) {
-    const name = capsMatch[1].trim();
-    // Must be at least 2 words and look like a person/company name
-    const words = name.split(/\s+/).filter(w => w.length > 1);
-    if (words.length >= 2 && name.length >= 5 && name.length <= 120) {
-      addParty(name);
-    }
-  }
-
-  return parties;
-}
-
-/**
  * Parse search results HTML from eproc tribunals.
- * Handles both structured HTML and plain text extraction.
  */
 function parseSearchResults(html: string): ParsedProcess[] {
   const processes: ParsedProcess[] = [];
   const seen = new Set<string>();
 
-  // Extract all CNJ-format process numbers with surrounding context
   const cnjPattern = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g;
   let match;
 
@@ -112,38 +27,35 @@ function parseSearchResults(html: string): ParsedProcess[] {
     if (seen.has(num)) continue;
     seen.add(num);
 
-    // Get broader context around the match (both in HTML and stripped text)
     const startIdx = Math.max(0, match.index - 500);
     const endIdx = Math.min(html.length, match.index + 1000);
     const htmlContext = html.substring(startIdx, endIdx);
+    const textContext = htmlContext
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#\d+;/g, " ")
+      .replace(/\s+/g, " ");
 
-    // Strip HTML tags for text-based extraction
-    const textContext = htmlContext.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#\d+;/g, " ").replace(/\s+/g, " ");
-
-    // Extract parties from the context
-    const parties = extractParties(textContext);
-
-    // Try to extract subject/class
     let subject: string | null = null;
-    const subjectMatch = textContext.match(/(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i);
+    const subjectMatch = textContext.match(
+      /(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i
+    );
     if (subjectMatch) {
       subject = subjectMatch[1].trim().substring(0, 200);
     }
 
-    // Try to extract status
     let status: string | null = null;
-    const statusMatch = textContext.match(/(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i);
+    const statusMatch = textContext.match(
+      /(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i
+    );
     if (statusMatch) {
       status = statusMatch[1].trim();
     }
 
-    processes.push({
-      process_number: num,
-      parties,
-      subject,
-      court: null,
-      status,
-    });
+    processes.push({ process_number: num, subject, status });
   }
 
   // Also try pure 20-digit numbers
@@ -154,13 +66,7 @@ function parseSearchResults(html: string): ParsedProcess[] {
     const formatted = `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
     if (!seen.has(formatted)) {
       seen.add(formatted);
-      processes.push({
-        process_number: formatted,
-        parties: [],
-        subject: null,
-        court: null,
-        status: null,
-      });
+      processes.push({ process_number: formatted, subject: null, status: null });
     }
   }
 
@@ -227,7 +133,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify tenant exists
     const { data: tenant } = await supabase.from("tenants").select("id").eq("id", tenant_id).single();
     if (!tenant) {
       return new Response(
@@ -237,14 +142,7 @@ Deno.serve(async (req) => {
     }
 
     const parsed = parseSearchResults(html);
-    
-    // Log sample of extracted data for debugging
-    const sampleParties = parsed.slice(0, 3).map(p => ({
-      num: p.process_number,
-      parties: p.parties.slice(0, 3),
-      subject: p.subject,
-    }));
-    console.log(`[mass-import] Parsed ${parsed.length} processes from HTML (${html.length} chars). Sample:`, JSON.stringify(sampleParties));
+    console.log(`[mass-import] Parsed ${parsed.length} processes from HTML (${html.length} chars)`);
 
     if (parsed.length === 0) {
       return new Response(
@@ -255,79 +153,11 @@ Deno.serve(async (req) => {
 
     let casesCreated = 0;
     let casesSkipped = 0;
-    let contactsCreated = 0;
-    let contactsLinked = 0;
     const importedProcesses: string[] = [];
-    const partiesFound: string[] = [];
-    const createdContacts: string[] = [];
-
-    // Cache of party name -> profile user_id to avoid re-querying/re-creating
-    const partyCache = new Map<string, string>();
-
-    /**
-     * Find or create a contact profile for a party name.
-     * Returns the profile's user_id if found/created, null otherwise.
-     */
-    async function findOrCreateContact(partyName: string): Promise<string | null> {
-      const key = partyName.toLowerCase().trim();
-      
-      // Check cache first
-      if (partyCache.has(key)) return partyCache.get(key)!;
-
-      // Check if contact already exists by name in this tenant
-      const { data: existingContact } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("tenant_id", tenant_id)
-        .eq("contact_type", "Cliente")
-        .ilike("full_name", partyName)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingContact) {
-        partyCache.set(key, existingContact.user_id);
-        return existingContact.user_id;
-      }
-
-      // Create a new auth user + profile for this party
-      const fakeEmail = `imported_${crypto.randomUUID().slice(0, 8)}@importado.local`;
-      const tempPassword = crypto.randomUUID().slice(0, 16);
-
-      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-        email: fakeEmail,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: partyName,
-          role: "client",
-          tenant_id: tenant_id,
-        },
-      });
-
-      if (authErr) {
-        console.error(`[mass-import] Error creating user for "${partyName}":`, authErr.message);
-        return null;
-      }
-
-      const userId = authData.user.id;
-
-      // Update profile with origin info
-      await supabase.from("profiles").update({
-        origin: "Importação em Massa",
-        contact_type: "Cliente",
-      }).eq("user_id", userId);
-
-      partyCache.set(key, userId);
-      contactsCreated++;
-      createdContacts.push(partyName);
-      console.log(`[mass-import] Created contact: "${partyName}" (${userId})`);
-      return userId;
-    }
 
     for (const proc of parsed) {
       const digits = proc.process_number.replace(/\D/g, "");
 
-      // Check if case already exists (by formatted or raw number)
       const { data: existing } = await supabase
         .from("cases")
         .select("id")
@@ -338,51 +168,19 @@ Deno.serve(async (req) => {
 
       if (existing) {
         casesSkipped++;
-        // Even if case exists, try to link parties if not linked yet
-        if (proc.parties.length > 0 && existing.id) {
-          const { data: caseData } = await supabase
-            .from("cases")
-            .select("client_user_id")
-            .eq("id", existing.id)
-            .single();
-          
-          if (caseData && !caseData.client_user_id) {
-            const contactId = await findOrCreateContact(proc.parties[0]);
-            if (contactId) {
-              await supabase.from("cases").update({ client_user_id: contactId }).eq("id", existing.id);
-              contactsLinked++;
-            }
-          }
-        }
         continue;
       }
 
       const source = inferSource(proc.process_number);
 
-      // Find or create the first party as client
-      let clientUserId: string | null = null;
-      if (proc.parties.length > 0) {
-        clientUserId = await findOrCreateContact(proc.parties[0]);
-        if (clientUserId) contactsLinked++;
-        
-        // Also create remaining parties (they exist as contacts even if not linked to this case)
-        for (let pi = 1; pi < proc.parties.length; pi++) {
-          partiesFound.push(proc.parties[pi]);
-          await findOrCreateContact(proc.parties[pi]);
-        }
-      }
-
-      // Create the case
-      const { data: newCase, error: caseErr } = await supabase.from("cases").insert({
+      const { error: caseErr } = await supabase.from("cases").insert({
         tenant_id,
         process_number: proc.process_number,
         source,
         subject: proc.subject,
         simple_status: proc.status || "Importado",
         automation_enabled: true,
-        case_summary: proc.parties.length > 0 ? `Partes: ${proc.parties.join(" x ")}` : null,
-        client_user_id: clientUserId,
-      }).select("id").single();
+      });
 
       if (caseErr) {
         console.error(`[mass-import] Error creating case ${proc.process_number}:`, caseErr.message);
@@ -391,10 +189,9 @@ Deno.serve(async (req) => {
 
       casesCreated++;
       importedProcesses.push(proc.process_number);
-      for (const p of proc.parties) partiesFound.push(p);
     }
 
-    console.log(`[mass-import] Done: ${casesCreated} cases created, ${casesSkipped} skipped, ${contactsCreated} contacts created, ${contactsLinked} linked`);
+    console.log(`[mass-import] Done: ${casesCreated} created, ${casesSkipped} skipped`);
 
     return new Response(
       JSON.stringify({
@@ -402,10 +199,6 @@ Deno.serve(async (req) => {
         total_found: parsed.length,
         cases_created: casesCreated,
         cases_skipped: casesSkipped,
-        contacts_created: contactsCreated,
-        contacts_linked: contactsLinked,
-        parties_found: partiesFound.length,
-        sample_parties: [...new Set(createdContacts)].slice(0, 10),
         imported_processes: importedProcesses.slice(0, 20),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
