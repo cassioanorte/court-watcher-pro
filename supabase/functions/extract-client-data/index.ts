@@ -114,24 +114,23 @@ function extractWithRegex(text: string): Record<string, string> {
   return data;
 }
 
-// Decode base64 PDF and extract text (works for text-based PDFs only)
+// Improved PDF text extraction - handles more PDF encodings
 function extractTextFromPdfBytes(bytes: Uint8Array): string {
-  // Simple text extraction from PDF streams
   const raw = new TextDecoder("latin1").decode(bytes);
   const textParts: string[] = [];
   
-  // Extract text between BT...ET blocks (PDF text objects)
+  // Method 1: Extract text between BT...ET blocks (PDF text objects)
   const btEtRegex = /BT\s([\s\S]*?)ET/g;
   let match;
   while ((match = btEtRegex.exec(raw)) !== null) {
     const block = match[1];
-    // Extract text from Tj, TJ, ' operators
+    // Tj operator
     const tjRegex = /\(([^)]*)\)\s*Tj/g;
     let tm;
     while ((tm = tjRegex.exec(block)) !== null) {
       textParts.push(tm[1]);
     }
-    // TJ arrays: [(text) num (text) ...]
+    // TJ arrays
     const tjArrayRegex = /\[((?:\([^)]*\)|[^])*?)\]\s*TJ/g;
     while ((tm = tjArrayRegex.exec(block)) !== null) {
       const innerRegex = /\(([^)]*)\)/g;
@@ -140,19 +139,67 @@ function extractTextFromPdfBytes(bytes: Uint8Array): string {
         textParts.push(inner[1]);
       }
     }
-  }
-  
-  // Also try to find readable text sequences in the raw data
-  if (textParts.length < 5) {
-    // Fallback: extract any readable string sequences
-    const readableRegex = /[\w\sÀ-ÿ.,;:!?@\-\/()]{10,}/g;
-    let rm;
-    while ((rm = readableRegex.exec(raw)) !== null) {
-      textParts.push(rm[0]);
+    // ' and " operators (also set text)
+    const quoteRegex = /\(([^)]*)\)\s*['"]/g;
+    while ((tm = quoteRegex.exec(block)) !== null) {
+      textParts.push(tm[1]);
     }
   }
   
-  return textParts.join(" ").replace(/\\n/g, "\n").replace(/\s+/g, " ");
+  // Method 2: Try to decode PDF streams for text content
+  const streamRegex = /stream\r?\n([\s\S]*?)endstream/g;
+  while ((match = streamRegex.exec(raw)) !== null) {
+    const streamContent = match[1];
+    // Look for text in uncompressed streams
+    const innerBtEt = /BT\s([\s\S]*?)ET/g;
+    let sm;
+    while ((sm = innerBtEt.exec(streamContent)) !== null) {
+      const block = sm[1];
+      const tjRegex2 = /\(([^)]*)\)\s*Tj/g;
+      let tm2;
+      while ((tm2 = tjRegex2.exec(block)) !== null) {
+        textParts.push(tm2[1]);
+      }
+      const tjArrayRegex2 = /\[((?:\([^)]*\)|[^])*?)\]\s*TJ/g;
+      while ((tm2 = tjArrayRegex2.exec(block)) !== null) {
+        const innerRegex2 = /\(([^)]*)\)/g;
+        let inner2;
+        while ((inner2 = innerRegex2.exec(tm2[1])) !== null) {
+          textParts.push(inner2[1]);
+        }
+      }
+    }
+  }
+  
+  // Unescape PDF string escapes
+  let text = textParts
+    .map(t => t
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\r")
+      .replace(/\\t/g, "\t")
+      .replace(/\\\(/g, "(")
+      .replace(/\\\)/g, ")")
+      .replace(/\\\\/g, "\\")
+      .replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+    )
+    .join(" ")
+    .replace(/\s+/g, " ");
+
+  // Method 3: If very little text found, try UTF-16 text extraction
+  if (text.replace(/\s/g, "").length < 50) {
+    // Try to find readable strings in the raw data
+    const readableChunks: string[] = [];
+    const readableRegex = /[A-ZÀ-Ÿa-zà-ÿ0-9.,;:!?@\-\/()]{5,}/g;
+    let rm;
+    while ((rm = readableRegex.exec(raw)) !== null) {
+      readableChunks.push(rm[0]);
+    }
+    if (readableChunks.join(" ").length > text.length) {
+      text = readableChunks.join(" ");
+    }
+  }
+
+  return text;
 }
 
 // ── Main handler ──
@@ -314,6 +361,8 @@ async function extractAndUpdateProfileRegex(
   
   const pdfText = extractTextFromPdfBytes(bytes);
   console.log("Extracted PDF text length:", pdfText.length, "chars");
+  // Log first 500 chars for debugging
+  console.log("PDF text preview:", pdfText.substring(0, 500));
 
   if (pdfText.length < 20) {
     return new Response(
