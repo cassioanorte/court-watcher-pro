@@ -106,6 +106,22 @@ const ContatoDetail = () => {
               <option value="Viúvo(a)">Viúvo(a)</option>
               <option value="União Estável">União Estável</option>
             </select>
+          ) : type === "origin-select" ? (
+            <select
+              value={form[field] || ""}
+              onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+              className="h-8 px-2 rounded border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">Selecione...</option>
+              <option value="Indicação">Indicação</option>
+              <option value="Google">Google</option>
+              <option value="Instagram">Instagram</option>
+              <option value="Facebook">Facebook</option>
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="Site">Site</option>
+              <option value="OAB">OAB</option>
+              <option value="Outro">Outro</option>
+            </select>
           ) : (
             <input
               type={type}
@@ -212,7 +228,7 @@ const ContatoDetail = () => {
 
             {/* Origin */}
             <div className="px-4">
-              {renderField("Origem", "origin")}
+              {renderField("Origem", "origin", "origin-select")}
             </div>
 
             {/* Documents */}
