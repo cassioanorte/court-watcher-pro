@@ -12,6 +12,17 @@ type NewContactModalProps = {
   onCreated: () => void;
 };
 
+const ORIGIN_OPTIONS = [
+  "Indicação",
+  "Google",
+  "Instagram",
+  "Facebook",
+  "LinkedIn",
+  "Site",
+  "OAB",
+  "Outro",
+];
+
 const INITIAL = {
   full_name: "",
   email: "",
@@ -81,6 +92,15 @@ const Field = ({
           <option value="Divorciado(a)">Divorciado(a)</option>
           <option value="Viúvo(a)">Viúvo(a)</option>
           <option value="União Estável">União Estável</option>
+        </select>
+      ) : type === "origin-select" ? (
+        <select
+          value={value as string}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 px-2 rounded border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+        >
+          <option value="">Selecione...</option>
+          {ORIGIN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       ) : (
         <input
@@ -216,7 +236,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
               <Field label="Telefone" value={form.phone} onChange={set("phone")} />
               <Field label="Nascimento" value={form.birth_date} onChange={set("birth_date")} type="date" />
               <Field label="Estado Civil" value={form.civil_status} onChange={set("civil_status")} type="select" />
-              <Field label="Origem" value={form.origin} onChange={set("origin")} />
+              <Field label="Origem" value={form.origin} onChange={set("origin")} type="origin-select" />
               <Field label="Endereço" value={form.address} onChange={set("address")} />
             </div>
 
