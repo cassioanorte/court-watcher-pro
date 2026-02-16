@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.mass-import-processes]
 verify_jwt = false
+
+[functions.extract-client-data]
+verify_jwt = false

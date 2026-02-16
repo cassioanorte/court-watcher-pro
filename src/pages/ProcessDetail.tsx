@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +38,7 @@ const ProcessDetail = () => {
   const [addingMovement, setAddingMovement] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [docCategory, setDocCategory] = useState("");
-
+  const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
   // Edit movement
   const [editingMovId, setEditingMovId] = useState<string | null>(null);
   const [editMovTitle, setEditMovTitle] = useState("");
@@ -177,6 +177,38 @@ const ProcessDetail = () => {
       toast({ title: "Movimentação atualizada!" });
     }
     setSavingMov(false);
+  };
+
+  const handleExtractClientData = async (documentId: string) => {
+    if (!id) return;
+    setExtractingDocId(documentId);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-client-data", {
+        body: { document_id: documentId, case_id: id },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({
+          title: data.updated === 0 ? "Informação" : "Erro",
+          description: data.error,
+          variant: data.updated === 0 ? "default" : "destructive",
+        });
+      } else if (data?.success) {
+        const fieldNames: Record<string, string> = {
+          cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+          civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+          nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Data de nascimento",
+          cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor",
+          atividade_economica: "Profissão",
+        };
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: `${data.updated} campo(s) atualizado(s)!`, description: updated });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingDocId(null);
+    }
   };
 
   if (loading) return <div className="text-sm text-muted-foreground">Carregando...</div>;
@@ -473,6 +505,17 @@ const ProcessDetail = () => {
               </div>
               <div className="flex items-center gap-2">
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Abrir</a>
+                {isLawyer && caseData.client_user_id && (
+                  <button
+                    onClick={() => handleExtractClientData(doc.id)}
+                    disabled={extractingDocId === doc.id}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
+                    title="Extrair dados do cliente deste documento"
+                  >
+                    {extractingDocId === doc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    Extrair dados
+                  </button>
+                )}
                 {isLawyer && (
                   <button
                     onClick={async () => {
