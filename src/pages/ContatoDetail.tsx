@@ -79,8 +79,8 @@ const ContatoDetail = () => {
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
   if (!contact) return <div className="text-muted-foreground text-sm p-4">Contato não encontrado.</div>;
 
-  const Field = ({ label, field, type = "text" }: { label: string; field: string; type?: string }) => (
-    <div className="flex items-center py-2.5 border-b last:border-0">
+  const renderField = (label: string, field: string, type = "text") => (
+    <div key={field} className="flex items-center py-2.5 border-b last:border-0">
       <span className="w-48 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-6 shrink-0">
         {label}
       </span>
@@ -92,13 +92,6 @@ const ContatoDetail = () => {
               checked={!!form[field]}
               onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.checked }))}
               className="w-4 h-4 rounded border accent-primary"
-            />
-          ) : type === "date" ? (
-            <input
-              type="date"
-              value={form[field] || ""}
-              onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-              className="h-8 px-2 rounded border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           ) : type === "select" ? (
             <select
@@ -211,37 +204,37 @@ const ContatoDetail = () => {
 
             {/* Contact info */}
             <div className="px-4">
-              <Field label="E-mail" field="email" />
-              <Field label="Nome Completo" field="full_name" />
-              <Field label="Nascimento" field="birth_date" type="date" />
-              <Field label="Estado Civil" field="civil_status" type="select" />
+              {renderField("E-mail", "email")}
+              {renderField("Nome Completo", "full_name")}
+              {renderField("Nascimento", "birth_date", "date")}
+              {renderField("Estado Civil", "civil_status", "select")}
             </div>
 
             {/* Origin */}
             <div className="px-4">
-              <Field label="Origem" field="origin" />
+              {renderField("Origem", "origin")}
             </div>
 
             {/* Documents */}
             <div className="px-4">
-              <Field label="CPF" field="cpf" />
-              <Field label="RG" field="rg" />
-              <Field label="CTPS" field="ctps" />
-              <Field label="PIS" field="pis" />
-              <Field label="Título de Eleitor" field="titulo_eleitor" />
-              <Field label="CNH" field="cnh" />
-              <Field label="Passaporte" field="passaporte" />
-              <Field label="Certidão Reservista" field="certidao_reservista" />
+              {renderField("CPF", "cpf")}
+              {renderField("RG", "rg")}
+              {renderField("CTPS", "ctps")}
+              {renderField("PIS", "pis")}
+              {renderField("Título de Eleitor", "titulo_eleitor")}
+              {renderField("CNH", "cnh")}
+              {renderField("Passaporte", "passaporte")}
+              {renderField("Certidão Reservista", "certidao_reservista")}
             </div>
 
             {/* Additional info */}
             <div className="px-4">
-              <Field label="Atividade Econômica" field="atividade_economica" />
-              <Field label="Nome do Pai" field="nome_pai" />
-              <Field label="Nome da Mãe" field="nome_mae" />
-              <Field label="Naturalidade" field="naturalidade" />
-              <Field label="Nacionalidade" field="nacionalidade" />
-              <Field label="Comentários" field="comentarios" />
+              {renderField("Atividade Econômica", "atividade_economica")}
+              {renderField("Nome do Pai", "nome_pai")}
+              {renderField("Nome da Mãe", "nome_mae")}
+              {renderField("Naturalidade", "naturalidade")}
+              {renderField("Nacionalidade", "nacionalidade")}
+              {renderField("Comentários", "comentarios")}
             </div>
 
             {/* Bank info */}
@@ -249,15 +242,15 @@ const ContatoDetail = () => {
               <div className="py-2.5">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">CONTA BANCÁRIA</span>
               </div>
-              <Field label="Banco" field="banco" />
-              <Field label="Agência" field="agencia" />
-              <Field label="Conta" field="conta_bancaria" />
-              <Field label="Chave PIX" field="chave_pix" />
+              {renderField("Banco", "banco")}
+              {renderField("Agência", "agencia")}
+              {renderField("Conta", "conta_bancaria")}
+              {renderField("Chave PIX", "chave_pix")}
             </div>
 
             {/* Deceased */}
             <div className="px-4">
-              <Field label="Contato Falecido?" field="falecido" type="checkbox" />
+              {renderField("Contato Falecido?", "falecido", "checkbox")}
             </div>
           </div>
         </TabsContent>
