@@ -127,7 +127,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
         });
         if (error || !data?.success) throw new Error(data?.error || error?.message || "Erro ao criar contato");
         userId = data.userId;
-        await supabase.functions.invoke("update-client-password", { body: { userId, newPassword: "123456" } });
+        await supabase.functions.invoke("update-client-password", { body: { userId, password: "123456" } });
         setClientsCache(prev => new Map(prev).set(partyName.toLowerCase().trim(), userId));
       }
 
