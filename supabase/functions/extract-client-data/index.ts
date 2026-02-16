@@ -18,9 +18,12 @@ function extractWithRegex(text: string): Record<string, string> {
     if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(raw)) data.cpf = raw;
   }
 
-  // RG: various patterns
+  // RG: various patterns - must have at least 4 digits
   const rgMatch = text.match(/(?:RG|R\.G\.|Identidade|Carteira de Identidade)[:\s]*[nº°]*\s*([\d.\-\/]+)/i);
-  if (rgMatch) data.rg = rgMatch[1].trim();
+  if (rgMatch) {
+    const rgClean = rgMatch[1].replace(/[^0-9]/g, "");
+    if (rgClean.length >= 4) data.rg = rgMatch[1].trim();
+  }
 
   // Address: common patterns in legal docs
   const addrPatterns = [
