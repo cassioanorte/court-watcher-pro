@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Pencil, Trash2, Save, X, Camera } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ContatoDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { tenantId } = useAuth();
+  const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [contact, setContact] = useState<any>(null);
   const [cases, setCases] = useState<any[]>([]);
@@ -19,15 +19,30 @@ const ContatoDetail = () => {
   const [saving, setSaving] = useState(false);
   const [newPassword, setNewPassword] = useState("");
 
+  // Documents state
+  const [clientDocs, setClientDocs] = useState<any[]>([]);
+  const [officeDocs, setOfficeDocs] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [addingLink, setAddingLink] = useState(false);
+  const [linkName, setLinkName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!id) return;
     const load = async () => {
-      const [profileRes, casesRes] = await Promise.all([
+      const [profileRes, casesRes, clientDocsRes, officeDocsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", id).single(),
         supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false }),
+        // Client-uploaded docs across all their cases
+        supabase.from("documents").select("*").eq("uploaded_by", id).eq("category", "Enviado pelo cliente").order("created_at", { ascending: false }),
+        // Office docs for this contact
+        supabase.from("contact_documents").select("*").eq("contact_user_id", id).order("created_at", { ascending: false }),
       ]);
       setContact(profileRes.data);
       setCases(casesRes.data || []);
+      setClientDocs(clientDocsRes.data || []);
+      setOfficeDocs(officeDocsRes.data || []);
       setLoading(false);
     };
     load();
@@ -72,6 +87,48 @@ const ContatoDetail = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOfficeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id || !tenantId || !user) return;
+    setUploading(true);
+    const filePath = `contacts/${id}/${Date.now()}_${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, file);
+    if (uploadError) {
+      toast({ title: "Erro", description: uploadError.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(filePath);
+    const { data: docData, error: insertError } = await supabase
+      .from("contact_documents")
+      .insert({ contact_user_id: id, tenant_id: tenantId, name: file.name, file_url: urlData.publicUrl, uploaded_by: user.id, category: "Escritório" })
+      .select()
+      .single();
+    if (insertError) toast({ title: "Erro", description: insertError.message, variant: "destructive" });
+    if (docData) setOfficeDocs((prev) => [docData, ...prev]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleAddLink = async () => {
+    if (!linkName.trim() || !linkUrl.trim() || !id || !tenantId || !user) return;
+    setAddingLink(true);
+    const { data, error } = await supabase
+      .from("contact_documents")
+      .insert({ contact_user_id: id, tenant_id: tenantId, name: linkName.trim(), link_url: linkUrl.trim(), uploaded_by: user.id, category: "Escritório" })
+      .select()
+      .single();
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    if (data) { setOfficeDocs((prev) => [data, ...prev]); setLinkName(""); setLinkUrl(""); }
+    setAddingLink(false);
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    const { error } = await supabase.from("contact_documents").delete().eq("id", docId);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else setOfficeDocs((prev) => prev.filter((d) => d.id !== docId));
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
@@ -308,8 +365,105 @@ const ContatoDetail = () => {
           </div>
         </TabsContent>
 
+        {/* Documentos tab */}
+        <TabsContent value="documentos" className="mt-6 space-y-6">
+          {/* Seção: Documentos anexados pelo cliente */}
+          <div className="bg-card border rounded-lg">
+            <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30 rounded-t-lg">
+              <FolderOpen className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Documentos anexados pelo cliente</h3>
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">{clientDocs.length}</span>
+            </div>
+            {clientDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-6 text-center">Nenhum documento enviado pelo cliente.</p>
+            ) : (
+              <div className="divide-y">
+                {clientDocs.map((doc) => (
+                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
+                    </div>
+                    <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Seção: Documentos do escritório */}
+          <div className="bg-card border rounded-lg">
+            <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30 rounded-t-lg">
+              <FolderOpen className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Documentos do escritório</h3>
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">{officeDocs.length}</span>
+            </div>
+
+            <div className="p-4 border-b space-y-3">
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleOfficeUpload}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt" />
+              <div className="flex gap-2">
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                  className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-primary/40 p-3 text-sm font-medium text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
+                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Upload className="w-4 h-4" /> Anexar arquivo</>}
+                </button>
+              </div>
+
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase">Nome do link</label>
+                  <input value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="Ex: Contrato"
+                    className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase">URL</label>
+                  <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..."
+                    className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                </div>
+                <button onClick={handleAddLink} disabled={addingLink || !linkName.trim() || !linkUrl.trim()}
+                  className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1">
+                  <Link2 className="w-3.5 h-3.5" /> Adicionar
+                </button>
+              </div>
+            </div>
+
+            {officeDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-6 text-center">Nenhum documento do escritório.</p>
+            ) : (
+              <div className="divide-y">
+                {officeDocs.map((doc) => (
+                  <div key={doc.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      {doc.link_url ? <Link2 className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-primary" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {(doc.file_url || doc.link_url) && (
+                        <a href={doc.file_url || doc.link_url} target="_blank" rel="noopener noreferrer"
+                          className="p-1.5 rounded hover:bg-muted transition-colors">
+                          {doc.link_url ? <ExternalLink className="w-4 h-4 text-muted-foreground" /> : <Download className="w-4 h-4 text-muted-foreground" />}
+                        </a>
+                      )}
+                      <button onClick={() => handleDeleteDoc(doc.id)} className="p-1.5 rounded hover:bg-destructive/10 transition-colors">
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         {/* Placeholder tabs */}
-        {["documentos", "atendimentos", "despesas", "honorarios", "timesheets", "notificacoes"].map((tab) => (
+        {["atendimentos", "despesas", "honorarios", "timesheets", "notificacoes"].map((tab) => (
           <TabsContent key={tab} value={tab} className="mt-6">
             <div className="bg-card border rounded-lg p-8 text-center">
               <p className="text-sm text-muted-foreground">Em breve — funcionalidade de {tab} será implementada.</p>

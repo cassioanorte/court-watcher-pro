@@ -238,6 +238,50 @@ export type Database = {
           },
         ]
       }
+      contact_documents: {
+        Row: {
+          category: string
+          contact_user_id: string
+          created_at: string
+          file_url: string | null
+          id: string
+          link_url: string | null
+          name: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: string
+          contact_user_id: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          link_url?: string | null
+          name: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string
+          contact_user_id?: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          link_url?: string | null
+          name?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_interactions: {
         Row: {
           created_at: string
