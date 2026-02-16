@@ -384,9 +384,10 @@ const ContatoDetail = () => {
               {renderField("Estado Civil", "civil_status", "select")}
             </div>
 
-            {/* Origin */}
+            {/* Origin & Address */}
             <div className="px-4">
               {renderField("Origem", "origin", "origin-select")}
+              {renderField("Endereço", "address")}
             </div>
 
             {/* Documents */}
