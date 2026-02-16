@@ -11,10 +11,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { document_id, case_id, file_base64, file_name, file_mime_type } = await req.json();
-    if (!case_id) {
+    const { document_id, case_id, process_number, file_base64, file_name, file_mime_type } = await req.json();
+    if (!case_id && !process_number) {
       return new Response(
-        JSON.stringify({ error: "case_id is required" }),
+        JSON.stringify({ error: "case_id or process_number is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -30,32 +30,48 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
 
-    // User client for auth check
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const admin = createClient(supabaseUrl, serviceKey);
+
+    // Resolve case_id from process_number if needed
+    let resolvedCaseId = case_id;
+    if (!resolvedCaseId && process_number) {
+      // Clean process number - remove formatting
+      const cleanNumber = process_number.replace(/\D/g, "");
+      
+      // Try exact match first, then cleaned match
+      const { data: cases } = await admin
+        .from("cases")
+        .select("id, client_user_id, process_number")
+        .or(`process_number.eq.${process_number},process_number.eq.${cleanNumber}`);
+      
+      if (!cases || cases.length === 0) {
+        // Try partial match
+        const { data: partialCases } = await admin
+          .from("cases")
+          .select("id, client_user_id, process_number")
+          .ilike("process_number", `%${cleanNumber}%`);
+        
+        if (!partialCases || partialCases.length === 0) {
+          return new Response(
+            JSON.stringify({ error: `Processo "${process_number}" não encontrado no sistema.` }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        resolvedCaseId = partialCases[0].id;
+      } else {
+        resolvedCaseId = cases[0].id;
+      }
+    }
 
     let docBase64: string;
     let docMimeType: string;
     let docName: string;
 
     if (file_base64) {
-      // Direct file upload mode
       docBase64 = file_base64;
       docMimeType = file_mime_type || "application/pdf";
       docName = file_name || "document.pdf";
     } else {
-      // Existing document mode
       const { data: doc, error: docError } = await admin
         .from("documents")
         .select("file_url, name")
@@ -87,7 +103,7 @@ Deno.serve(async (req) => {
     const { data: caseData } = await admin
       .from("cases")
       .select("client_user_id")
-      .eq("id", case_id)
+      .eq("id", resolvedCaseId)
       .single();
     if (!caseData?.client_user_id) {
       return new Response(
