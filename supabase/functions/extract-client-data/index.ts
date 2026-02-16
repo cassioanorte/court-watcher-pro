@@ -301,11 +301,18 @@ Deno.serve(async (req) => {
       docName = doc.name;
     }
 
-    // Default: try regex first, use AI only if use_ai=true
+    // Default: try regex first, auto-fallback to AI if regex finds nothing useful
     if (use_ai) {
       return await extractAndUpdateProfileAI(admin, lovableKey, resolvedCaseId, docBase64, docMimeType, corsHeaders);
     } else {
-      return await extractAndUpdateProfileRegex(admin, resolvedCaseId, docBase64, docMimeType, corsHeaders);
+      const regexResult = await extractAndUpdateProfileRegex(admin, resolvedCaseId, docBase64, docMimeType, corsHeaders, true);
+      const regexBody = await regexResult.clone().json();
+      // Auto-fallback to AI if regex found no data or PDF is image-based
+      if (regexBody.auto_fallback_ai) {
+        console.log("Regex found no useful data, auto-falling back to AI extraction");
+        return await extractAndUpdateProfileAI(admin, lovableKey, resolvedCaseId, docBase64, docMimeType, corsHeaders);
+      }
+      return regexResult;
     }
   } catch (err) {
     console.error("Extract error:", err);
@@ -319,10 +326,16 @@ Deno.serve(async (req) => {
 // ── Regex-based extraction (no AI, no cost) ──
 
 async function extractAndUpdateProfileRegex(
-  admin: any, caseId: string, docBase64: string, docMimeType: string, corsHeaders: Record<string, string>
+  admin: any, caseId: string, docBase64: string, docMimeType: string, corsHeaders: Record<string, string>, allowFallback = false
 ) {
   // Only works with PDFs (text-based)
   if (!docMimeType.includes("pdf")) {
+    if (allowFallback) {
+      return new Response(
+        JSON.stringify({ auto_fallback_ai: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     return new Response(
       JSON.stringify({ error: "Extração por regex só funciona com PDFs de texto. Use a opção com IA para imagens.", method: "regex" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -364,7 +377,19 @@ async function extractAndUpdateProfileRegex(
   // Log first 500 chars for debugging
   console.log("PDF text preview:", pdfText.substring(0, 500));
 
-  if (pdfText.length < 20) {
+  // Check if text is actually readable (not binary garbage from image PDFs)
+  const readableChars = pdfText.replace(/[^a-zA-ZÀ-ÿ0-9\s.,;:!?@\-\/()]/g, "");
+  const readableRatio = readableChars.length / Math.max(pdfText.length, 1);
+  console.log("Readable ratio:", readableRatio.toFixed(2), "readable chars:", readableChars.length);
+
+  if (pdfText.length < 20 || readableRatio < 0.3) {
+    if (allowFallback) {
+      console.log("PDF appears to be image-based, signaling AI fallback");
+      return new Response(
+        JSON.stringify({ auto_fallback_ai: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     return new Response(
       JSON.stringify({ error: "Não foi possível extrair texto do PDF. O documento pode ser escaneado/imagem. Tente a opção com IA.", method: "regex", updated: 0 }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -383,6 +408,13 @@ async function extractAndUpdateProfileRegex(
   }
 
   if (Object.keys(updateData).length === 0) {
+    if (allowFallback) {
+      console.log("Regex found no new data, signaling AI fallback");
+      return new Response(
+        JSON.stringify({ auto_fallback_ai: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     return new Response(
       JSON.stringify({ success: true, error: "Nenhum dado novo encontrado ou todos os campos já estão preenchidos.", updated: 0, method: "regex" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
