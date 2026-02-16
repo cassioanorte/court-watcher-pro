@@ -63,25 +63,6 @@ const ContatoDetail = () => {
         .eq("user_id", id);
       if (error) throw error;
 
-      // Update password if provided
-      if (newPassword && newPassword.length >= 6) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-client-password`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ userId: id, password: newPassword }),
-          }
-        );
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || "Erro ao atualizar senha");
-      }
-
       setContact((prev: any) => ({ ...prev, ...updates }));
       setEditing(false);
       setNewPassword("");
@@ -200,6 +181,7 @@ const ContatoDetail = () => {
             { value: "honorarios", label: "Honorários" },
             { value: "timesheets", label: "Timesheets" },
             { value: "notificacoes", label: "Notificações" },
+            { value: "senha", label: "Senha" },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -233,23 +215,6 @@ const ContatoDetail = () => {
               <Field label="Nome Completo" field="full_name" />
               <Field label="Nascimento" field="birth_date" type="date" />
               <Field label="Estado Civil" field="civil_status" type="select" />
-              {/* Password field - only in edit mode */}
-              {editing && (
-                <div className="flex items-center py-2.5 border-b">
-                  <span className="w-48 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-6 shrink-0">
-                    NOVA SENHA
-                  </span>
-                  <div className="flex-1">
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
-                      className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Origin */}
@@ -342,6 +307,58 @@ const ContatoDetail = () => {
             </div>
           </TabsContent>
         ))}
+
+        {/* Senha tab */}
+        <TabsContent value="senha" className="mt-6">
+          <div className="bg-card border rounded-lg p-6 max-w-md">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Alterar Senha do Contato</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nova Senha</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="mt-1 h-9 px-3 rounded border bg-background text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  if (!id || !newPassword || newPassword.length < 6) {
+                    toast({ title: "Erro", description: "A senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
+                    return;
+                  }
+                  setSaving(true);
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const token = sessionData?.session?.access_token;
+                    const res = await fetch(
+                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-client-password`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ userId: id, password: newPassword }),
+                      }
+                    );
+                    const result = await res.json();
+                    if (!res.ok) throw new Error(result.error || "Erro ao atualizar senha");
+                    setNewPassword("");
+                    toast({ title: "Sucesso!", description: "Senha atualizada com sucesso." });
+                  } catch (err: any) {
+                    toast({ title: "Erro", description: err.message, variant: "destructive" });
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Atualizar Senha"}
+              </button>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
