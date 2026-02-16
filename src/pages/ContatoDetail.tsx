@@ -17,6 +17,7 @@ const ContatoDetail = () => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -62,8 +63,28 @@ const ContatoDetail = () => {
         .eq("user_id", id);
       if (error) throw error;
 
+      // Update password if provided
+      if (newPassword && newPassword.length >= 6) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-client-password`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ userId: id, password: newPassword }),
+          }
+        );
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || "Erro ao atualizar senha");
+      }
+
       setContact((prev: any) => ({ ...prev, ...updates }));
       setEditing(false);
+      setNewPassword("");
       toast({ title: "Salvo!", description: "Dados do contato atualizados." });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -206,11 +227,29 @@ const ContatoDetail = () => {
               </div>
             </div>
 
-            {/* Personal info */}
+            {/* Contact info */}
             <div className="px-4">
+              <Field label="E-mail" field="email" />
               <Field label="Apelido" field="full_name" />
               <Field label="Nascimento" field="birth_date" type="date" />
               <Field label="Estado Civil" field="civil_status" type="select" />
+              {/* Password field - only in edit mode */}
+              {editing && (
+                <div className="flex items-center py-2.5 border-b">
+                  <span className="w-48 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-6 shrink-0">
+                    NOVA SENHA
+                  </span>
+                  <div className="flex-1">
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                      className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Origin */}
