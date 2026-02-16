@@ -8,13 +8,70 @@ const corsHeaders = {
 
 interface ParsedProcess {
   process_number: string;
+  parties: string[];
   subject: string | null;
   status: string | null;
 }
 
-/**
- * Parse search results HTML from eproc tribunals.
- */
+function cleanName(name: string): string {
+  let n = name.replace(/\s+/g, " ").trim();
+  n = n.replace(/^[,;:\-–—.]+|[,;:\-–—.]+$/g, "").trim();
+  if (n.length < 3 || n.length > 200) return "";
+  if (/^\d{7}/.test(n) || /^\d{2}\/\d{2}\/\d{4}/.test(n)) return "";
+  const skipWords = ["processo", "classe", "assunto", "vara", "comarca", "juiz", "distribuição", "localização", "situação", "área", "orgão", "ação", "protocolo", "segredo", "justiça", "digital", "eletrônico", "petição", "evento", "documento", "julgador", "relator"];
+  if (skipWords.some(w => n.toLowerCase().startsWith(w))) return "";
+  return n;
+}
+
+function extractParties(context: string): string[] {
+  const parties: string[] = [];
+  const seen = new Set<string>();
+
+  const addParty = (name: string) => {
+    const cleaned = cleanName(name);
+    if (cleaned && !seen.has(cleaned.toLowerCase())) {
+      seen.add(cleaned.toLowerCase());
+      parties.push(cleaned);
+    }
+  };
+
+  // Pattern 1: "NOME1 x NOME2"
+  const vsPatterns = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.,]+?)\s+(?:x|X|vs\.?|VS\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.,]+?)(?:\s*[-–—\n|]|$)/g);
+  if (vsPatterns) {
+    for (const match of vsPatterns) {
+      const parts = match.split(/\s+(?:x|X|vs\.?|VS\.?)\s+/);
+      for (const p of parts) addParty(p);
+    }
+  }
+
+  // Pattern 2: Labeled parties
+  const labeledPatterns = [
+    /(?:Autor|Autora|Requerente|Exequente|Reclamante|Impetrante|Apelante|Agravante|Embargante|Recorrente)\s*:\s*([^\n|<]{3,100})/gi,
+    /(?:Réu|Ré|Requerido|Requerida|Executado|Executada|Reclamado|Reclamada|Impetrado|Impetrada|Apelado|Apelada|Agravado|Agravada|Embargado|Embargada|Recorrido|Recorrida)\s*:\s*([^\n|<]{3,100})/gi,
+    /(?:Parte|Partes|Interessado|Interessada)\s*(?:\(s\))?\s*:\s*([^\n|<]{3,100})/gi,
+  ];
+  for (const pattern of labeledPatterns) {
+    let m;
+    while ((m = pattern.exec(context)) !== null) {
+      const names = m[1].split(/\s*,\s*|\s+e\s+/);
+      for (const name of names) addParty(name);
+    }
+  }
+
+  // Pattern 3: ALL CAPS names
+  const capsPattern = /(?:^|\s|>|:|\|)([A-ZÀ-Ú][A-ZÀ-Ú]+(?:\s+(?:DE|DA|DO|DOS|DAS|E|DI|DEL|VAN|VON)?\s*[A-ZÀ-Ú][A-ZÀ-Ú]+)+)/g;
+  let capsMatch;
+  while ((capsMatch = capsPattern.exec(context)) !== null) {
+    const name = capsMatch[1].trim();
+    const words = name.split(/\s+/).filter(w => w.length > 1);
+    if (words.length >= 2 && name.length >= 5 && name.length <= 120) {
+      addParty(name);
+    }
+  }
+
+  return parties;
+}
+
 function parseSearchResults(html: string): ParsedProcess[] {
   const processes: ParsedProcess[] = [];
   const seen = new Set<string>();
@@ -30,32 +87,19 @@ function parseSearchResults(html: string): ParsedProcess[] {
     const startIdx = Math.max(0, match.index - 500);
     const endIdx = Math.min(html.length, match.index + 1000);
     const htmlContext = html.substring(startIdx, endIdx);
-    const textContext = htmlContext
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&#\d+;/g, " ")
-      .replace(/\s+/g, " ");
+    const textContext = htmlContext.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#\d+;/g, " ").replace(/\s+/g, " ");
+
+    const parties = extractParties(textContext);
 
     let subject: string | null = null;
-    const subjectMatch = textContext.match(
-      /(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i
-    );
-    if (subjectMatch) {
-      subject = subjectMatch[1].trim().substring(0, 200);
-    }
+    const subjectMatch = textContext.match(/(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i);
+    if (subjectMatch) subject = subjectMatch[1].trim().substring(0, 200);
 
     let status: string | null = null;
-    const statusMatch = textContext.match(
-      /(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i
-    );
-    if (statusMatch) {
-      status = statusMatch[1].trim();
-    }
+    const statusMatch = textContext.match(/(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i);
+    if (statusMatch) status = statusMatch[1].trim();
 
-    processes.push({ process_number: num, subject, status });
+    processes.push({ process_number: num, parties, subject, status });
   }
 
   // Also try pure 20-digit numbers
@@ -66,16 +110,13 @@ function parseSearchResults(html: string): ParsedProcess[] {
     const formatted = `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
     if (!seen.has(formatted)) {
       seen.add(formatted);
-      processes.push({ process_number: formatted, subject: null, status: null });
+      processes.push({ process_number: formatted, parties: [], subject: null, status: null });
     }
   }
 
   return processes;
 }
 
-/**
- * Infer the process_source enum from the CNJ number.
- */
 function inferSource(processNumber: string): string {
   const digits = processNumber.replace(/\D/g, "");
   if (digits.length < 20) return "TRF4_JFRS";
@@ -146,7 +187,7 @@ Deno.serve(async (req) => {
 
     if (parsed.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: "Nenhum número de processo encontrado na página. Certifique-se de estar na página de resultados da busca." }),
+        JSON.stringify({ success: false, error: "Nenhum número de processo encontrado na página." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -154,6 +195,7 @@ Deno.serve(async (req) => {
     let casesCreated = 0;
     let casesSkipped = 0;
     const importedProcesses: string[] = [];
+    const allParties: string[] = [];
 
     for (const proc of parsed) {
       const digits = proc.process_number.replace(/\D/g, "");
@@ -173,6 +215,11 @@ Deno.serve(async (req) => {
 
       const source = inferSource(proc.process_number);
 
+      // Store parties in case_summary for later review (no contact creation)
+      const partiesSummary = proc.parties.length > 0
+        ? `Partes: ${proc.parties.join(" x ")}`
+        : null;
+
       const { error: caseErr } = await supabase.from("cases").insert({
         tenant_id,
         process_number: proc.process_number,
@@ -180,6 +227,7 @@ Deno.serve(async (req) => {
         subject: proc.subject,
         simple_status: proc.status || "Importado",
         automation_enabled: true,
+        case_summary: partiesSummary,
       });
 
       if (caseErr) {
@@ -189,9 +237,10 @@ Deno.serve(async (req) => {
 
       casesCreated++;
       importedProcesses.push(proc.process_number);
+      for (const p of proc.parties) allParties.push(p);
     }
 
-    console.log(`[mass-import] Done: ${casesCreated} created, ${casesSkipped} skipped`);
+    console.log(`[mass-import] Done: ${casesCreated} created, ${casesSkipped} skipped, ${allParties.length} parties found`);
 
     return new Response(
       JSON.stringify({
@@ -199,6 +248,7 @@ Deno.serve(async (req) => {
         total_found: parsed.length,
         cases_created: casesCreated,
         cases_skipped: casesSkipped,
+        parties_found: allParties.length,
         imported_processes: importedProcesses.slice(0, 20),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

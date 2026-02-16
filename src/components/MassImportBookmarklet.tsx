@@ -18,8 +18,8 @@ function getMassImportBookmarkletCode(tenantId: string): string {
     body:JSON.stringify({html:html,tenant_id:tid,source_url:url})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.success){
-      var msg='✅ Importação concluída!\\n\\n📋 Processos encontrados: '+d.total_found+'\\n✅ Novos cadastrados: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped+'\\n👤 Clientes criados: '+(d.contacts_created||0)+'\\n🔗 Clientes vinculados: '+(d.contacts_linked||0);
-      if(d.sample_parties&&d.sample_parties.length>0){msg+='\\n\\nClientes cadastrados:\\n'+d.sample_parties.slice(0,5).join('\\n');}
+      var msg='✅ Importação concluída!\\n\\n📋 Processos encontrados: '+d.total_found+'\\n✅ Novos cadastrados: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped+'\\n👥 Partes identificadas: '+(d.parties_found||0);
+      msg+='\\n\\n💡 Acesse a página de Processos no sistema para revisar e vincular os clientes.';
       alert(msg);
     }else{
       alert('❌ Erro: '+(d.error||'Falha desconhecida'));
@@ -61,7 +61,7 @@ const MassImportBookmarklet = () => {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Importe <strong>todos os seus processos e clientes</strong> de uma vez a partir do tribunal.
+        Importe <strong>todos os seus processos</strong> de uma vez a partir do tribunal.
         Faça login no eproc, pesquise pela sua OAB e clique no bookmarklet para importar automaticamente.
       </p>
 
@@ -90,15 +90,15 @@ const MassImportBookmarklet = () => {
           <ol className="space-y-2 text-muted-foreground">
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">1</span>
-              <span><strong>Arraste</strong> o botão acima para sua barra de favoritos. Se não conseguir, clique em "Copiar código" e crie um favorito manualmente colando como URL.</span>
+              <span><strong>Arraste</strong> o botão acima para sua barra de favoritos.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">2</span>
-              <span>Acesse o <strong>eproc</strong> do tribunal (TRF4, TJRS, etc.) e <strong>faça login</strong> com suas credenciais.</span>
+              <span>Acesse o <strong>eproc</strong> do tribunal e <strong>faça login</strong>.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">3</span>
-              <span>Pesquise pela sua <strong>OAB</strong> para listar todos os seus processos. Certifique-se de que a lista esteja visível na tela.</span>
+              <span>Pesquise pela sua <strong>OAB</strong> para listar todos os seus processos.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">4</span>
@@ -108,31 +108,24 @@ const MassImportBookmarklet = () => {
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">5</span>
               <span className="flex items-center gap-1">
                 <CheckCircle className="w-4 h-4 text-accent shrink-0" />
-                Pronto! Todos os processos serão cadastrados automaticamente no sistema.
+                Pronto! Processos importados. Acesse a página de Processos para revisar e vincular clientes.
               </span>
             </li>
           </ol>
 
           <div className="pt-2 border-t border-border space-y-2">
             <div className="flex items-start gap-2">
-              <Scale className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <Users className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <strong>Importação rápida:</strong> Os processos são cadastrados com as informações básicas da lista de resultados (número, partes, assunto).
+                <strong>Vinculação de clientes:</strong> Após importar, acesse cada processo na lista e selecione qual parte é seu cliente. O sistema criará o cadastro automaticamente.
               </p>
             </div>
             <div className="flex items-start gap-2">
-              <Users className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <Scale className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <strong>Enriquecimento gradual:</strong> Para obter dados completos (CPF, endereço, etc.), abra cada processo no tribunal e use o bookmarklet "Capturar Movimentações" acima.
+                <strong>Sem duplicatas:</strong> Processos já cadastrados são automaticamente ignorados.
               </p>
             </div>
-          </div>
-
-          <div className="pt-2 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              <strong>Dica:</strong> Se o tribunal paginar os resultados, execute o bookmarklet em cada página para importar todos.
-              Processos já cadastrados serão automaticamente ignorados (sem duplicatas).
-            </p>
           </div>
         </div>
       )}
