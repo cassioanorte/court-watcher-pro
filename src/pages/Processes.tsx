@@ -64,10 +64,21 @@ const Processes = () => {
     fetchProcesses();
   }, [tenantId]);
 
+  const extractParties = (summary: string | null) => {
+    if (!summary) return { author: null, defendant: null };
+    const parts = summary.split(/\s*\|\s*/);
+    return { author: parts[0]?.trim() || null, defendant: parts[1]?.trim() || null };
+  };
+
   const filtered = processes.filter(
-    (p) =>
-      p.process_number.includes(search) ||
-      (p.subject || "").toLowerCase().includes(search.toLowerCase())
+    (p) => {
+      const q = search.toLowerCase();
+      const { author, defendant } = extractParties(p.case_summary);
+      return p.process_number.includes(search) ||
+        (p.subject || "").toLowerCase().includes(q) ||
+        (author || "").toLowerCase().includes(q) ||
+        (defendant || "").toLowerCase().includes(q);
+    }
   );
 
   const formatDate = (d: string) => {
@@ -296,6 +307,8 @@ const Processes = () => {
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processo</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Autor</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Réu</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Tribunal</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Automação</th>
@@ -322,6 +335,12 @@ const Processes = () => {
                         {p.process_number}
                       </Link>
                       <p className="text-xs text-muted-foreground mt-0.5">{p.subject || "Sem assunto"}</p>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-xs text-foreground">{extractParties(p.case_summary).author || <span className="text-muted-foreground italic">—</span>}</span>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-xs text-foreground">{extractParties(p.case_summary).defendant || <span className="text-muted-foreground italic">—</span>}</span>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{sourceLabels[p.source] || p.source}</span>
