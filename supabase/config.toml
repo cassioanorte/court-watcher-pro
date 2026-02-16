@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.test-email-connection]
 verify_jwt = false
+
+[functions.mass-import-processes]
+verify_jwt = false
