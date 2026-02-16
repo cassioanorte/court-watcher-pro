@@ -93,7 +93,12 @@ Deno.serve(async (req) => {
 
       const contentType = docResponse.headers.get("content-type") || "";
       const docBytes = new Uint8Array(await docResponse.arrayBuffer());
-      docBase64 = btoa(String.fromCharCode(...docBytes));
+      let binary = "";
+      for (let i = 0; i < docBytes.length; i += 8192) {
+        const chunk = docBytes.subarray(i, Math.min(i + 8192, docBytes.length));
+        for (let j = 0; j < chunk.length; j++) binary += String.fromCharCode(chunk[j]);
+      }
+      docBase64 = btoa(binary);
       docMimeType = contentType.includes("pdf") || doc.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : contentType.split(";")[0] || "image/jpeg";
       docName = doc.name;
     }
