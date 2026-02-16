@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -456,7 +456,23 @@ const ProcessDetail = () => {
                   <p className="text-[10px] text-muted-foreground">{doc.category || "Sem categoria"} · {new Date(doc.created_at).toLocaleDateString("pt-BR")}</p>
                 </div>
               </div>
-              <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Abrir</a>
+              <div className="flex items-center gap-2">
+                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Abrir</a>
+                {isLawyer && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Excluir este documento?")) return;
+                      const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+                      if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                      else setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+                    }}
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Excluir documento"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {isLawyer && (
