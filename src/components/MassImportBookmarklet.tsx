@@ -9,18 +9,42 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 function getMassImportBookmarkletCode(tenantId: string): string {
   const code = `
 (function(){
-  var html=document.documentElement.outerHTML;
-  var url=window.location.href;
+  var rows=document.querySelectorAll('table tr');
+  var procs=[];
+  var cnj=/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/;
+  for(var i=0;i<rows.length;i++){
+    var cells=rows[i].querySelectorAll('td');
+    if(cells.length<5) continue;
+    var numEl=cells[0];
+    var link=numEl.querySelector('a');
+    var numText=(link?link.textContent:numEl.textContent)||'';
+    numText=numText.replace(/\\s/g,'').trim();
+    if(!cnj.test(numText)) continue;
+    var num=numText.match(cnj)[0];
+    var autor=(cells[4]?cells[4].textContent:'').trim();
+    var reu=(cells[5]?cells[5].textContent:'').trim();
+    var classe=(cells[6]?cells[6].textContent:'').trim();
+    var assunto=(cells[7]?cells[7].textContent:'').trim();
+    procs.push({process_number:num,author:autor||null,defendant:reu||null,classe:classe||null,subject:assunto||null});
+  }
+  if(procs.length===0){
+    var text=document.body.innerText;
+    var re=/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/g;
+    var m;
+    var seen={};
+    while((m=re.exec(text))!==null){
+      if(!seen[m[0]]){seen[m[0]]=1;procs.push({process_number:m[0],author:null,defendant:null,classe:null,subject:null});}
+    }
+  }
+  if(procs.length===0){alert('Nenhum processo encontrado na página.');return;}
   var tid='${tenantId}';
   fetch('${SUPABASE_URL}/functions/v1/mass-import-processes',{
     method:'POST',
     headers:{'Content-Type':'application/json','apikey':'${SUPABASE_KEY}'},
-    body:JSON.stringify({html:html,tenant_id:tid,source_url:url})
+    body:JSON.stringify({processes:procs,tenant_id:tid})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.success){
-      var msg='✅ Importação concluída!\\n\\n📋 Processos encontrados: '+d.total_found+'\\n✅ Novos cadastrados: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped+'\\n👥 Partes identificadas: '+(d.parties_found||0);
-      msg+='\\n\\n💡 Acesse a página de Processos no sistema para revisar e vincular os clientes.';
-      alert(msg);
+      alert('✅ Importação concluída!\\n\\n📋 Encontrados: '+d.total_found+'\\n✅ Novos: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped);
     }else{
       alert('❌ Erro: '+(d.error||'Falha desconhecida'));
     }
@@ -108,7 +132,7 @@ const MassImportBookmarklet = () => {
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">5</span>
               <span className="flex items-center gap-1">
                 <CheckCircle className="w-4 h-4 text-accent shrink-0" />
-                Pronto! Processos importados. Acesse a página de Processos para revisar e vincular clientes.
+                Pronto! Processos importados. Acesse a página de Processos para revisar e vincular os clientes.
               </span>
             </li>
           </ol>

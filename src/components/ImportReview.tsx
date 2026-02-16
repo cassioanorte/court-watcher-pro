@@ -10,49 +10,17 @@ interface ProcessWithParties {
   case_summary: string | null;
   client_user_id: string | null;
   subject: string | null;
-  parties: string[];
+  author: string | null;
+  defendant: string | null;
 }
 
-/** Terms that should never appear as party names */
-const NOISE_PATTERNS = [
-  /^direito\b/i, /^procedimento\b/i, /^cumprimento\b/i, /^execução\b/i,
-  /^incidente\b/i, /^liquidação\b/i, /^recurso\b/i, /^tutela\b/i,
-  /^mandado\b/i, /^embargos\b/i, /^ação\b/i, /^agravo\b/i, /^apelação\b/i,
-  /^matérias?\b/i, /^outras\b/i, /^ao\s+t[jrf]/i,
-  /\bmovimento\b/i, /\bsusp$/i, /\bjuntada\b/i, /\bsentença\b/i,
-  /\bdespacho\b/i, /\bpetição\b/i, /\bdecisão\b/i, /\bacórdão\b/i,
-  /\bdistribuição\b/i, /\bconclusão\b/i, /\bintimação\b/i, /\bcitação\b/i,
-  /^usucapião$/i, /^inventário$/i, /^divórcio$/i, /^interdição$/i,
-  /^partes\s*:/i, /^olada\b/i, /^em recupera/i, /^recuperação/i,
-];
-
-function isNoise(name: string): boolean {
-  const t = name.trim();
-  if (t.length < 4) return true;
-  // Pure numbers or dates
-  if (/^\d/.test(t)) return true;
-  // Must have at least 2 words for a person/company name
-  if (t.split(/\s+/).filter(w => w.length > 1).length < 2) return true;
-  return NOISE_PATTERNS.some(p => p.test(t));
-}
-
-function extractPartiesFromSummary(summary: string | null): string[] {
-  if (!summary) return [];
-  
-  // Remove "Partes:" prefix if present
-  let text = summary.replace(/^Partes\s*:\s*/i, "").trim();
-  
-  // Split by " | " (new format) or " x " (old format from tribunal HTML)
-  let parts: string[];
-  if (text.includes(" | ")) {
-    parts = text.split(/\s*\|\s*/);
-  } else {
-    parts = text.split(/\s+x\s+/i);
-  }
-  
-  return parts
-    .map(p => p.trim())
-    .filter(p => !isNoise(p));
+function extractPartiesFromSummary(summary: string | null): { author: string | null; defendant: string | null } {
+  if (!summary) return { author: null, defendant: null };
+  const parts = summary.split(/\s*\|\s*/);
+  return {
+    author: parts[0]?.trim() || null,
+    defendant: parts[1]?.trim() || null,
+  };
 }
 
 const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
@@ -72,19 +40,16 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
       .eq("tenant_id", tenantId)
       .eq("simple_status", "Importado")
       .is("client_user_id", null)
-      .not("case_summary", "is", null)
       .order("created_at", { ascending: false });
 
-    const processed = (data || [])
-      .map(c => ({
-        ...c,
-        parties: extractPartiesFromSummary(c.case_summary),
-      }));
+    const processed = (data || []).map(c => {
+      const { author, defendant } = extractPartiesFromSummary(c.case_summary);
+      return { ...c, author, defendant };
+    });
 
     setCases(processed);
     setLoading(false);
 
-    // Build clients name cache
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, full_name")
@@ -102,14 +67,12 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const handleSelectParty = async (caseItem: ProcessWithParties, partyName: string) => {
     setLinkingCase(caseItem.id);
     try {
-      // Check cache for existing contact
       const existingUserId = clientsCache.get(partyName.toLowerCase().trim());
       let userId: string;
 
       if (existingUserId) {
         userId = existingUserId;
       } else {
-        // Create contact via invite-client
         const fakeEmail = `importado_${crypto.randomUUID().slice(0, 8)}@importado.local`;
         const { data, error } = await supabase.functions.invoke("invite-client", {
           body: {
@@ -125,17 +88,12 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
         }
 
         userId = data.userId;
-
-        // Set default password
         await supabase.functions.invoke("update-client-password", {
           body: { userId, newPassword: "123456" },
         });
-
-        // Update cache
         setClientsCache(prev => new Map(prev).set(partyName.toLowerCase().trim(), userId));
       }
 
-      // Link client to case
       const { error: updateErr } = await supabase
         .from("cases")
         .update({ client_user_id: userId })
@@ -166,7 +124,6 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const handleDelete = async (caseId: string) => {
     if (!confirm("Tem certeza que deseja excluir este processo e todos os seus dados vinculados?")) return;
     try {
-      // Delete related data first
       await Promise.all([
         supabase.from("documents").delete().eq("case_id", caseId),
         supabase.from("messages").delete().eq("case_id", caseId),
@@ -210,9 +167,11 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[220px]">Processo</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partes — clique na que você representa</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[140px]"></th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processo</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Autor</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Réu</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assunto</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[100px]"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -220,29 +179,41 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                 <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <p className="text-xs font-mono text-foreground">{c.process_number}</p>
-                    {c.subject && <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">{c.subject}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {c.parties.length > 0 ? c.parties.map((party, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSelectParty(c, party)}
-                          disabled={linkingCase === c.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
-                          title={`Vincular "${party}" como seu cliente`}
-                        >
-                          {linkingCase === c.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <UserCheck className="w-3 h-3" />
-                          )}
-                          {party}
-                        </button>
-                      )) : (
-                        <span className="text-xs text-muted-foreground italic">Partes não identificadas</span>
-                      )}
-                    </div>
+                    {c.author ? (
+                      <button
+                        onClick={() => handleSelectParty(c, c.author!)}
+                        disabled={linkingCase === c.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
+                        title={`Vincular "${c.author}" como seu cliente`}
+                      >
+                        {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                        {c.author}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.defendant ? (
+                      <button
+                        onClick={() => handleSelectParty(c, c.defendant!)}
+                        disabled={linkingCase === c.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
+                        title={`Vincular "${c.defendant}" como seu cliente`}
+                      >
+                        {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                        {c.defendant}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-xs text-muted-foreground max-w-[250px] truncate" title={c.subject || ""}>
+                      {c.subject || "—"}
+                    </p>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
