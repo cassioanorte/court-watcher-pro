@@ -798,46 +798,112 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          agencia: string | null
+          atividade_economica: string | null
           avatar_url: string | null
+          banco: string | null
+          birth_date: string | null
+          certidao_reservista: string | null
+          chave_pix: string | null
+          civil_status: string | null
+          cnh: string | null
+          comentarios: string | null
+          conta_bancaria: string | null
           cpf: string | null
           created_at: string
+          ctps: string | null
+          email: string | null
+          falecido: boolean | null
           full_name: string
           id: string
+          nacionalidade: string | null
+          naturalidade: string | null
+          nome_mae: string | null
+          nome_pai: string | null
           oab_number: string | null
           origin: string | null
+          passaporte: string | null
           phone: string | null
+          pis: string | null
           position: string | null
+          rg: string | null
+          tags: string[] | null
           tenant_id: string
+          titulo_eleitor: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           address?: string | null
+          agencia?: string | null
+          atividade_economica?: string | null
           avatar_url?: string | null
+          banco?: string | null
+          birth_date?: string | null
+          certidao_reservista?: string | null
+          chave_pix?: string | null
+          civil_status?: string | null
+          cnh?: string | null
+          comentarios?: string | null
+          conta_bancaria?: string | null
           cpf?: string | null
           created_at?: string
+          ctps?: string | null
+          email?: string | null
+          falecido?: boolean | null
           full_name: string
           id?: string
+          nacionalidade?: string | null
+          naturalidade?: string | null
+          nome_mae?: string | null
+          nome_pai?: string | null
           oab_number?: string | null
           origin?: string | null
+          passaporte?: string | null
           phone?: string | null
+          pis?: string | null
           position?: string | null
+          rg?: string | null
+          tags?: string[] | null
           tenant_id: string
+          titulo_eleitor?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           address?: string | null
+          agencia?: string | null
+          atividade_economica?: string | null
           avatar_url?: string | null
+          banco?: string | null
+          birth_date?: string | null
+          certidao_reservista?: string | null
+          chave_pix?: string | null
+          civil_status?: string | null
+          cnh?: string | null
+          comentarios?: string | null
+          conta_bancaria?: string | null
           cpf?: string | null
           created_at?: string
+          ctps?: string | null
+          email?: string | null
+          falecido?: boolean | null
           full_name?: string
           id?: string
+          nacionalidade?: string | null
+          naturalidade?: string | null
+          nome_mae?: string | null
+          nome_pai?: string | null
           oab_number?: string | null
           origin?: string | null
+          passaporte?: string | null
           phone?: string | null
+          pis?: string | null
           position?: string | null
+          rg?: string | null
+          tags?: string[] | null
           tenant_id?: string
+          titulo_eleitor?: string | null
           updated_at?: string
           user_id?: string
         }

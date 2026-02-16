@@ -17,6 +17,8 @@ import Financeiro from "./pages/Financeiro";
 import Cobranca from "./pages/Cobranca";
 import Publicacoes from "./pages/Publicacoes";
 import CRM from "./pages/CRM";
+import Contatos from "./pages/Contatos";
+import ContatoDetail from "./pages/ContatoDetail";
 import Settings from "./pages/Settings";
 import ClientPortal from "./pages/ClientPortal";
 import ClientProcessDetail from "./pages/ClientProcessDetail";
@@ -100,6 +102,8 @@ const App = () => (
               <Route path="agenda" element={<Agenda />} />
               <Route path="publicacoes" element={<Publicacoes />} />
               <Route path="crm" element={<CRM />} />
+              <Route path="contatos" element={<Contatos />} />
+              <Route path="contatos/:id" element={<ContatoDetail />} />
               <Route path="financeiro" element={<Financeiro />} />
               <Route path="cobranca" element={<Cobranca />} />
               <Route path="configuracoes" element={<Settings />} />
