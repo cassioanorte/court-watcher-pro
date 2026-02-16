@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +41,9 @@ const Processes = () => {
   const [saving, setSaving] = useState(false);
   const [deleteProcess, setDeleteProcess] = useState<Tables<"cases"> | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState("");
   const { tenantId } = useAuth();
   const { toast } = useToast();
 
@@ -146,6 +149,46 @@ const Processes = () => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (!tenantId || deleteAllConfirm !== "EXCLUIR TODOS") return;
+    setDeletingAll(true);
+    try {
+      // Get all case IDs for this tenant
+      const { data: allCases } = await supabase
+        .from("cases")
+        .select("id")
+        .eq("tenant_id", tenantId);
+
+      if (!allCases || allCases.length === 0) {
+        toast({ title: "Nenhum processo para excluir." });
+        setShowDeleteAll(false);
+        return;
+      }
+
+      const caseIds = allCases.map(c => c.id);
+
+      // Delete related data in batches
+      for (let i = 0; i < caseIds.length; i += 50) {
+        const batch = caseIds.slice(i, i + 50);
+        await Promise.all([
+          supabase.from("movements").delete().in("case_id", batch),
+          supabase.from("messages").delete().in("case_id", batch),
+          supabase.from("documents").delete().in("case_id", batch),
+        ]);
+        await supabase.from("cases").delete().in("id", batch);
+      }
+
+      toast({ title: "Todos os processos excluídos!", description: `${caseIds.length} processo(s) removido(s).` });
+      setShowDeleteAll(false);
+      setDeleteAllConfirm("");
+      fetchProcesses();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -194,6 +237,14 @@ const Processes = () => {
           >
             <Plus className="w-4 h-4" /> Novo Processo
           </button>
+          {processes.length > 0 && (
+            <button
+              onClick={() => { setShowDeleteAll(true); setDeleteAllConfirm(""); }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/20 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" /> Excluir todos
+            </button>
+          )}
         </div>
       </div>
 
@@ -358,6 +409,49 @@ const Processes = () => {
               </button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
                 {deleting ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setShowDeleteAll(false)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-md p-6 animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Excluir TODOS os processos</h2>
+                <p className="text-xs text-muted-foreground">{processes.length} processo(s) serão removidos</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">
+              Esta ação é <strong className="text-destructive">irreversível</strong>. Todos os processos, movimentações, mensagens e documentos vinculados serão excluídos permanentemente.
+            </p>
+            <p className="text-sm text-foreground mb-3">
+              Para confirmar, digite <strong className="font-mono">EXCLUIR TODOS</strong> abaixo:
+            </p>
+            <input
+              type="text"
+              value={deleteAllConfirm}
+              onChange={(e) => setDeleteAllConfirm(e.target.value)}
+              placeholder="Digite EXCLUIR TODOS"
+              className="w-full h-10 px-3 rounded-lg bg-background border text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/40 mb-5"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteAll(false)} className="flex-1 h-10 rounded-lg border text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                disabled={deletingAll || deleteAllConfirm !== "EXCLUIR TODOS"}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deletingAll ? "Excluindo..." : "Excluir todos"}
               </button>
             </div>
           </div>
