@@ -8,176 +8,140 @@ const corsHeaders = {
 
 interface ParsedProcess {
   process_number: string;
-  parties: string[];
+  author: string | null;
+  defendant: string | null;
   subject: string | null;
-  status: string | null;
 }
 
 /** Legal/procedural terms that should NEVER be treated as party names */
-const LEGAL_TERMS = new Set([
-  "direito civil", "direito penal", "direito administrativo", "direito do consumidor",
-  "direito previdenciário", "direito tributário", "direito ambiental", "direito do trabalho",
-  "direito processual civil", "direito processual penal", "direito constitucional",
-  "direito empresarial", "direito de família", "direito internacional",
-  "movimento", "movimentação", "movimentos", "susp", "suspenso", "suspensa",
-  "ao tj", "ao trf", "ao trt", "ao tst", "ao stj", "ao stf",
-  "procedimento comum cível", "procedimento comum", "procedimento do juizado especial cível",
-  "procedimento do juizado especial", "procedimento sumário", "procedimento ordinário",
-  "cumprimento de sentença", "execução de título extrajudicial", "execução fiscal",
-  "mandado de segurança", "habeas corpus", "habeas data",
-  "embargos", "embargos de declaração", "embargos de terceiro", "embargos à execução",
-  "incidente de desconsideração de personalidade jurídica",
-  "liquidação por arbitramento", "liquidação por artigos",
-  "usucapião", "inventário", "arrolamento", "divórcio", "interdição",
-  "ação civil pública", "ação popular", "ação rescisória",
-  "recurso inominado", "apelação", "agravo de instrumento", "agravo interno",
-  "tutela de urgência", "tutela provisória", "tutela antecipada",
-  "juntada", "petição", "despacho", "sentença", "decisão", "acórdão",
-  "distribuição", "conclusão", "intimação", "citação", "notificação",
-  "outras matérias de direito público", "matérias de direito público",
-  "direito civil movimento", "direito do consumidor movimento",
-  "direito previdenciário movimento", "direito administrativo e outras matérias",
-  "direito administrativo e outras matérias de direito público",
-  "direito civil susp", "direito do consumidor susp",
-  "olada juntada", "em recuperacao judicial", "recuperação judicial",
-  "ras matérias de direito público",
-]);
+const NOISE_PATTERNS = [
+  /^direito\b/i, /^procedimento\b/i, /^cumprimento\b/i, /^execução\b/i,
+  /^incidente\b/i, /^liquidação\b/i, /^recurso\b/i, /^tutela\b/i,
+  /^mandado\b/i, /^embargos\b/i, /^ação\b/i, /^agravo\b/i, /^apelação\b/i,
+  /^matérias?\b/i, /^outras\b/i, /^ao\s+t[jrf]/i,
+  /\bmovimento\b/i, /\bsusp$/i, /\bjuntada\b/i, /\bsentença\b/i,
+  /\bdespacho\b/i, /\bpetição\b/i, /\bdecisão\b/i, /\bacórdão\b/i,
+  /\bdistribuição\b/i, /\bconclusão\b/i, /\bintimação\b/i, /\bcitação\b/i,
+  /^usucapião$/i, /^inventário$/i, /^divórcio$/i, /^interdição$/i,
+  /^olada\b/i, /^em recupera/i, /^recuperação/i, /^classe\b/i,
+  /^assunto\b/i, /^competência\b/i, /^situação\b/i, /^status\b/i,
+  /^vara\b/i, /^comarca\b/i, /^juiz\b/i, /^juízo\b/i,
+  /^tribunal\b/i, /^seção\b/i, /^turma\b/i, /^câmara\b/i,
+];
 
-function isLegalTerm(name: string): boolean {
-  const lower = name.toLowerCase().trim();
-  if (LEGAL_TERMS.has(lower)) return true;
-  // Check if it starts with any legal term
-  for (const term of LEGAL_TERMS) {
-    if (lower.startsWith(term) && lower.length < term.length + 15) return true;
-    if (lower === term) return true;
-  }
-  // Additional patterns that indicate non-names
-  if (/^direito\b/i.test(lower)) return true;
-  if (/^procedimento\b/i.test(lower)) return true;
-  if (/^cumprimento\b/i.test(lower)) return true;
-  if (/^execução\b/i.test(lower)) return true;
-  if (/^incidente\b/i.test(lower)) return true;
-  if (/^liquidação\b/i.test(lower)) return true;
-  if (/^recurso\b/i.test(lower)) return true;
-  if (/^tutela\b/i.test(lower)) return true;
-  if (/^mandado\b/i.test(lower)) return true;
-  if (/^embargos\b/i.test(lower)) return true;
-  if (/^ação\b/i.test(lower)) return true;
-  if (/^agravo\b/i.test(lower)) return true;
-  if (/^apelação\b/i.test(lower)) return true;
-  if (/\bmovimento\b/i.test(lower)) return true;
-  if (/\bsusp$/i.test(lower)) return true;
-  if (/\bjuntada\b/i.test(lower)) return true;
-  if (/\bsentença\b/i.test(lower)) return true;
-  if (/^ao\s+t[jrf]/i.test(lower)) return true;
-  if (/^matérias?\b/i.test(lower)) return true;
-  if (/^outras\b/i.test(lower)) return true;
-  return false;
+function isNoise(name: string): boolean {
+  const t = name.trim();
+  if (t.length < 4) return true;
+  if (/^\d/.test(t)) return true;
+  if (t.split(/\s+/).filter(w => w.length > 1).length < 2) return true;
+  if (!/[a-zA-ZÀ-ú]/.test(t)) return true;
+  return NOISE_PATTERNS.some(p => p.test(t));
 }
 
-function cleanName(name: string): string {
-  let n = name.replace(/\s+/g, " ").trim();
+function cleanName(raw: string): string {
+  let n = raw.replace(/\s+/g, " ").trim();
   n = n.replace(/^[,;:\-–—.]+|[,;:\-–—.]+$/g, "").trim();
   if (n.length < 4 || n.length > 200) return "";
-  if (/^\d{7}/.test(n) || /^\d{2}\/\d{2}\/\d{4}/.test(n)) return "";
-  if (isLegalTerm(n)) return "";
-  // Must contain at least one letter
-  if (!/[a-zA-ZÀ-ú]/.test(n)) return "";
-  // Must have at least 2 words for a person name
-  const words = n.split(/\s+/).filter(w => w.length > 1);
-  if (words.length < 2) return "";
+  if (isNoise(n)) return "";
   return n;
 }
 
 /**
- * Extract party names from the text context around a process number.
- * Returns array of clean party names (people/companies only).
+ * Extract author and defendant from text between two process numbers.
+ * Looks for labeled patterns first (Autor:, Réu:), then falls back to "X vs Y" style.
  */
-function extractParties(context: string): string[] {
-  const parties: string[] = [];
-  const seen = new Set<string>();
+function extractParties(context: string): { author: string | null; defendant: string | null } {
+  let author: string | null = null;
+  let defendant: string | null = null;
 
-  const addParty = (name: string) => {
-    const cleaned = cleanName(name);
-    if (cleaned && !seen.has(cleaned.toLowerCase())) {
-      seen.add(cleaned.toLowerCase());
-      parties.push(cleaned);
-    }
-  };
+  // Pattern 1: Labeled — Autor/Requerente/Exequente/Reclamante
+  const authorPatterns = /(?:Autor|Autora|Requerente|Exequente|Reclamante|Impetrante|Apelante|Agravante|Embargante|Recorrente)\s*:\s*([^\n|<]{3,100})/i;
+  const defPatterns = /(?:Réu|Ré|Requerido|Requerida|Executado|Executada|Reclamado|Reclamada|Impetrado|Impetrada|Apelado|Apelada|Agravado|Agravada|Embargado|Embargada|Recorrido|Recorrida)\s*:\s*([^\n|<]{3,100})/i;
 
-  // Pattern 1: Labeled parties — most reliable
-  const labeledPatterns = [
-    /(?:Autor|Autora|Requerente|Exequente|Reclamante|Impetrante|Apelante|Agravante|Embargante|Recorrente)\s*:\s*([^\n|<]{3,100})/gi,
-    /(?:Réu|Ré|Requerido|Requerida|Executado|Executada|Reclamado|Reclamada|Impetrado|Impetrada|Apelado|Apelada|Agravado|Agravada|Embargado|Embargada|Recorrido|Recorrida)\s*:\s*([^\n|<]{3,100})/gi,
-  ];
-  for (const pattern of labeledPatterns) {
-    let m;
-    while ((m = pattern.exec(context)) !== null) {
-      const names = m[1].split(/\s*,\s*|\s+e\s+/);
-      for (const name of names) addParty(name);
-    }
+  const am = context.match(authorPatterns);
+  if (am) {
+    const cleaned = cleanName(am[1]);
+    if (cleaned) author = cleaned;
   }
 
-  // Pattern 2: "NOME1 x NOME2" — but only if both sides look like real names
-  const vsMatch = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.]+?)\s+(?:x|X|vs\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.]+?)(?:\s*[-–—\n|]|$)/);
+  const dm = context.match(defPatterns);
+  if (dm) {
+    const cleaned = cleanName(dm[1]);
+    if (cleaned) defendant = cleaned;
+  }
+
+  if (author || defendant) return { author, defendant };
+
+  // Pattern 2: "NOME1 x NOME2" or "NOME1 X NOME2"
+  const vsMatch = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.]{4,80}?)\s+(?:x|X|vs\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.]{4,80}?)(?:\s*[-–—\n|<]|$)/);
   if (vsMatch) {
-    addParty(vsMatch[1]);
-    addParty(vsMatch[2]);
+    const a = cleanName(vsMatch[1]);
+    const d = cleanName(vsMatch[2]);
+    if (a) author = a;
+    if (d) defendant = d;
   }
 
-  return parties;
+  return { author, defendant };
 }
 
 function parseSearchResults(html: string): ParsedProcess[] {
   const processes: ParsedProcess[] = [];
   const seen = new Set<string>();
 
+  // Strip HTML tags to get plain text
+  const text = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:div|td|tr|li|p|span|h\d)>/gi, "\n")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#\d+;/g, " ")
+    .replace(/\s+/g, " ");
+
+  // Find all CNJ-format process numbers and their positions
   const cnjPattern = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g;
+  const matches: { num: string; index: number }[] = [];
   let match;
 
-  while ((match = cnjPattern.exec(html)) !== null) {
-    const num = match[1];
-    if (seen.has(num)) continue;
-    seen.add(num);
+  while ((match = cnjPattern.exec(text)) !== null) {
+    if (!seen.has(match[1])) {
+      seen.add(match[1]);
+      matches.push({ num: match[1], index: match.index });
+    }
+  }
 
-    const startIdx = Math.max(0, match.index - 500);
-    const endIdx = Math.min(html.length, match.index + 1000);
-    const htmlContext = html.substring(startIdx, endIdx);
-    const textContext = htmlContext
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&#\d+;/g, " ")
-      .replace(/\s+/g, " ");
+  // For each process, extract context ONLY up to the next process number
+  for (let i = 0; i < matches.length; i++) {
+    const startIdx = matches[i].index;
+    const endIdx = i + 1 < matches.length
+      ? matches[i + 1].index  // stop at next process
+      : Math.min(text.length, startIdx + 800);  // last process: max 800 chars
 
-    const parties = extractParties(textContext);
+    const context = text.substring(startIdx, endIdx);
+    const { author, defendant } = extractParties(context);
 
     let subject: string | null = null;
-    const subjectMatch = textContext.match(
-      /(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i
-    );
+    const subjectMatch = context.match(/(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i);
     if (subjectMatch) subject = subjectMatch[1].trim().substring(0, 200);
 
-    let status: string | null = null;
-    const statusMatch = textContext.match(
-      /(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i
-    );
-    if (statusMatch) status = statusMatch[1].trim();
-
-    processes.push({ process_number: num, parties, subject, status });
+    processes.push({
+      process_number: matches[i].num,
+      author,
+      defendant,
+      subject,
+    });
   }
 
   // Also try pure 20-digit numbers
   const digitPattern = /(?<!\d)(\d{20})(?!\d)/g;
-  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
   while ((match = digitPattern.exec(text)) !== null) {
     const d = match[1];
     const formatted = `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
     if (!seen.has(formatted)) {
       seen.add(formatted);
-      processes.push({ process_number: formatted, parties: [], subject: null, status: null });
+      processes.push({ process_number: formatted, author: null, defendant: null, subject: null });
     }
   }
 
@@ -247,8 +211,12 @@ Deno.serve(async (req) => {
     }
 
     const parsed = parseSearchResults(html);
-    console.log(`[mass-import] Parsed ${parsed.length} processes. Sample parties:`,
-      JSON.stringify(parsed.slice(0, 3).map(p => ({ num: p.process_number, parties: p.parties }))));
+    console.log(`[mass-import] Parsed ${parsed.length} processes. Samples:`,
+      JSON.stringify(parsed.slice(0, 5).map(p => ({
+        num: p.process_number,
+        author: p.author,
+        defendant: p.defendant,
+      }))));
 
     if (parsed.length === 0) {
       return new Response(
@@ -279,17 +247,18 @@ Deno.serve(async (req) => {
 
       const source = inferSource(proc.process_number);
 
-      // Store clean parties in case_summary as "Parte1 | Parte2"
-      const partiesSummary = proc.parties.length > 0
-        ? proc.parties.join(" | ")
-        : null;
+      // Store as "Autor | Réu" clean format
+      const parts: string[] = [];
+      if (proc.author) parts.push(proc.author);
+      if (proc.defendant) parts.push(proc.defendant);
+      const partiesSummary = parts.length > 0 ? parts.join(" | ") : null;
 
       const { error: caseErr } = await supabase.from("cases").insert({
         tenant_id,
         process_number: proc.process_number,
         source,
         subject: proc.subject,
-        simple_status: proc.status || "Importado",
+        simple_status: "Importado",
         automation_enabled: true,
         case_summary: partiesSummary,
       });
