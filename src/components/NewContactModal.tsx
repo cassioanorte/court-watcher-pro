@@ -36,7 +36,7 @@ const CONTACT_TYPE_OPTIONS = [
 const INITIAL = {
   full_name: "",
   email: "",
-  password: "",
+  password: "123456",
   phone: "",
   cpf: "",
   rg: "",
