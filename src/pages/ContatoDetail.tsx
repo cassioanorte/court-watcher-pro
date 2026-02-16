@@ -230,7 +230,7 @@ const ContatoDetail = () => {
             {/* Contact info */}
             <div className="px-4">
               <Field label="E-mail" field="email" />
-              <Field label="Apelido" field="full_name" />
+              <Field label="Nome Completo" field="full_name" />
               <Field label="Nascimento" field="birth_date" type="date" />
               <Field label="Estado Civil" field="civil_status" type="select" />
               {/* Password field - only in edit mode */}
