@@ -61,7 +61,7 @@ const ContatoDetail = () => {
     try {
       const updates: Record<string, any> = {};
       const fields = [
-        "full_name", "phone", "email", "cpf", "rg", "address", "origin",
+        "full_name", "phone", "email", "cpf", "rg", "address", "origin", "contact_type",
         "birth_date", "civil_status", "tags", "ctps", "pis", "titulo_eleitor",
         "cnh", "passaporte", "certidao_reservista", "atividade_economica",
         "nome_pai", "nome_mae", "naturalidade", "nacionalidade", "comentarios",
@@ -215,6 +215,20 @@ const ContatoDetail = () => {
               <option value="OAB">OAB</option>
               <option value="Outro">Outro</option>
             </select>
+          ) : type === "contact-type-select" ? (
+            <select
+              value={form[field] || ""}
+              onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+              className="h-8 px-2 rounded border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="Cliente">Cliente</option>
+              <option value="Parte Contrária">Parte Contrária</option>
+              <option value="Testemunha">Testemunha</option>
+              <option value="Perito">Perito</option>
+              <option value="Fornecedor">Fornecedor</option>
+              <option value="Parceiro">Parceiro</option>
+              <option value="Outro">Outro</option>
+            </select>
           ) : (
             <input
               type={type}
@@ -249,7 +263,7 @@ const ContatoDetail = () => {
             <h1 className="text-xl font-bold text-foreground">{contact.full_name}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Criado em {formatDate(contact.created_at)}</p>
             <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary font-semibold uppercase tracking-wide border border-primary/20">
-              Tipo: Cliente
+              Tipo: {contact.contact_type || "Cliente"}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -334,6 +348,7 @@ const ContatoDetail = () => {
             <div className="px-4">
               {renderField("E-mail", "email")}
               {renderField("Nome Completo", "full_name")}
+              {renderField("Tipo de Contato", "contact_type", "contact-type-select")}
               {/* Phone with WhatsApp button */}
               <div className="flex items-center py-2.5 border-b">
                 <span className="w-48 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-6 shrink-0">

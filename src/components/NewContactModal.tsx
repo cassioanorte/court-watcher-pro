@@ -23,6 +23,16 @@ const ORIGIN_OPTIONS = [
   "Outro",
 ];
 
+const CONTACT_TYPE_OPTIONS = [
+  "Cliente",
+  "Parte Contrária",
+  "Testemunha",
+  "Perito",
+  "Fornecedor",
+  "Parceiro",
+  "Outro",
+];
+
 const INITIAL = {
   full_name: "",
   email: "",
@@ -33,6 +43,7 @@ const INITIAL = {
   birth_date: "",
   civil_status: "",
   origin: "",
+  contact_type: "Cliente",
   address: "",
   ctps: "",
   pis: "",
@@ -101,6 +112,14 @@ const Field = ({
         >
           <option value="">Selecione...</option>
           {ORIGIN_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : type === "contact-type-select" ? (
+        <select
+          value={value as string}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 px-2 rounded border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+        >
+          {CONTACT_TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       ) : (
         <input
@@ -198,7 +217,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
       // Step 3: Update all extra profile fields
       const extraFields: Record<string, any> = {};
       const profileFields = [
-        "rg", "birth_date", "civil_status", "ctps", "pis", "titulo_eleitor",
+        "rg", "birth_date", "civil_status", "contact_type", "ctps", "pis", "titulo_eleitor",
         "cnh", "passaporte", "certidao_reservista", "atividade_economica",
         "nome_pai", "nome_mae", "naturalidade", "nacionalidade", "comentarios",
         "banco", "agencia", "conta_bancaria", "chave_pix",
@@ -287,6 +306,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                 </div>
               </div>
               <Field label="Nome Completo" value={form.full_name} onChange={set("full_name")} required />
+              <Field label="Tipo de Contato" value={form.contact_type} onChange={set("contact_type")} type="contact-type-select" />
               <Field label="E-mail" value={form.email} onChange={set("email")} type="email" required />
               <Field label="Senha" value={form.password} onChange={set("password")} type="password" placeholder="Mínimo 6 caracteres" required />
               <div className="flex items-center py-2 border-b">

@@ -11,6 +11,7 @@ type ContactProfile = {
   full_name: string;
   phone: string | null;
   email: string | null;
+  contact_type: string | null;
   created_at: string;
 };
 
@@ -28,7 +29,7 @@ const Contatos = () => {
     if (!tenantId) return;
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, phone, email, created_at")
+      .select("user_id, full_name, phone, email, contact_type, created_at")
       .eq("tenant_id", tenantId);
 
     if (profiles && profiles.length > 0) {
@@ -151,7 +152,9 @@ const Contatos = () => {
                     className="border-b last:border-0 hover:bg-muted/50 transition-colors"
                   >
                     <td className="px-4 py-3">
-                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium border border-primary/20">
+                        {c.contact_type || "Cliente"}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <Link
