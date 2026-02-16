@@ -93,7 +93,11 @@ const ContatoDetail = () => {
 
   const handleOfficeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !id || !tenantId || !user) return;
+    if (!file) return;
+    if (!id || !tenantId || !user) {
+      toast({ title: "Erro", description: "Sessão expirada. Faça login novamente.", variant: "destructive" });
+      return;
+    }
     setUploading(true);
     const filePath = `contacts/${id}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, file);
@@ -545,8 +549,7 @@ const ContatoDetail = () => {
             </div>
 
             <div className="p-4 border-b space-y-3">
-              <input ref={fileInputRef} type="file" className="hidden" onChange={handleOfficeUpload}
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt" />
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleOfficeUpload} />
               <div className="flex gap-2">
                 <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
                   className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-primary/40 p-3 text-sm font-medium text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
