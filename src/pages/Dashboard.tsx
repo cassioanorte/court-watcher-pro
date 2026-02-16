@@ -53,7 +53,7 @@ const Dashboard = () => {
 
   const stats = [
     { label: "Processos Ativos", value: casesCount, icon: Scale, link: "/processos" },
-    { label: "Clientes", value: clientsCount, icon: Users, link: "/clientes" },
+    { label: "Contatos", value: clientsCount, icon: Users, link: "/contatos" },
     { label: "Movimentações", value: movementsCount, icon: TrendingUp, link: "/processos" },
   ];
 
