@@ -3,7 +3,6 @@ import { Users, UserCheck, X, Loader2, ChevronDown, ChevronUp } from "lucide-rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import type { Tables } from "@/integrations/supabase/types";
 
 interface ProcessWithParties {
   id: string;
@@ -16,9 +15,8 @@ interface ProcessWithParties {
 
 function extractPartiesFromSummary(summary: string | null): string[] {
   if (!summary) return [];
-  const match = summary.match(/^Partes:\s*(.+)$/i);
-  if (!match) return [];
-  return match[1].split(/\s+x\s+/i).map(p => p.trim()).filter(p => p.length > 0);
+  // New format uses " | " separator
+  return summary.split(/\s*\|\s*/).map(p => p.trim()).filter(p => p.length > 3);
 }
 
 const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
@@ -28,7 +26,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const [loading, setLoading] = useState(true);
   const [linkingCase, setLinkingCase] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
-  const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [clientsCache, setClientsCache] = useState<Map<string, string>>(new Map());
 
   const fetchPending = async () => {
     if (!tenantId) return;
@@ -50,35 +48,31 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
 
     setCases(processed);
     setLoading(false);
-  };
 
-  const fetchClients = async () => {
-    if (!tenantId) return;
+    // Build clients name cache
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, full_name")
       .eq("tenant_id", tenantId)
       .eq("contact_type", "Cliente");
-    setClients(profiles || []);
+    const cache = new Map<string, string>();
+    (profiles || []).forEach(p => cache.set(p.full_name.toLowerCase().trim(), p.user_id));
+    setClientsCache(cache);
   };
 
   useEffect(() => {
     fetchPending();
-    fetchClients();
   }, [tenantId]);
 
   const handleSelectParty = async (caseItem: ProcessWithParties, partyName: string) => {
     setLinkingCase(caseItem.id);
     try {
-      // Check if contact already exists by name
-      const existing = clients.find(
-        c => c.full_name.toLowerCase().trim() === partyName.toLowerCase().trim()
-      );
-
+      // Check cache for existing contact
+      const existingUserId = clientsCache.get(partyName.toLowerCase().trim());
       let userId: string;
 
-      if (existing) {
-        userId = existing.user_id;
+      if (existingUserId) {
+        userId = existingUserId;
       } else {
         // Create contact via invite-client
         const fakeEmail = `importado_${crypto.randomUUID().slice(0, 8)}@importado.local`;
@@ -97,10 +91,13 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
 
         userId = data.userId;
 
-        // Update password so the account is usable later
+        // Set default password
         await supabase.functions.invoke("update-client-password", {
-          body: { userId, newPassword: crypto.randomUUID().slice(0, 12) },
+          body: { userId, newPassword: "123456" },
         });
+
+        // Update cache
+        setClientsCache(prev => new Map(prev).set(partyName.toLowerCase().trim(), userId));
       }
 
       // Link client to case
@@ -111,14 +108,12 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
 
       if (updateErr) throw updateErr;
 
-      toast({ title: "Cliente vinculado!", description: `${partyName} vinculado ao processo ${caseItem.process_number}` });
+      toast({
+        title: "✅ Cliente vinculado!",
+        description: `${partyName} → ${caseItem.process_number}`,
+      });
 
-      // Remove from list
       setCases(prev => prev.filter(c => c.id !== caseItem.id));
-      // Refresh clients cache
-      if (!existing) {
-        setClients(prev => [...prev, { user_id: userId, full_name: partyName }]);
-      }
       onUpdate?.();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -128,14 +123,12 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   };
 
   const handleSkip = async (caseId: string) => {
-    // Mark as reviewed by clearing the "Importado" status
     await supabase.from("cases").update({ simple_status: "Cadastrado" }).eq("id", caseId);
     setCases(prev => prev.filter(c => c.id !== caseId));
     onUpdate?.();
   };
 
-  if (loading) return null;
-  if (cases.length === 0) return null;
+  if (loading || cases.length === 0) return null;
 
   return (
     <div className="bg-card rounded-lg border shadow-card overflow-hidden">
@@ -149,7 +142,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
           </div>
           <div className="text-left">
             <h3 className="text-sm font-semibold text-foreground">
-              Revisão de Importação — {cases.length} processo{cases.length !== 1 ? "s" : ""}
+              Revisão de Importação — {cases.length} processo{cases.length !== 1 ? "s" : ""} pendente{cases.length !== 1 ? "s" : ""}
             </h3>
             <p className="text-xs text-muted-foreground">
               Clique no nome da parte que você representa para vincular como cliente
@@ -160,40 +153,58 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
       </button>
 
       {expanded && (
-        <div className="border-t divide-y max-h-[500px] overflow-y-auto">
-          {cases.map((c) => (
-            <div key={c.id} className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-mono text-foreground">{c.process_number}</p>
-                {c.subject && <p className="text-[11px] text-muted-foreground truncate">{c.subject}</p>}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {c.parties.map((party, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSelectParty(c, party)}
-                    disabled={linkingCase === c.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
-                    title={`Vincular "${party}" como seu cliente`}
-                  >
-                    {linkingCase === c.id ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <UserCheck className="w-3 h-3" />
-                    )}
-                    {party.length > 40 ? party.substring(0, 40) + "…" : party}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handleSkip(c.id)}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  title="Pular — marcar como revisado sem vincular cliente"
-                >
-                  <X className="w-3 h-3" /> Pular
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="border-t max-h-[500px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[220px]">Processo</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partes — clique na que você representa</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[80px]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {cases.map(c => (
+                <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3">
+                    <p className="text-xs font-mono text-foreground">{c.process_number}</p>
+                    {c.subject && <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">{c.subject}</p>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {c.parties.map((party, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSelectParty(c, party)}
+                          disabled={linkingCase === c.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
+                          title={`Vincular "${party}" como seu cliente`}
+                        >
+                          {linkingCase === c.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <UserCheck className="w-3 h-3" />
+                          )}
+                          {party}
+                        </button>
+                      ))}
+                      {c.parties.length === 0 && (
+                        <span className="text-xs text-muted-foreground italic">Partes não identificadas</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleSkip(c.id)}
+                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      title="Pular — marcar como revisado sem vincular cliente"
+                    >
+                      <X className="w-3 h-3" /> Pular
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
