@@ -10,7 +10,6 @@ import SuperAdminLayout from "./layouts/SuperAdminLayout";
 import Dashboard from "./pages/Dashboard";
 import Processes from "./pages/Processes";
 import ProcessDetail from "./pages/ProcessDetail";
-import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Agenda from "./pages/Agenda";
 import Financeiro from "./pages/Financeiro";
@@ -97,7 +96,6 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="processos" element={<Processes />} />
               <Route path="processos/:id" element={<ProcessDetail />} />
-              <Route path="clientes" element={<Clients />} />
               <Route path="clientes/:id" element={<ClientDetail />} />
               <Route path="agenda" element={<Agenda />} />
               <Route path="publicacoes" element={<Publicacoes />} />

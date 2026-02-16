@@ -10,7 +10,6 @@ import { useNavigate } from "react-router-dom";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/processos", icon: Scale, label: "Processos" },
-  { to: "/clientes", icon: Users, label: "Clientes" },
   { to: "/contatos", icon: Contact, label: "Contatos" },
   { to: "/crm", icon: UserPlus, label: "CRM" },
   { to: "/agenda", icon: CalendarDays, label: "Agenda" },
