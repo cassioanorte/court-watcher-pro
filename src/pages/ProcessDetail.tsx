@@ -40,6 +40,7 @@ const ProcessDetail = () => {
   const [docCategory, setDocCategory] = useState("");
   const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
   const [extractingExternal, setExtractingExternal] = useState(false);
+  const [extractUseAi, setExtractUseAi] = useState(false);
   const extractFileRef = useRef<HTMLInputElement>(null);
   // Edit movement
   const [editingMovId, setEditingMovId] = useState<string | null>(null);
@@ -181,12 +182,12 @@ const ProcessDetail = () => {
     setSavingMov(false);
   };
 
-  const handleExtractClientData = async (documentId: string) => {
+  const handleExtractClientData = async (documentId: string, useAi = false) => {
     if (!id) return;
     setExtractingDocId(documentId);
     try {
       const { data, error } = await supabase.functions.invoke("extract-client-data", {
-        body: { document_id: documentId, case_id: id },
+        body: { document_id: documentId, case_id: id, use_ai: useAi },
       });
       if (error) throw error;
       if (data?.error) {
@@ -204,7 +205,7 @@ const ProcessDetail = () => {
           atividade_economica: "Profissão",
         };
         const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
-        toast({ title: `${data.updated} campo(s) atualizado(s)!`, description: updated });
+        toast({ title: `${data.updated} campo(s) atualizado(s)! (${data.method === "ai" ? "IA" : "Regex"})`, description: updated });
       }
     } catch (err: any) {
       toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
@@ -229,7 +230,7 @@ const ProcessDetail = () => {
       });
 
       const { data, error } = await supabase.functions.invoke("extract-client-data", {
-        body: { case_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type },
+        body: { case_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type, use_ai: extractUseAi },
       });
       if (error) throw error;
       if (data?.error) {
@@ -539,25 +540,31 @@ const ProcessDetail = () => {
         <div className="space-y-4">
           {/* Extract from external file button */}
           {isLawyer && caseData.client_user_id && (
-            <div className="bg-accent/5 border border-accent/20 rounded-lg p-4 flex items-center justify-between">
+            <div className="bg-accent/5 border border-accent/20 rounded-lg p-4 space-y-3">
               <div>
                 <p className="text-sm font-medium text-foreground">Extrair dados do cliente</p>
-                <p className="text-[11px] text-muted-foreground">Faça upload de um documento do tribunal (petição, procuração, etc.) para preencher automaticamente o cadastro do cliente</p>
+                <p className="text-[11px] text-muted-foreground">Faça upload de um documento (petição, procuração, etc.) para preencher automaticamente o cadastro</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={extractUseAi} onChange={(e) => setExtractUseAi(e.target.checked)} className="rounded border-muted" />
+                  Usar IA (consome créditos, funciona com imagens)
+                </label>
               </div>
               <input
                 ref={extractFileRef}
                 type="file"
                 className="hidden"
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                accept={extractUseAi ? ".pdf,.jpg,.jpeg,.png,.webp" : ".pdf"}
                 onChange={handleExtractFromFile}
               />
               <button
                 onClick={() => extractFileRef.current?.click()}
                 disabled={extractingExternal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0 ml-4"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {extractingExternal ? "Extraindo..." : "Upload e extrair"}
+                {extractingExternal ? "Extraindo..." : extractUseAi ? "Upload e extrair (IA)" : "Upload e extrair (Regex)"}
               </button>
             </div>
           )}
@@ -576,15 +583,26 @@ const ProcessDetail = () => {
               <div className="flex items-center gap-2">
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Abrir</a>
                 {isLawyer && caseData.client_user_id && (
-                  <button
-                    onClick={() => handleExtractClientData(doc.id)}
-                    disabled={extractingDocId === doc.id}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
-                    title="Extrair dados do cliente deste documento"
-                  >
-                    {extractingDocId === doc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                    Extrair dados
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleExtractClientData(doc.id, false)}
+                      disabled={extractingDocId === doc.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
+                      title="Extrair dados via regex (grátis, só PDF com texto)"
+                    >
+                      {extractingDocId === doc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      Extrair
+                    </button>
+                    <button
+                      onClick={() => handleExtractClientData(doc.id, true)}
+                      disabled={extractingDocId === doc.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                      title="Extrair dados com IA (consome créditos, funciona com imagens)"
+                    >
+                      {extractingDocId === doc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      IA
+                    </button>
+                  </>
                 )}
                 {isLawyer && (
                   <button
