@@ -309,7 +309,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
               <Field label="Nome Completo" value={form.full_name} onChange={set("full_name")} required />
               <Field label="Tipo de Contato" value={form.contact_type} onChange={set("contact_type")} type="contact-type-select" />
               <Field label="E-mail" value={form.email} onChange={set("email")} type="email" placeholder="Opcional" />
-              <Field label="Senha" value={form.password} onChange={set("password")} type="password" placeholder="Mínimo 6 caracteres" required />
+              <Field label="Senha" value={form.password} onChange={set("password")} placeholder="Mínimo 6 caracteres" required />
               <div className="flex items-center py-2 border-b">
                 <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
                   Telefone
