@@ -377,20 +377,44 @@ const ContatoDetail = () => {
             {clientDocs.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhum documento enviado pelo cliente.</p>
             ) : (
-              <div className="divide-y">
-                {clientDocs.map((doc) => (
-                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
-                    </div>
-                    <Download className="w-4 h-4 text-muted-foreground shrink-0" />
-                  </a>
-                ))}
+              <div>
+                {(() => {
+                  const grouped: Record<string, any[]> = {};
+                  clientDocs.forEach((doc) => {
+                    const key = doc.case_id || "sem-processo";
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(doc);
+                  });
+                  return Object.entries(grouped).map(([caseId, docs]) => {
+                    const caseInfo = cases.find((c) => c.id === caseId);
+                    const label = caseInfo ? caseInfo.process_number : "Sem processo vinculado";
+                    return (
+                      <details key={caseId} className="group border-b last:border-0">
+                        <summary className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors select-none">
+                          <FolderOpen className="w-4 h-4 text-primary shrink-0 group-open:text-primary" />
+                          <span className="text-sm font-medium text-foreground font-mono">{label}</span>
+                          {caseInfo?.subject && <span className="text-xs text-muted-foreground truncate">— {caseInfo.subject}</span>}
+                          <span className="ml-auto text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold shrink-0">{docs.length}</span>
+                        </summary>
+                        <div className="divide-y border-t bg-muted/20">
+                          {docs.map((doc) => (
+                            <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-3 px-4 pl-10 py-2.5 hover:bg-muted/50 transition-colors">
+                              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                <FileText className="w-3.5 h-3.5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                                <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
+                              </div>
+                              <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </details>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
