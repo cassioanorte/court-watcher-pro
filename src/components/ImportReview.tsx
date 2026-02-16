@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +31,8 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const [linkingCase, setLinkingCase] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [clientsCache, setClientsCache] = useState<Map<string, string>>(new Map());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const fetchPending = async () => {
     if (!tenantId) return;
@@ -64,6 +66,52 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     fetchPending();
   }, [tenantId]);
 
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === cases.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(cases.map(c => c.id)));
+    }
+  };
+
+  const deleteCaseById = async (caseId: string) => {
+    await Promise.all([
+      supabase.from("documents").delete().eq("case_id", caseId),
+      supabase.from("messages").delete().eq("case_id", caseId),
+      supabase.from("movements").delete().eq("case_id", caseId),
+    ]);
+    await supabase.from("cases").delete().eq("id", caseId);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    const count = selected.size;
+    if (!confirm(`Tem certeza que deseja excluir ${count} processo${count !== 1 ? "s" : ""} permanentemente?`)) return;
+
+    setDeleting(true);
+    try {
+      for (const id of selected) {
+        await deleteCaseById(id);
+      }
+      setCases(prev => prev.filter(c => !selected.has(c.id)));
+      setSelected(new Set());
+      toast({ title: `${count} processo${count !== 1 ? "s" : ""} excluído${count !== 1 ? "s" : ""}` });
+      onUpdate?.();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleSelectParty = async (caseItem: ProcessWithParties, partyName: string) => {
     setLinkingCase(caseItem.id);
     try {
@@ -75,38 +123,20 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
       } else {
         const fakeEmail = `importado_${crypto.randomUUID().slice(0, 8)}@importado.local`;
         const { data, error } = await supabase.functions.invoke("invite-client", {
-          body: {
-            email: fakeEmail,
-            fullName: partyName,
-            role: "client",
-            origin: "Importação em Massa",
-          },
+          body: { email: fakeEmail, fullName: partyName, role: "client", origin: "Importação em Massa" },
         });
-
-        if (error || !data?.success) {
-          throw new Error(data?.error || error?.message || "Erro ao criar contato");
-        }
-
+        if (error || !data?.success) throw new Error(data?.error || error?.message || "Erro ao criar contato");
         userId = data.userId;
-        await supabase.functions.invoke("update-client-password", {
-          body: { userId, newPassword: "123456" },
-        });
+        await supabase.functions.invoke("update-client-password", { body: { userId, newPassword: "123456" } });
         setClientsCache(prev => new Map(prev).set(partyName.toLowerCase().trim(), userId));
       }
 
-      const { error: updateErr } = await supabase
-        .from("cases")
-        .update({ client_user_id: userId })
-        .eq("id", caseItem.id);
-
+      const { error: updateErr } = await supabase.from("cases").update({ client_user_id: userId }).eq("id", caseItem.id);
       if (updateErr) throw updateErr;
 
-      toast({
-        title: "✅ Cliente vinculado!",
-        description: `${partyName} → ${caseItem.process_number}`,
-      });
-
+      toast({ title: "✅ Cliente vinculado!", description: `${partyName} → ${caseItem.process_number}` });
       setCases(prev => prev.filter(c => c.id !== caseItem.id));
+      setSelected(prev => { const n = new Set(prev); n.delete(caseItem.id); return n; });
       onUpdate?.();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -118,19 +148,16 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const handleSkip = async (caseId: string) => {
     await supabase.from("cases").update({ simple_status: "Cadastrado" }).eq("id", caseId);
     setCases(prev => prev.filter(c => c.id !== caseId));
+    setSelected(prev => { const n = new Set(prev); n.delete(caseId); return n; });
     onUpdate?.();
   };
 
   const handleDelete = async (caseId: string) => {
-    if (!confirm("Tem certeza que deseja excluir este processo e todos os seus dados vinculados?")) return;
+    if (!confirm("Tem certeza que deseja excluir este processo?")) return;
     try {
-      await Promise.all([
-        supabase.from("documents").delete().eq("case_id", caseId),
-        supabase.from("messages").delete().eq("case_id", caseId),
-        supabase.from("movements").delete().eq("case_id", caseId),
-      ]);
-      await supabase.from("cases").delete().eq("id", caseId);
+      await deleteCaseById(caseId);
       setCases(prev => prev.filter(c => c.id !== caseId));
+      setSelected(prev => { const n = new Set(prev); n.delete(caseId); return n; });
       toast({ title: "Processo excluído" });
       onUpdate?.();
     } catch (err: any) {
@@ -139,6 +166,9 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   };
 
   if (loading || cases.length === 0) return null;
+
+  const allSelected = selected.size === cases.length;
+  const someSelected = selected.size > 0 && !allSelected;
 
   return (
     <div className="bg-card rounded-lg border shadow-card overflow-hidden">
@@ -163,80 +193,109 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
       </button>
 
       {expanded && (
-        <div className="border-t max-h-[500px] overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40">
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processo</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Autor</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Réu</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assunto</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[100px]"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {cases.map(c => (
-                <tr key={c.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="text-xs font-mono text-foreground">{c.process_number}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.author ? (
-                      <button
-                        onClick={() => handleSelectParty(c, c.author!)}
-                        disabled={linkingCase === c.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
-                        title={`Vincular "${c.author}" como seu cliente`}
-                      >
-                        {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                        {c.author}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.defendant ? (
-                      <button
-                        onClick={() => handleSelectParty(c, c.defendant!)}
-                        disabled={linkingCase === c.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
-                        title={`Vincular "${c.defendant}" como seu cliente`}
-                      >
-                        {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                        {c.defendant}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-xs text-muted-foreground max-w-[250px] truncate" title={c.subject || ""}>
-                      {c.subject || "—"}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleSkip(c.id)}
-                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Pular — marcar como revisado sem vincular cliente"
-                      >
-                        <X className="w-3 h-3" /> Pular
-                      </button>
-                      <button
-                        onClick={() => handleDelete(c.id)}
-                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        title="Excluir processo permanentemente"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </td>
+        <div className="border-t">
+          {/* Bulk actions bar */}
+          {selected.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-destructive/5 border-b">
+              <span className="text-xs font-medium text-foreground">
+                {selected.size} selecionado{selected.size !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                Excluir selecionados
+              </button>
+            </div>
+          )}
+
+          <div className="max-h-[500px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="px-4 py-2.5 w-[40px]">
+                    <button onClick={toggleAll} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {allSelected ? <CheckSquare className="w-4 h-4" /> : someSelected ? <MinusSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                  </th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processo</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Autor</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Réu</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assunto</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[100px]"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y">
+                {cases.map(c => (
+                  <tr key={c.id} className={`hover:bg-muted/20 transition-colors ${selected.has(c.id) ? "bg-accent/5" : ""}`}>
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleSelect(c.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        {selected.has(c.id) ? <CheckSquare className="w-4 h-4 text-accent" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs font-mono text-foreground">{c.process_number}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.author ? (
+                        <button
+                          onClick={() => handleSelectParty(c, c.author!)}
+                          disabled={linkingCase === c.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
+                          title={`Vincular "${c.author}" como seu cliente`}
+                        >
+                          {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                          {c.author}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.defendant ? (
+                        <button
+                          onClick={() => handleSelectParty(c, c.defendant!)}
+                          disabled={linkingCase === c.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
+                          title={`Vincular "${c.defendant}" como seu cliente`}
+                        >
+                          {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                          {c.defendant}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs text-muted-foreground max-w-[250px] truncate" title={c.subject || ""}>
+                        {c.subject || "—"}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleSkip(c.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title="Pular — marcar como revisado sem vincular cliente"
+                        >
+                          <X className="w-3 h-3" /> Pular
+                        </button>
+                        <button
+                          onClick={() => handleDelete(c.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Excluir processo permanentemente"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
