@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, Users, Phone, Mail } from "lucide-react";
+import { Search, Users, Phone, Mail, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import NewContactModal from "@/components/NewContactModal";
 
 type ContactProfile = {
   user_id: string;
@@ -20,38 +21,40 @@ const Contatos = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [letterFilter, setLetterFilter] = useState("");
+  const [showNewModal, setShowNewModal] = useState(false);
   const { tenantId } = useAuth();
 
-  useEffect(() => {
+  const loadContacts = useCallback(async () => {
     if (!tenantId) return;
-    const fetch = async () => {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, phone, email, created_at")
-        .eq("tenant_id", tenantId);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, full_name, phone, email, created_at")
+      .eq("tenant_id", tenantId);
 
-      if (profiles && profiles.length > 0) {
-        const userIds = profiles.map((p) => p.user_id);
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("user_id, role")
-          .in("user_id", userIds);
+    if (profiles && profiles.length > 0) {
+      const userIds = profiles.map((p) => p.user_id);
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds);
 
-        const clientIds = new Set(
-          (roles || []).filter((r) => r.role === "client").map((r) => r.user_id)
-        );
-        setContacts(
-          profiles
-            .filter((p) => clientIds.has(p.user_id))
-            .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"))
-        );
-      } else {
-        setContacts([]);
-      }
-      setLoading(false);
-    };
-    fetch();
+      const clientIds = new Set(
+        (roles || []).filter((r) => r.role === "client").map((r) => r.user_id)
+      );
+      setContacts(
+        profiles
+          .filter((p) => clientIds.has(p.user_id))
+          .sort((a, b) => a.full_name.localeCompare(b.full_name, "pt-BR"))
+      );
+    } else {
+      setContacts([]);
+    }
+    setLoading(false);
   }, [tenantId]);
+
+  useEffect(() => {
+    loadContacts();
+  }, [loadContacts]);
 
   const filtered = contacts.filter((c) => {
     const matchesSearch = c.full_name.toLowerCase().includes(search.toLowerCase());
@@ -61,9 +64,21 @@ const Contatos = () => {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Contatos</h1>
+        <button
+          onClick={() => setShowNewModal(true)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-4 h-4" /> Novo Contato
+        </button>
       </div>
+
+      <NewContactModal
+        open={showNewModal}
+        onClose={() => setShowNewModal(false)}
+        onCreated={loadContacts}
+      />
 
       {/* Alphabet filter */}
       <div className="flex items-center gap-0.5 flex-wrap bg-card border rounded-lg p-2">
