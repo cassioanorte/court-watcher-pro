@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 type CaseData = {
   id: string;
@@ -45,6 +46,7 @@ const ClientProcessDetail = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -56,7 +58,10 @@ const ClientProcessDetail = () => {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const extractFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
+  const [extractingExternal, setExtractingExternal] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -123,40 +128,121 @@ const ClientProcessDetail = () => {
     if (!file || !id || !user) return;
     setUploading(true);
 
-    const fileExt = file.name.split(".").pop();
-    const filePath = `${id}/${Date.now()}_${file.name}`;
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${id}/${Date.now()}_${file.name}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("case-documents")
-      .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage
+        .from("case-documents")
+        .upload(filePath, file);
 
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("case-documents")
+        .getPublicUrl(filePath);
+
+      const { data: docData, error: insertError } = await supabase
+        .from("documents")
+        .insert({
+          case_id: id,
+          uploaded_by: user.id,
+          name: file.name,
+          file_url: urlData.publicUrl,
+          category: "Enviado pelo cliente",
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      if (docData) {
+        setDocuments((prev) => [docData, ...prev]);
+        toast({ title: "Documento enviado com sucesso!" });
+      }
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+    } finally {
       setUploading(false);
-      return;
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
 
-    const { data: urlData } = supabase.storage
-      .from("case-documents")
-      .getPublicUrl(filePath);
-
-    const { data: docData } = await supabase
-      .from("documents")
-      .insert({
-        case_id: id,
-        uploaded_by: user.id,
-        name: file.name,
-        file_url: urlData.publicUrl,
-        category: "Enviado pelo cliente",
-      })
-      .select()
-      .single();
-
-    if (docData) {
-      setDocuments((prev) => [docData, ...prev]);
+  const handleExtractClientData = async (documentId: string) => {
+    if (!id) return;
+    setExtractingDocId(documentId);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-client-data", {
+        body: { document_id: documentId, case_id: id },
+      });
+      if (error) throw error;
+      const fieldNames: Record<string, string> = {
+        cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+        civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+        nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Data de nascimento",
+        cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor",
+        atividade_economica: "Profissão",
+      };
+      if (data?.error) {
+        toast({
+          title: data.updated === 0 ? "Informação" : "Erro",
+          description: data.error,
+          variant: data.updated === 0 ? "default" : "destructive",
+        });
+      } else if (data?.success) {
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: `${data.updated} campo(s) atualizado(s)!`, description: updated });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingDocId(null);
     }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleExtractFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setExtractingExternal(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("extract-client-data", {
+        body: { case_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type },
+      });
+      if (error) throw error;
+      const fieldNames: Record<string, string> = {
+        cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+        civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+        nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Data de nascimento",
+        cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor",
+        atividade_economica: "Profissão",
+      };
+      if (data?.error) {
+        toast({
+          title: data.updated === 0 ? "Informação" : "Erro",
+          description: data.error,
+          variant: data.updated === 0 ? "default" : "destructive",
+        });
+      } else if (data?.success) {
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: `${data.updated} campo(s) atualizado(s)!`, description: updated });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingExternal(false);
+      if (extractFileRef.current) extractFileRef.current.value = "";
+    }
   };
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("pt-BR");
@@ -365,6 +451,30 @@ const ClientProcessDetail = () => {
 
           {activeTab === "documents" && (
             <div className="pb-6 space-y-3">
+              {/* Extract from external file */}
+              <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-accent" />
+                  <p className="text-sm font-medium text-foreground">Extrair dados de documento</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-3">Envie um documento (petição, certidão, etc.) para preencher seu cadastro automaticamente</p>
+                <input
+                  ref={extractFileRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  onChange={handleExtractFromFile}
+                />
+                <button
+                  onClick={() => extractFileRef.current?.click()}
+                  disabled={extractingExternal}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold disabled:opacity-50"
+                >
+                  {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {extractingExternal ? "Extraindo dados..." : "Upload e extrair dados"}
+                </button>
+              </div>
+
               {/* Upload button */}
               <input
                 ref={fileInputRef}
@@ -389,27 +499,39 @@ const ClientProcessDetail = () => {
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento disponível.</p>
               ) : (
                 documents.map((doc, i) => (
-                  <motion.a
+                  <motion.div
                     key={doc.id}
-                    href={doc.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="flex items-center gap-3 bg-card rounded-lg border p-3.5 shadow-card hover:shadow-card-hover transition-shadow"
+                    className="bg-card rounded-lg border p-3.5 shadow-card"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-accent" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {doc.category || "Documento"} · {formatDate(doc.created_at)}
-                      </p>
-                    </div>
-                    <Download className="w-4 h-4 text-muted-foreground shrink-0" />
-                  </motion.a>
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-accent" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {doc.category || "Documento"} · {formatDate(doc.created_at)}
+                        </p>
+                      </div>
+                      <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </a>
+                    <button
+                      onClick={() => handleExtractClientData(doc.id)}
+                      disabled={extractingDocId === doc.id}
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
+                    >
+                      {extractingDocId === doc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      {extractingDocId === doc.id ? "Extraindo..." : "Extrair dados deste documento"}
+                    </button>
+                  </motion.div>
                 ))
               )}
             </div>
