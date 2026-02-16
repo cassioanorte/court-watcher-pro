@@ -6,19 +6,170 @@ const corsHeaders = {
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
+// ── Regex extraction utilities ──
+
+function extractWithRegex(text: string): Record<string, string> {
+  const data: Record<string, string> = {};
+
+  // CPF: 000.000.000-00
+  const cpfMatch = text.match(/\b(\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2})\b/);
+  if (cpfMatch) {
+    const raw = cpfMatch[1].replace(/\s/g, "").replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    if (/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(raw)) data.cpf = raw;
+  }
+
+  // RG: various patterns
+  const rgMatch = text.match(/(?:RG|R\.G\.|Identidade|Carteira de Identidade)[:\s]*[nº°]*\s*([\d.\-\/]+)/i);
+  if (rgMatch) data.rg = rgMatch[1].trim();
+
+  // Address: common patterns in legal docs
+  const addrPatterns = [
+    /(?:residente|domiciliado|morador|endereço|reside)[a-z\s]*(?:na|em|à|no)\s+(.+?)(?:,\s*(?:CEP|nesta|portador|inscrit|brasileir|solteiro|casado|divorciado|viúv|natural|\d{5}-?\d{3}))/is,
+    /(?:Rua|Avenida|Av\.|Travessa|Alameda|Rodovia|Estrada|Praça)\s+[^,]+,\s*(?:n[.ºo°]*\s*\d+[^,]*,\s*)?[^,]+(?:,\s*[^,]+)?(?:,\s*\w{2})?(?:\s*[-–]\s*CEP\s*\d{5}-?\d{3})?/i,
+  ];
+  for (const pattern of addrPatterns) {
+    const m = text.match(pattern);
+    if (m) {
+      const addr = (m[1] || m[0]).replace(/\s+/g, " ").trim();
+      if (addr.length > 10 && addr.length < 300) {
+        data.address = addr;
+        break;
+      }
+    }
+  }
+
+  // Phone: (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+  const phoneMatch = text.match(/\(?\d{2}\)?\s*9?\d{4}[-.\s]?\d{4}/);
+  if (phoneMatch) data.phone = phoneMatch[0].trim();
+
+  // Email
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) data.email = emailMatch[0].toLowerCase();
+
+  // Civil status
+  const civilMatch = text.match(/\b(solteiro|solteira|casado|casada|divorciado|divorciada|viúvo|viúva|separado|separada|união\s+estável)\b/i);
+  if (civilMatch) {
+    const raw = civilMatch[1].toLowerCase();
+    if (raw.includes("solteir")) data.civil_status = "solteiro";
+    else if (raw.includes("casad")) data.civil_status = "casado";
+    else if (raw.includes("divorci")) data.civil_status = "divorciado";
+    else if (raw.includes("viúv")) data.civil_status = "viúvo";
+    else if (raw.includes("separad")) data.civil_status = "separado";
+    else if (raw.includes("união")) data.civil_status = "união estável";
+  }
+
+  // Nationality
+  const nacMatch = text.match(/\b(brasileir[oa]|estrangeir[oa]|portugues[a]?|italian[oa]|argentin[oa])\b/i);
+  if (nacMatch) data.nacionalidade = nacMatch[1].charAt(0).toUpperCase() + nacMatch[1].slice(1).toLowerCase();
+
+  // Birth place (naturalidade)
+  const natMatch = text.match(/natural\s+d[eao]\s+([^,;.]+)/i);
+  if (natMatch) data.naturalidade = natMatch[1].trim();
+
+  // Mother's name
+  const maeMatch = text.match(/(?:mãe|mae|filiação materna|genitora)[:\s]+([A-ZÀ-Ú][A-ZÀ-Ú\sa-zà-ú]+)/i);
+  if (maeMatch) {
+    const name = maeMatch[1].trim();
+    if (name.split(/\s+/).length >= 2) data.nome_mae = name;
+  }
+
+  // Father's name
+  const paiMatch = text.match(/(?:pai|filiação paterna|genitor)[:\s]+([A-ZÀ-Ú][A-ZÀ-Ú\sa-zà-ú]+)/i);
+  if (paiMatch) {
+    const name = paiMatch[1].trim();
+    if (name.split(/\s+/).length >= 2) data.nome_pai = name;
+  }
+
+  // Birth date: DD/MM/YYYY
+  const dateMatch = text.match(/(?:nascid[oa]?\s+em|data\s+de\s+nascimento|nascimento)[:\s]*(\d{2})[\/.-](\d{2})[\/.-](\d{4})/i);
+  if (dateMatch) {
+    const [, d, m, y] = dateMatch;
+    const yr = parseInt(y);
+    if (yr >= 1920 && yr <= 2010) data.birth_date = `${y}-${m}-${d}`;
+  }
+
+  // CNH
+  const cnhMatch = text.match(/(?:CNH|Carteira\s+Nacional\s+de\s+Habilitação)[:\s]*[nº°]*\s*(\d[\d.\-\/]+\d)/i);
+  if (cnhMatch) data.cnh = cnhMatch[1].trim();
+
+  // CTPS
+  const ctpsMatch = text.match(/(?:CTPS|Carteira\s+de\s+Trabalho)[:\s]*[nº°]*\s*(\d[\d.\-\/]+\d)/i);
+  if (ctpsMatch) data.ctps = ctpsMatch[1].trim();
+
+  // PIS/PASEP
+  const pisMatch = text.match(/(?:PIS|PASEP|NIT)[:\s]*[nº°]*\s*(\d[\d.\-\/]+\d)/i);
+  if (pisMatch) data.pis = pisMatch[1].trim();
+
+  // Título de eleitor
+  const tituloMatch = text.match(/(?:Título\s+de\s+Eleitor|Título\s+Eleitoral)[:\s]*[nº°]*\s*(\d[\d.\-\/\s]+\d)/i);
+  if (tituloMatch) data.titulo_eleitor = tituloMatch[1].replace(/\s/g, "").trim();
+
+  // Profession
+  const profMatch = text.match(/(?:profissão|profissao|atividade\s+econômica|ocupação)[:\s]+([^,;.\n]+)/i);
+  if (profMatch) {
+    const prof = profMatch[1].trim();
+    if (prof.length > 2 && prof.length < 80) data.atividade_economica = prof;
+  }
+
+  return data;
+}
+
+// Decode base64 PDF and extract text (works for text-based PDFs only)
+function extractTextFromPdfBytes(bytes: Uint8Array): string {
+  // Simple text extraction from PDF streams
+  const raw = new TextDecoder("latin1").decode(bytes);
+  const textParts: string[] = [];
+  
+  // Extract text between BT...ET blocks (PDF text objects)
+  const btEtRegex = /BT\s([\s\S]*?)ET/g;
+  let match;
+  while ((match = btEtRegex.exec(raw)) !== null) {
+    const block = match[1];
+    // Extract text from Tj, TJ, ' operators
+    const tjRegex = /\(([^)]*)\)\s*Tj/g;
+    let tm;
+    while ((tm = tjRegex.exec(block)) !== null) {
+      textParts.push(tm[1]);
+    }
+    // TJ arrays: [(text) num (text) ...]
+    const tjArrayRegex = /\[((?:\([^)]*\)|[^])*?)\]\s*TJ/g;
+    while ((tm = tjArrayRegex.exec(block)) !== null) {
+      const innerRegex = /\(([^)]*)\)/g;
+      let inner;
+      while ((inner = innerRegex.exec(tm[1])) !== null) {
+        textParts.push(inner[1]);
+      }
+    }
+  }
+  
+  // Also try to find readable text sequences in the raw data
+  if (textParts.length < 5) {
+    // Fallback: extract any readable string sequences
+    const readableRegex = /[\w\sÀ-ÿ.,;:!?@\-\/()]{10,}/g;
+    let rm;
+    while ((rm = readableRegex.exec(raw)) !== null) {
+      textParts.push(rm[0]);
+    }
+  }
+  
+  return textParts.join(" ").replace(/\\n/g, "\n").replace(/\s+/g, " ");
+}
+
+// ── Main handler ──
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { document_id, case_id, process_number, file_base64, file_name, file_mime_type, auto_identify } = await req.json();
+    const { document_id, case_id, process_number, file_base64, file_name, file_mime_type, auto_identify, use_ai } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Auto-identify mode: extract data first, then find client
+    // Auto-identify mode (AI only - needs to identify the person)
     if (auto_identify && file_base64) {
       return await handleAutoIdentify(admin, lovableKey, file_base64, file_mime_type || "application/pdf", file_name || "document.pdf", corsHeaders);
     }
@@ -103,7 +254,12 @@ Deno.serve(async (req) => {
       docName = doc.name;
     }
 
-    return await extractAndUpdateProfile(admin, lovableKey, resolvedCaseId, docBase64, docMimeType, corsHeaders);
+    // Default: try regex first, use AI only if use_ai=true
+    if (use_ai) {
+      return await extractAndUpdateProfileAI(admin, lovableKey, resolvedCaseId, docBase64, docMimeType, corsHeaders);
+    } else {
+      return await extractAndUpdateProfileRegex(admin, resolvedCaseId, docBase64, docMimeType, corsHeaders);
+    }
   } catch (err) {
     console.error("Extract error:", err);
     return new Response(
@@ -113,208 +269,73 @@ Deno.serve(async (req) => {
   }
 });
 
-async function handleAutoIdentify(
-  admin: any, lovableKey: string, docBase64: string, docMimeType: string, docName: string, corsHeaders: Record<string, string>
+// ── Regex-based extraction (no AI, no cost) ──
+
+async function extractAndUpdateProfileRegex(
+  admin: any, caseId: string, docBase64: string, docMimeType: string, corsHeaders: Record<string, string>
 ) {
-  // Step 1: Extract ALL possible data from the document, including name and CPF for identification
-  const identifyPrompt = `Você é um assistente jurídico brasileiro. Analise este documento e extraia TODOS os dados de qualificação das partes envolvidas.
-
-Retorne um JSON com os seguintes campos (apenas os que encontrar):
-- full_name: Nome completo da parte (autor/requerente/cliente - NÃO o advogado)
-- cpf: CPF no formato XXX.XXX.XXX-XX
-- rg: RG
-- address: Endereço completo
-- phone: Telefone com DDD
-- email: Email
-- civil_status: Estado civil
-- nacionalidade: Nacionalidade
-- naturalidade: Naturalidade (cidade/estado)
-- nome_mae: Nome da mãe
-- nome_pai: Nome do pai
-- birth_date: Data de nascimento (YYYY-MM-DD)
-- cnh: CNH
-- ctps: CTPS
-- pis: PIS/PASEP
-- titulo_eleitor: Título de eleitor
-- atividade_economica: Profissão/Atividade econômica
-
-IMPORTANTE: Identifique a PARTE (autor, requerente, reclamante), não o advogado. O nome completo é essencial para identificação.`;
-
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [{ role: "user", content: [
-        { text: identifyPrompt },
-        { inline_data: { mime_type: docMimeType, data: docBase64 } },
-      ]}],
-      tools: [{
-        type: "function",
-        function: {
-          name: "extract_all_data",
-          description: "Extract all client data from the document",
-          parameters: {
-            type: "object",
-            properties: {
-              full_name: { type: "string" },
-              cpf: { type: "string" },
-              rg: { type: "string" },
-              address: { type: "string" },
-              phone: { type: "string" },
-              email: { type: "string" },
-              civil_status: { type: "string" },
-              nacionalidade: { type: "string" },
-              naturalidade: { type: "string" },
-              nome_mae: { type: "string" },
-              nome_pai: { type: "string" },
-              birth_date: { type: "string" },
-              cnh: { type: "string" },
-              ctps: { type: "string" },
-              pis: { type: "string" },
-              titulo_eleitor: { type: "string" },
-              atividade_economica: { type: "string" },
-            },
-            additionalProperties: false,
-          },
-        },
-      }],
-      tool_choice: { type: "function", function: { name: "extract_all_data" } },
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text();
-    console.error("AI error:", aiResponse.status, errText);
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
-        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace em Settings → Workspace → Usage." }), {
-        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    return new Response(JSON.stringify({ error: "Erro ao processar documento com IA." }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const aiResult = await aiResponse.json();
-  let extractedData: Record<string, string> = {};
-
-  const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-  if (toolCall?.function?.arguments) {
-    try {
-      extractedData = typeof toolCall.function.arguments === "string"
-        ? JSON.parse(toolCall.function.arguments)
-        : toolCall.function.arguments;
-    } catch {
-      console.error("Failed to parse tool call arguments");
-    }
-  }
-
-  console.log("Extracted data for identification:", JSON.stringify(extractedData));
-
-  const extractedName = extractedData.full_name?.trim();
-  const extractedCpf = extractedData.cpf?.replace(/\D/g, "");
-
-  if (!extractedName && !extractedCpf) {
+  // Only works with PDFs (text-based)
+  if (!docMimeType.includes("pdf")) {
     return new Response(
-      JSON.stringify({ error: "Não foi possível identificar o nome ou CPF da parte no documento." }),
+      JSON.stringify({ error: "Extração por regex só funciona com PDFs de texto. Use a opção com IA para imagens.", method: "regex" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // Step 2: Find matching client in profiles
-  let matchedProfile: any = null;
-
-  // Try CPF match first (most reliable)
-  if (extractedCpf) {
-    const { data: cpfMatches } = await admin
-      .from("profiles")
-      .select("user_id, full_name, cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
-      .ilike("cpf", `%${extractedCpf}%`);
-    
-    if (cpfMatches && cpfMatches.length > 0) {
-      matchedProfile = cpfMatches[0];
-    }
-  }
-
-  // Try name match if CPF didn't work
-  if (!matchedProfile && extractedName) {
-    // Search by similar name
-    const nameParts = extractedName.split(" ").filter((p: string) => p.length > 2);
-    
-    if (nameParts.length >= 2) {
-      // Use first and last name for matching
-      const firstName = nameParts[0];
-      const lastName = nameParts[nameParts.length - 1];
-      
-      const { data: nameMatches } = await admin
-        .from("profiles")
-        .select("user_id, full_name, cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
-        .ilike("full_name", `%${firstName}%${lastName}%`);
-      
-      if (nameMatches && nameMatches.length === 1) {
-        matchedProfile = nameMatches[0];
-      } else if (nameMatches && nameMatches.length > 1) {
-        // Multiple matches - try exact match
-        const exactMatch = nameMatches.find((p: any) => 
-          p.full_name.toLowerCase().trim() === extractedName.toLowerCase().trim()
-        );
-        matchedProfile = exactMatch || nameMatches[0];
-      }
-    }
-    
-    // If still no match, try full name
-    if (!matchedProfile) {
-      const { data: fullNameMatches } = await admin
-        .from("profiles")
-        .select("user_id, full_name, cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
-        .ilike("full_name", `%${extractedName}%`);
-      
-      if (fullNameMatches && fullNameMatches.length > 0) {
-        matchedProfile = fullNameMatches[0];
-      }
-    }
-  }
-
-  if (!matchedProfile) {
+  const { data: caseData } = await admin
+    .from("cases")
+    .select("client_user_id")
+    .eq("id", caseId)
+    .single();
+  if (!caseData?.client_user_id) {
     return new Response(
-      JSON.stringify({ 
-        error: `Cliente não encontrado no sistema. Nome identificado: "${extractedName || 'N/A'}", CPF: "${extractedData.cpf || 'N/A'}". Verifique se o cliente está cadastrado.`,
-        extracted_name: extractedName,
-        extracted_cpf: extractedData.cpf,
-      }),
+      JSON.stringify({ error: "Este processo não possui um cliente vinculado." }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
+    .eq("user_id", caseData.client_user_id)
+    .single();
+
+  if (!profile) {
+    return new Response(
+      JSON.stringify({ error: "Perfil do cliente não encontrado." }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // Step 3: Update only empty fields
-  const fieldKeys = ["cpf", "rg", "address", "phone", "email", "civil_status", "nacionalidade", "naturalidade", "nome_mae", "nome_pai", "birth_date", "cnh", "ctps", "pis", "titulo_eleitor", "atividade_economica"];
+  // Decode base64 to bytes and extract text
+  const binaryStr = atob(docBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
   
+  const pdfText = extractTextFromPdfBytes(bytes);
+  console.log("Extracted PDF text length:", pdfText.length, "chars");
+
+  if (pdfText.length < 20) {
+    return new Response(
+      JSON.stringify({ error: "Não foi possível extrair texto do PDF. O documento pode ser escaneado/imagem. Tente a opção com IA.", method: "regex", updated: 0 }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const extractedData = extractWithRegex(pdfText);
+  console.log("Regex extracted:", JSON.stringify(extractedData));
+
+  // Only update empty fields
   const updateData: Record<string, string> = {};
-  for (const key of fieldKeys) {
-    const currentValue = matchedProfile[key as keyof typeof matchedProfile];
-    const newValue = extractedData[key];
-    if (!currentValue && newValue && typeof newValue === "string" && newValue.trim()) {
-      updateData[key] = newValue.trim();
+  for (const [key, value] of Object.entries(extractedData)) {
+    if (!profile[key as keyof typeof profile] && value && value.trim()) {
+      updateData[key] = value.trim();
     }
   }
 
   if (Object.keys(updateData).length === 0) {
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        error: "Nenhum dado novo encontrado ou todos os campos já estão preenchidos.", 
-        updated: 0, 
-        client_name: matchedProfile.full_name,
-      }),
+      JSON.stringify({ success: true, error: "Nenhum dado novo encontrado ou todos os campos já estão preenchidos.", updated: 0, method: "regex" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -322,28 +343,24 @@ IMPORTANTE: Identifique a PARTE (autor, requerente, reclamante), não o advogado
   const { error: updateError } = await admin
     .from("profiles")
     .update(updateData)
-    .eq("user_id", matchedProfile.user_id);
+    .eq("user_id", caseData.client_user_id);
 
   if (updateError) {
     console.error("Update error:", updateError);
-    return new Response(
-      JSON.stringify({ error: "Erro ao atualizar perfil do cliente." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Erro ao atualizar perfil." }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   return new Response(
-    JSON.stringify({
-      success: true,
-      updated: Object.keys(updateData).length,
-      fields: updateData,
-      client_name: matchedProfile.full_name,
-    }),
+    JSON.stringify({ success: true, updated: Object.keys(updateData).length, fields: updateData, method: "regex" }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
-async function extractAndUpdateProfile(
+// ── AI-based extraction (uses credits) ──
+
+async function extractAndUpdateProfileAI(
   admin: any, lovableKey: string, caseId: string, docBase64: string, docMimeType: string, corsHeaders: Record<string, string>
 ) {
   const { data: caseData } = await admin
@@ -388,7 +405,7 @@ async function extractAndUpdateProfile(
 
   if (emptyFields.length === 0) {
     return new Response(
-      JSON.stringify({ error: "Todos os campos do cliente já estão preenchidos.", updated: 0 }),
+      JSON.stringify({ error: "Todos os campos do cliente já estão preenchidos.", updated: 0, method: "ai" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -474,7 +491,7 @@ Regras:
 
   if (Object.keys(updateData).length === 0) {
     return new Response(
-      JSON.stringify({ error: "Nenhum dado novo encontrado.", updated: 0 }),
+      JSON.stringify({ error: "Nenhum dado novo encontrado.", updated: 0, method: "ai" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -492,7 +509,188 @@ Regras:
   }
 
   return new Response(
-    JSON.stringify({ success: true, updated: Object.keys(updateData).length, fields: updateData }),
+    JSON.stringify({ success: true, updated: Object.keys(updateData).length, fields: updateData, method: "ai" }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// ── Auto-identify (AI only - needs to find the person) ──
+
+async function handleAutoIdentify(
+  admin: any, lovableKey: string, docBase64: string, docMimeType: string, docName: string, corsHeaders: Record<string, string>
+) {
+  const identifyPrompt = `Você é um assistente jurídico brasileiro. Analise este documento e extraia TODOS os dados de qualificação das partes envolvidas.
+
+Retorne um JSON com os seguintes campos (apenas os que encontrar):
+- full_name: Nome completo da parte (autor/requerente/cliente - NÃO o advogado)
+- cpf: CPF no formato XXX.XXX.XXX-XX
+- rg: RG
+- address: Endereço completo
+- phone: Telefone com DDD
+- email: Email
+- civil_status: Estado civil
+- nacionalidade: Nacionalidade
+- naturalidade: Naturalidade (cidade/estado)
+- nome_mae: Nome da mãe
+- nome_pai: Nome do pai
+- birth_date: Data de nascimento (YYYY-MM-DD)
+- cnh: CNH
+- ctps: CTPS
+- pis: PIS/PASEP
+- titulo_eleitor: Título de eleitor
+- atividade_economica: Profissão/Atividade econômica
+
+IMPORTANTE: Identifique a PARTE (autor, requerente, reclamante), não o advogado.`;
+
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "user", content: [
+        { text: identifyPrompt },
+        { inline_data: { mime_type: docMimeType, data: docBase64 } },
+      ]}],
+      tools: [{
+        type: "function",
+        function: {
+          name: "extract_all_data",
+          description: "Extract all client data from the document",
+          parameters: {
+            type: "object",
+            properties: {
+              full_name: { type: "string" }, cpf: { type: "string" }, rg: { type: "string" },
+              address: { type: "string" }, phone: { type: "string" }, email: { type: "string" },
+              civil_status: { type: "string" }, nacionalidade: { type: "string" },
+              naturalidade: { type: "string" }, nome_mae: { type: "string" },
+              nome_pai: { type: "string" }, birth_date: { type: "string" },
+              cnh: { type: "string" }, ctps: { type: "string" }, pis: { type: "string" },
+              titulo_eleitor: { type: "string" }, atividade_economica: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      }],
+      tool_choice: { type: "function", function: { name: "extract_all_data" } },
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text();
+    console.error("AI error:", aiResponse.status, errText);
+    if (aiResponse.status === 429) {
+      return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (aiResponse.status === 402) {
+      return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace em Settings → Workspace → Usage." }), {
+        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: "Erro ao processar documento com IA." }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const aiResult = await aiResponse.json();
+  let extractedData: Record<string, string> = {};
+  const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+  if (toolCall?.function?.arguments) {
+    try {
+      extractedData = typeof toolCall.function.arguments === "string"
+        ? JSON.parse(toolCall.function.arguments) : toolCall.function.arguments;
+    } catch { console.error("Failed to parse tool call arguments"); }
+  }
+
+  const extractedName = extractedData.full_name?.trim();
+  const extractedCpf = extractedData.cpf?.replace(/\D/g, "");
+
+  if (!extractedName && !extractedCpf) {
+    return new Response(
+      JSON.stringify({ error: "Não foi possível identificar o nome ou CPF da parte no documento." }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let matchedProfile: any = null;
+  if (extractedCpf) {
+    const { data: cpfMatches } = await admin
+      .from("profiles")
+      .select("user_id, full_name, cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
+      .ilike("cpf", `%${extractedCpf}%`);
+    if (cpfMatches && cpfMatches.length > 0) matchedProfile = cpfMatches[0];
+  }
+
+  if (!matchedProfile && extractedName) {
+    const nameParts = extractedName.split(" ").filter((p: string) => p.length > 2);
+    if (nameParts.length >= 2) {
+      const firstName = nameParts[0];
+      const lastName = nameParts[nameParts.length - 1];
+      const { data: nameMatches } = await admin
+        .from("profiles")
+        .select("user_id, full_name, cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
+        .ilike("full_name", `%${firstName}%${lastName}%`);
+      if (nameMatches && nameMatches.length === 1) matchedProfile = nameMatches[0];
+      else if (nameMatches && nameMatches.length > 1) {
+        const exactMatch = nameMatches.find((p: any) => p.full_name.toLowerCase().trim() === extractedName.toLowerCase().trim());
+        matchedProfile = exactMatch || nameMatches[0];
+      }
+    }
+    if (!matchedProfile) {
+      const { data: fullNameMatches } = await admin
+        .from("profiles")
+        .select("user_id, full_name, cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
+        .ilike("full_name", `%${extractedName}%`);
+      if (fullNameMatches && fullNameMatches.length > 0) matchedProfile = fullNameMatches[0];
+    }
+  }
+
+  if (!matchedProfile) {
+    return new Response(
+      JSON.stringify({
+        error: `Cliente não encontrado no sistema. Nome: "${extractedName || 'N/A'}", CPF: "${extractedData.cpf || 'N/A'}".`,
+        extracted_name: extractedName,
+        extracted_cpf: extractedData.cpf,
+      }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const fieldKeys = ["cpf", "rg", "address", "phone", "email", "civil_status", "nacionalidade", "naturalidade", "nome_mae", "nome_pai", "birth_date", "cnh", "ctps", "pis", "titulo_eleitor", "atividade_economica"];
+  const updateData: Record<string, string> = {};
+  for (const key of fieldKeys) {
+    const currentValue = matchedProfile[key as keyof typeof matchedProfile];
+    const newValue = extractedData[key];
+    if (!currentValue && newValue && typeof newValue === "string" && newValue.trim()) {
+      updateData[key] = newValue.trim();
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return new Response(
+      JSON.stringify({ success: true, error: "Nenhum dado novo encontrado ou todos os campos já estão preenchidos.", updated: 0, client_name: matchedProfile.full_name }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const { error: updateError } = await admin
+    .from("profiles")
+    .update(updateData)
+    .eq("user_id", matchedProfile.user_id);
+
+  if (updateError) {
+    console.error("Update error:", updateError);
+    return new Response(JSON.stringify({ error: "Erro ao atualizar perfil do cliente." }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(
+    JSON.stringify({ success: true, updated: Object.keys(updateData).length, fields: updateData, client_name: matchedProfile.full_name }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
