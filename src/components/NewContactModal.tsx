@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, X } from "lucide-react";
+import { Save, X, Camera, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type NewContactModalProps = {
@@ -126,6 +126,9 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => {
   const [form, setForm] = useState(INITIAL);
   const [saving, setSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const set = (field: string) => (value: any) =>
@@ -209,8 +212,20 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
         await supabase.from("profiles").update(extraFields).eq("user_id", userId);
       }
 
+      // Step 4: Upload avatar if selected
+      if (avatarFile) {
+        const filePath = `avatars/${userId}/${Date.now()}_${avatarFile.name}`;
+        const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, avatarFile);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(filePath);
+          await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", userId);
+        }
+      }
+
       toast({ title: "Sucesso!", description: `Contato "${form.full_name}" cadastrado.` });
       setForm(INITIAL);
+      setAvatarFile(null);
+      setAvatarPreview(null);
       onCreated();
       onClose();
     } catch (err: any) {
@@ -230,6 +245,47 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
           <div className="divide-y">
             <SectionTitle>Dados Pessoais</SectionTitle>
             <div>
+              {/* Avatar upload */}
+              <div className="flex items-center py-3 border-b">
+                <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
+                  Foto
+                </span>
+                <div className="flex-1 flex items-center gap-3">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setAvatarFile(file);
+                        setAvatarPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="w-14 h-14 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden"
+                    title="Clique para adicionar foto"
+                  >
+                    {avatarPreview ? (
+                      <>
+                        <img src={avatarPreview} alt="" className="w-full h-full rounded-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                          <Camera className="w-4 h-4 text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <Camera className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    )}
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {avatarPreview ? "Clique para trocar" : "Clique para adicionar"}
+                  </span>
+                </div>
+              </div>
               <Field label="Nome Completo" value={form.full_name} onChange={set("full_name")} required />
               <Field label="E-mail" value={form.email} onChange={set("email")} type="email" required />
               <Field label="Senha" value={form.password} onChange={set("password")} type="password" placeholder="Mínimo 6 caracteres" required />
