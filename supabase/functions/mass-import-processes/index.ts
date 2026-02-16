@@ -13,16 +13,86 @@ interface ParsedProcess {
   status: string | null;
 }
 
+/** Legal/procedural terms that should NEVER be treated as party names */
+const LEGAL_TERMS = new Set([
+  "direito civil", "direito penal", "direito administrativo", "direito do consumidor",
+  "direito previdenciário", "direito tributário", "direito ambiental", "direito do trabalho",
+  "direito processual civil", "direito processual penal", "direito constitucional",
+  "direito empresarial", "direito de família", "direito internacional",
+  "movimento", "movimentação", "movimentos", "susp", "suspenso", "suspensa",
+  "ao tj", "ao trf", "ao trt", "ao tst", "ao stj", "ao stf",
+  "procedimento comum cível", "procedimento comum", "procedimento do juizado especial cível",
+  "procedimento do juizado especial", "procedimento sumário", "procedimento ordinário",
+  "cumprimento de sentença", "execução de título extrajudicial", "execução fiscal",
+  "mandado de segurança", "habeas corpus", "habeas data",
+  "embargos", "embargos de declaração", "embargos de terceiro", "embargos à execução",
+  "incidente de desconsideração de personalidade jurídica",
+  "liquidação por arbitramento", "liquidação por artigos",
+  "usucapião", "inventário", "arrolamento", "divórcio", "interdição",
+  "ação civil pública", "ação popular", "ação rescisória",
+  "recurso inominado", "apelação", "agravo de instrumento", "agravo interno",
+  "tutela de urgência", "tutela provisória", "tutela antecipada",
+  "juntada", "petição", "despacho", "sentença", "decisão", "acórdão",
+  "distribuição", "conclusão", "intimação", "citação", "notificação",
+  "outras matérias de direito público", "matérias de direito público",
+  "direito civil movimento", "direito do consumidor movimento",
+  "direito previdenciário movimento", "direito administrativo e outras matérias",
+  "direito administrativo e outras matérias de direito público",
+  "direito civil susp", "direito do consumidor susp",
+  "olada juntada", "em recuperacao judicial", "recuperação judicial",
+  "ras matérias de direito público",
+]);
+
+function isLegalTerm(name: string): boolean {
+  const lower = name.toLowerCase().trim();
+  if (LEGAL_TERMS.has(lower)) return true;
+  // Check if it starts with any legal term
+  for (const term of LEGAL_TERMS) {
+    if (lower.startsWith(term) && lower.length < term.length + 15) return true;
+    if (lower === term) return true;
+  }
+  // Additional patterns that indicate non-names
+  if (/^direito\b/i.test(lower)) return true;
+  if (/^procedimento\b/i.test(lower)) return true;
+  if (/^cumprimento\b/i.test(lower)) return true;
+  if (/^execução\b/i.test(lower)) return true;
+  if (/^incidente\b/i.test(lower)) return true;
+  if (/^liquidação\b/i.test(lower)) return true;
+  if (/^recurso\b/i.test(lower)) return true;
+  if (/^tutela\b/i.test(lower)) return true;
+  if (/^mandado\b/i.test(lower)) return true;
+  if (/^embargos\b/i.test(lower)) return true;
+  if (/^ação\b/i.test(lower)) return true;
+  if (/^agravo\b/i.test(lower)) return true;
+  if (/^apelação\b/i.test(lower)) return true;
+  if (/\bmovimento\b/i.test(lower)) return true;
+  if (/\bsusp$/i.test(lower)) return true;
+  if (/\bjuntada\b/i.test(lower)) return true;
+  if (/\bsentença\b/i.test(lower)) return true;
+  if (/^ao\s+t[jrf]/i.test(lower)) return true;
+  if (/^matérias?\b/i.test(lower)) return true;
+  if (/^outras\b/i.test(lower)) return true;
+  return false;
+}
+
 function cleanName(name: string): string {
   let n = name.replace(/\s+/g, " ").trim();
   n = n.replace(/^[,;:\-–—.]+|[,;:\-–—.]+$/g, "").trim();
-  if (n.length < 3 || n.length > 200) return "";
+  if (n.length < 4 || n.length > 200) return "";
   if (/^\d{7}/.test(n) || /^\d{2}\/\d{2}\/\d{4}/.test(n)) return "";
-  const skipWords = ["processo", "classe", "assunto", "vara", "comarca", "juiz", "distribuição", "localização", "situação", "área", "orgão", "ação", "protocolo", "segredo", "justiça", "digital", "eletrônico", "petição", "evento", "documento", "julgador", "relator"];
-  if (skipWords.some(w => n.toLowerCase().startsWith(w))) return "";
+  if (isLegalTerm(n)) return "";
+  // Must contain at least one letter
+  if (!/[a-zA-ZÀ-ú]/.test(n)) return "";
+  // Must have at least 2 words for a person name
+  const words = n.split(/\s+/).filter(w => w.length > 1);
+  if (words.length < 2) return "";
   return n;
 }
 
+/**
+ * Extract party names from the text context around a process number.
+ * Returns array of clean party names (people/companies only).
+ */
 function extractParties(context: string): string[] {
   const parties: string[] = [];
   const seen = new Set<string>();
@@ -35,20 +105,10 @@ function extractParties(context: string): string[] {
     }
   };
 
-  // Pattern 1: "NOME1 x NOME2"
-  const vsPatterns = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.,]+?)\s+(?:x|X|vs\.?|VS\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.,]+?)(?:\s*[-–—\n|]|$)/g);
-  if (vsPatterns) {
-    for (const match of vsPatterns) {
-      const parts = match.split(/\s+(?:x|X|vs\.?|VS\.?)\s+/);
-      for (const p of parts) addParty(p);
-    }
-  }
-
-  // Pattern 2: Labeled parties
+  // Pattern 1: Labeled parties — most reliable
   const labeledPatterns = [
     /(?:Autor|Autora|Requerente|Exequente|Reclamante|Impetrante|Apelante|Agravante|Embargante|Recorrente)\s*:\s*([^\n|<]{3,100})/gi,
     /(?:Réu|Ré|Requerido|Requerida|Executado|Executada|Reclamado|Reclamada|Impetrado|Impetrada|Apelado|Apelada|Agravado|Agravada|Embargado|Embargada|Recorrido|Recorrida)\s*:\s*([^\n|<]{3,100})/gi,
-    /(?:Parte|Partes|Interessado|Interessada)\s*(?:\(s\))?\s*:\s*([^\n|<]{3,100})/gi,
   ];
   for (const pattern of labeledPatterns) {
     let m;
@@ -58,15 +118,11 @@ function extractParties(context: string): string[] {
     }
   }
 
-  // Pattern 3: ALL CAPS names
-  const capsPattern = /(?:^|\s|>|:|\|)([A-ZÀ-Ú][A-ZÀ-Ú]+(?:\s+(?:DE|DA|DO|DOS|DAS|E|DI|DEL|VAN|VON)?\s*[A-ZÀ-Ú][A-ZÀ-Ú]+)+)/g;
-  let capsMatch;
-  while ((capsMatch = capsPattern.exec(context)) !== null) {
-    const name = capsMatch[1].trim();
-    const words = name.split(/\s+/).filter(w => w.length > 1);
-    if (words.length >= 2 && name.length >= 5 && name.length <= 120) {
-      addParty(name);
-    }
+  // Pattern 2: "NOME1 x NOME2" — but only if both sides look like real names
+  const vsMatch = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.]+?)\s+(?:x|X|vs\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.]+?)(?:\s*[-–—\n|]|$)/);
+  if (vsMatch) {
+    addParty(vsMatch[1]);
+    addParty(vsMatch[2]);
   }
 
   return parties;
@@ -87,16 +143,27 @@ function parseSearchResults(html: string): ParsedProcess[] {
     const startIdx = Math.max(0, match.index - 500);
     const endIdx = Math.min(html.length, match.index + 1000);
     const htmlContext = html.substring(startIdx, endIdx);
-    const textContext = htmlContext.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#\d+;/g, " ").replace(/\s+/g, " ");
+    const textContext = htmlContext
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#\d+;/g, " ")
+      .replace(/\s+/g, " ");
 
     const parties = extractParties(textContext);
 
     let subject: string | null = null;
-    const subjectMatch = textContext.match(/(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i);
+    const subjectMatch = textContext.match(
+      /(?:Classe|Assunto|Ação|Competência)\s*:\s*([^,\n|]{3,200})/i
+    );
     if (subjectMatch) subject = subjectMatch[1].trim().substring(0, 200);
 
     let status: string | null = null;
-    const statusMatch = textContext.match(/(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i);
+    const statusMatch = textContext.match(
+      /(?:Situação|Status)\s*:\s*([^,\n|]{3,100})/i
+    );
     if (statusMatch) status = statusMatch[1].trim();
 
     processes.push({ process_number: num, parties, subject, status });
@@ -120,10 +187,8 @@ function parseSearchResults(html: string): ParsedProcess[] {
 function inferSource(processNumber: string): string {
   const digits = processNumber.replace(/\D/g, "");
   if (digits.length < 20) return "TRF4_JFRS";
-
   const justice = digits[13];
   const tribunal = digits.slice(14, 16);
-
   if (justice === "4") {
     const origin = digits.slice(16, 20);
     if (origin.startsWith("71") || origin.startsWith("50")) return "TRF4_JFRS";
@@ -144,7 +209,6 @@ function inferSource(processNumber: string): string {
     return trtMap[tribunal] || "TRT4";
   }
   if (justice === "6") return "TSE";
-
   return "TRF4_JFRS";
 }
 
@@ -158,7 +222,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { html, tenant_id, source_url } = await req.json();
+    const { html, tenant_id } = await req.json();
 
     if (!html || typeof html !== "string" || html.length < 50) {
       return new Response(
@@ -183,7 +247,8 @@ Deno.serve(async (req) => {
     }
 
     const parsed = parseSearchResults(html);
-    console.log(`[mass-import] Parsed ${parsed.length} processes from HTML (${html.length} chars)`);
+    console.log(`[mass-import] Parsed ${parsed.length} processes. Sample parties:`,
+      JSON.stringify(parsed.slice(0, 3).map(p => ({ num: p.process_number, parties: p.parties }))));
 
     if (parsed.length === 0) {
       return new Response(
@@ -195,7 +260,6 @@ Deno.serve(async (req) => {
     let casesCreated = 0;
     let casesSkipped = 0;
     const importedProcesses: string[] = [];
-    const allParties: string[] = [];
 
     for (const proc of parsed) {
       const digits = proc.process_number.replace(/\D/g, "");
@@ -215,9 +279,9 @@ Deno.serve(async (req) => {
 
       const source = inferSource(proc.process_number);
 
-      // Store parties in case_summary for later review (no contact creation)
+      // Store clean parties in case_summary as "Parte1 | Parte2"
       const partiesSummary = proc.parties.length > 0
-        ? `Partes: ${proc.parties.join(" x ")}`
+        ? proc.parties.join(" | ")
         : null;
 
       const { error: caseErr } = await supabase.from("cases").insert({
@@ -237,10 +301,9 @@ Deno.serve(async (req) => {
 
       casesCreated++;
       importedProcesses.push(proc.process_number);
-      for (const p of proc.parties) allParties.push(p);
     }
 
-    console.log(`[mass-import] Done: ${casesCreated} created, ${casesSkipped} skipped, ${allParties.length} parties found`);
+    console.log(`[mass-import] Done: ${casesCreated} created, ${casesSkipped} skipped`);
 
     return new Response(
       JSON.stringify({
@@ -248,7 +311,6 @@ Deno.serve(async (req) => {
         total_found: parsed.length,
         cases_created: casesCreated,
         cases_skipped: casesSkipped,
-        parties_found: allParties.length,
         imported_processes: importedProcesses.slice(0, 20),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
