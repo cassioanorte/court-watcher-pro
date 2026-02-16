@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -163,6 +163,24 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     onUpdate?.();
   };
 
+  const handleDelete = async (caseId: string) => {
+    if (!confirm("Tem certeza que deseja excluir este processo e todos os seus dados vinculados?")) return;
+    try {
+      // Delete related data first
+      await Promise.all([
+        supabase.from("documents").delete().eq("case_id", caseId),
+        supabase.from("messages").delete().eq("case_id", caseId),
+        supabase.from("movements").delete().eq("case_id", caseId),
+      ]);
+      await supabase.from("cases").delete().eq("id", caseId);
+      setCases(prev => prev.filter(c => c.id !== caseId));
+      toast({ title: "Processo excluído" });
+      onUpdate?.();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    }
+  };
+
   if (loading || cases.length === 0) return null;
 
   return (
@@ -194,7 +212,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
               <tr className="border-b bg-muted/40">
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[220px]">Processo</th>
                 <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partes — clique na que você representa</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[80px]"></th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[140px]"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -227,13 +245,22 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleSkip(c.id)}
-                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      title="Pular — marcar como revisado sem vincular cliente"
-                    >
-                      <X className="w-3 h-3" /> Pular
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleSkip(c.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title="Pular — marcar como revisado sem vincular cliente"
+                      >
+                        <X className="w-3 h-3" /> Pular
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Excluir processo permanentemente"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
