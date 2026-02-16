@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -29,6 +29,9 @@ const ContatoDetail = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
+  const [extractingExternal, setExtractingExternal] = useState(false);
+  const extractFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -177,6 +180,73 @@ const ContatoDetail = () => {
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const handleExtractFromDoc = async (docId: string, fileUrl: string, useAi = false) => {
+    if (!id) return;
+    setExtractingDocId(docId);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-client-data", {
+        body: { contact_user_id: id, document_id: docId, use_ai: useAi },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: data.updated === 0 ? "Informação" : "Erro", description: data.error, variant: data.updated === 0 ? "default" : "destructive" });
+      } else if (data?.success) {
+        const fieldNames: Record<string, string> = {
+          cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+          civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+          nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Data de nascimento",
+          cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor", atividade_economica: "Profissão",
+        };
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: `${data.updated} campo(s) atualizado(s)! (${data.method === "ai" ? "IA" : "Regex"})`, description: updated });
+        // Reload contact data
+        const { data: refreshed } = await supabase.from("profiles").select("*").eq("user_id", id).single();
+        if (refreshed) setContact(refreshed);
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingDocId(null);
+    }
+  };
+
+  const handleExtractFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setExtractingExternal(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => { resolve((reader.result as string).split(",")[1]); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data, error } = await supabase.functions.invoke("extract-client-data", {
+        body: { contact_user_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: data.updated === 0 ? "Informação" : "Erro", description: data.error, variant: data.updated === 0 ? "default" : "destructive" });
+      } else if (data?.success) {
+        const fieldNames: Record<string, string> = {
+          cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+          civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+          nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Data de nascimento",
+          cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor", atividade_economica: "Profissão",
+        };
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: `${data.updated} campo(s) atualizado(s)!`, description: updated });
+        const { data: refreshed } = await supabase.from("profiles").select("*").eq("user_id", id).single();
+        if (refreshed) setContact(refreshed);
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingExternal(false);
+      if (extractFileRef.current) extractFileRef.current.value = "";
     }
   };
 
@@ -559,10 +629,15 @@ const ContatoDetail = () => {
 
             <div className="p-4 border-b space-y-3">
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleOfficeUpload} />
+              <input ref={extractFileRef} type="file" className="hidden" accept=".pdf,image/*" onChange={handleExtractFromFile} />
               <div className="flex gap-2">
                 <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
                   className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-primary/40 p-3 text-sm font-medium text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
                   {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Upload className="w-4 h-4" /> Anexar arquivo</>}
+                </button>
+                <button onClick={() => extractFileRef.current?.click()} disabled={extractingExternal}
+                  className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-accent/40 p-3 text-sm font-medium text-accent hover:bg-accent/5 transition-colors disabled:opacity-50">
+                  {extractingExternal ? <><Loader2 className="w-4 h-4 animate-spin" /> Extraindo...</> : <><Sparkles className="w-4 h-4" /> Extrair dados de arquivo</>}
                 </button>
               </div>
 
@@ -598,6 +673,19 @@ const ContatoDetail = () => {
                       <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
                     </div>
                     <div className="flex items-center gap-1">
+                      {doc.file_url && (
+                        <>
+                          <button
+                            onClick={() => handleExtractFromDoc(doc.id, doc.file_url, false)}
+                            disabled={extractingDocId === doc.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
+                            title="Extrair dados do documento"
+                          >
+                            {extractingDocId === doc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            Extrair
+                          </button>
+                        </>
+                      )}
                       {(doc.file_url || doc.link_url) && (
                         <a href={doc.file_url || doc.link_url} target="_blank" rel="noopener noreferrer"
                           className="p-1.5 rounded hover:bg-muted transition-colors">

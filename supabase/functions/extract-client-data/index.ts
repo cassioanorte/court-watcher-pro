@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { document_id, case_id, process_number, file_base64, file_name, file_mime_type, auto_identify, use_ai } = await req.json();
+    const { document_id, case_id, process_number, contact_user_id, file_base64, file_name, file_mime_type, auto_identify, use_ai } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -221,9 +221,59 @@ Deno.serve(async (req) => {
       return await handleAutoIdentify(admin, lovableKey, file_base64, file_mime_type || "application/pdf", file_name || "document.pdf", corsHeaders);
     }
 
+    // Support direct contact_user_id (from contact documents tab)
+    if (contact_user_id) {
+      if (!document_id && !file_base64) {
+        return new Response(
+          JSON.stringify({ error: "document_id or file_base64 is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      let docBase64: string;
+      let docMimeType: string;
+
+      if (file_base64) {
+        docBase64 = file_base64;
+        docMimeType = file_mime_type || "application/pdf";
+      } else {
+        // Try contact_documents first, then documents
+        let doc: any = null;
+        const { data: contactDoc } = await admin.from("contact_documents").select("file_url, name").eq("id", document_id).single();
+        if (contactDoc?.file_url) {
+          doc = contactDoc;
+        } else {
+          const { data: caseDoc } = await admin.from("documents").select("file_url, name").eq("id", document_id).single();
+          doc = caseDoc;
+        }
+        if (!doc?.file_url) {
+          return new Response(JSON.stringify({ error: "Documento não encontrado ou sem arquivo." }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const docResponse = await fetch(doc.file_url);
+        if (!docResponse.ok) {
+          return new Response(JSON.stringify({ error: "Não foi possível baixar o documento." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const contentType = docResponse.headers.get("content-type") || "";
+        const docBytes = new Uint8Array(await docResponse.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < docBytes.length; i += 8192) {
+          const chunk = docBytes.subarray(i, Math.min(i + 8192, docBytes.length));
+          for (let j = 0; j < chunk.length; j++) binary += String.fromCharCode(chunk[j]);
+        }
+        docBase64 = btoa(binary);
+        docMimeType = contentType.includes("pdf") || doc.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : contentType.split(";")[0] || "image/jpeg";
+      }
+
+      if (use_ai) {
+        return await extractAndUpdateProfileDirect(admin, lovableKey, contact_user_id, docBase64, docMimeType, corsHeaders, true);
+      } else {
+        return await extractAndUpdateProfileDirect(admin, lovableKey, contact_user_id, docBase64, docMimeType, corsHeaders, false);
+      }
+    }
+
     if (!case_id && !process_number) {
       return new Response(
-        JSON.stringify({ error: "case_id or process_number is required" }),
+        JSON.stringify({ error: "case_id, process_number or contact_user_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -322,6 +372,147 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// ── Direct extraction by contact_user_id (no case needed) ──
+
+async function extractAndUpdateProfileDirect(
+  admin: any, lovableKey: string, contactUserId: string, docBase64: string, docMimeType: string, corsHeaders: Record<string, string>, useAi: boolean
+) {
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("cpf, rg, address, phone, email, civil_status, nacionalidade, naturalidade, nome_mae, nome_pai, birth_date, cnh, ctps, pis, titulo_eleitor, atividade_economica")
+    .eq("user_id", contactUserId)
+    .single();
+
+  if (!profile) {
+    return new Response(
+      JSON.stringify({ error: "Perfil do contato não encontrado." }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (useAi) {
+    const emptyFields: string[] = [];
+    const fieldLabels: Record<string, string> = {
+      cpf: "CPF", rg: "RG", address: "Endereço completo", phone: "Telefone",
+      email: "Email", civil_status: "Estado civil", nacionalidade: "Nacionalidade",
+      naturalidade: "Naturalidade", nome_mae: "Nome da mãe", nome_pai: "Nome do pai",
+      birth_date: "Data de nascimento (YYYY-MM-DD)", cnh: "CNH", ctps: "CTPS",
+      pis: "PIS/PASEP", titulo_eleitor: "Título de eleitor", atividade_economica: "Profissão",
+    };
+    for (const [key, label] of Object.entries(fieldLabels)) {
+      if (!profile[key as keyof typeof profile]) emptyFields.push(`${key}: ${label}`);
+    }
+    if (emptyFields.length === 0) {
+      return new Response(JSON.stringify({ error: "Todos os campos já estão preenchidos.", updated: 0, method: "ai" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const systemPrompt = `Você é um assistente jurídico brasileiro. Extraia dados de qualificação a partir do documento.\nRetorne APENAS os campos que encontrar, no formato JSON.\nCampos para buscar:\n${emptyFields.map((f) => `- ${f}`).join("\n")}\nRegras:\n- CPF: formato XXX.XXX.XXX-XX\n- Data de nascimento: formato YYYY-MM-DD\n- Estado civil: solteiro, casado, divorciado, viúvo, união estável\n- Retorne um objeto JSON com as chaves dos campos`;
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: [
+          { text: systemPrompt },
+          { inline_data: { mime_type: docMimeType, data: docBase64 } },
+        ]}],
+        tools: [{
+          type: "function",
+          function: {
+            name: "extract_client_data",
+            description: "Extract client data from document",
+            parameters: {
+              type: "object",
+              properties: {
+                cpf: { type: "string" }, rg: { type: "string" }, address: { type: "string" },
+                phone: { type: "string" }, email: { type: "string" }, civil_status: { type: "string" },
+                nacionalidade: { type: "string" }, naturalidade: { type: "string" },
+                nome_mae: { type: "string" }, nome_pai: { type: "string" },
+                birth_date: { type: "string" }, cnh: { type: "string" }, ctps: { type: "string" },
+                pis: { type: "string" }, titulo_eleitor: { type: "string" },
+                atividade_economica: { type: "string" },
+              },
+              additionalProperties: false,
+            },
+          },
+        }],
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("AI error:", aiResponse.status, errText);
+      return new Response(JSON.stringify({ error: `Erro na IA: ${aiResponse.status}` }), { status: aiResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const aiData = await aiResponse.json();
+    let extractedData: Record<string, string> = {};
+    const choice = aiData.choices?.[0];
+    if (choice?.message?.tool_calls?.[0]) {
+      try { extractedData = JSON.parse(choice.message.tool_calls[0].function.arguments); } catch {}
+    } else if (choice?.message?.content) {
+      const jsonMatch = choice.message.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) try { extractedData = JSON.parse(jsonMatch[0]); } catch {}
+    }
+
+    const updateData: Record<string, string> = {};
+    for (const [key, value] of Object.entries(extractedData)) {
+      if (!profile[key as keyof typeof profile] && value && String(value).trim()) {
+        updateData[key] = String(value).trim();
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return new Response(JSON.stringify({ success: true, error: "Nenhum dado novo encontrado.", updated: 0, method: "ai" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { error: updateError } = await admin.from("profiles").update(updateData).eq("user_id", contactUserId);
+    if (updateError) {
+      return new Response(JSON.stringify({ error: updateError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    return new Response(JSON.stringify({ success: true, updated: Object.keys(updateData).length, fields: updateData, method: "ai" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
+  // Regex extraction
+  if (!docMimeType.includes("pdf")) {
+    // Auto-fallback to AI for non-PDF
+    return await extractAndUpdateProfileDirect(admin, lovableKey, contactUserId, docBase64, docMimeType, corsHeaders, true);
+  }
+
+  const binaryStr = atob(docBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+  const pdfText = extractTextFromPdfBytes(bytes);
+
+  const readableChars = pdfText.replace(/[^a-zA-ZÀ-ÿ0-9\s.,;:!?@\-\/()]/g, "");
+  const readableRatio = readableChars.length / Math.max(pdfText.length, 1);
+
+  if (pdfText.length < 20 || readableRatio < 0.3) {
+    return await extractAndUpdateProfileDirect(admin, lovableKey, contactUserId, docBase64, docMimeType, corsHeaders, true);
+  }
+
+  const extractedData = extractWithRegex(pdfText);
+  const updateData: Record<string, string> = {};
+  for (const [key, value] of Object.entries(extractedData)) {
+    if (!profile[key as keyof typeof profile] && value && value.trim()) {
+      updateData[key] = value.trim();
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return await extractAndUpdateProfileDirect(admin, lovableKey, contactUserId, docBase64, docMimeType, corsHeaders, true);
+  }
+
+  const { error: updateError } = await admin.from("profiles").update(updateData).eq("user_id", contactUserId);
+  if (updateError) {
+    return new Response(JSON.stringify({ error: updateError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
+  return new Response(JSON.stringify({ success: true, updated: Object.keys(updateData).length, fields: updateData, method: "regex" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
 
 // ── Regex-based extraction (no AI, no cost) ──
 
