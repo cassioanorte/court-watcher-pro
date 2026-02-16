@@ -158,14 +158,15 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
       toast({ title: "Erro", description: "Nome completo é obrigatório.", variant: "destructive" });
       return;
     }
-    if (!form.email.trim()) {
-      toast({ title: "Erro", description: "E-mail é obrigatório.", variant: "destructive" });
-      return;
-    }
     if (!form.password || form.password.length < 6) {
       toast({ title: "Erro", description: "Senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
       return;
     }
+
+    // Auto-generate email if empty
+    const finalEmail = form.email.trim() || `contato_${Date.now()}@interno.prevdoc.com`;
+    // Auto-generate CPF placeholder if empty
+    const finalCpf = form.cpf.trim() || undefined;
 
     setSaving(true);
     try {
@@ -182,10 +183,10 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            email: form.email,
+            email: finalEmail,
             fullName: form.full_name,
             phone: form.phone || undefined,
-            cpf: form.cpf || undefined,
+            cpf: finalCpf,
             address: form.address || undefined,
             origin: form.origin || undefined,
             role: "client",
@@ -307,7 +308,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
               </div>
               <Field label="Nome Completo" value={form.full_name} onChange={set("full_name")} required />
               <Field label="Tipo de Contato" value={form.contact_type} onChange={set("contact_type")} type="contact-type-select" />
-              <Field label="E-mail" value={form.email} onChange={set("email")} type="email" required />
+              <Field label="E-mail" value={form.email} onChange={set("email")} type="email" placeholder="Opcional" />
               <Field label="Senha" value={form.password} onChange={set("password")} type="password" placeholder="Mínimo 6 caracteres" required />
               <div className="flex items-center py-2 border-b">
                 <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
