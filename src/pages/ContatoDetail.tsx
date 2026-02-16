@@ -27,6 +27,8 @@ const ContatoDetail = () => {
   const [linkName, setLinkName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -142,6 +144,27 @@ const ContatoDetail = () => {
     const { error } = await supabase.from("documents").delete().in("id", ids);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else setClientDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id || !tenantId) return;
+    setUploadingAvatar(true);
+    try {
+      const filePath = `avatars/${id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(filePath);
+      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", id);
+      if (updateError) throw updateError;
+      setContact((prev: any) => ({ ...prev, avatar_url: urlData.publicUrl }));
+      toast({ title: "Foto atualizada!" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
@@ -279,13 +302,32 @@ const ContatoDetail = () => {
               <span className="w-48 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-6 shrink-0">
                 FOTO DO PERFIL
               </span>
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="w-16 h-16 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden disabled:opacity-50"
+                title="Clique para alterar a foto"
+              >
                 {contact.avatar_url ? (
-                  <img src={contact.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                  <>
+                    <img src={contact.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                      <Camera className="w-5 h-5 text-white" />
+                    </div>
+                  </>
+                ) : uploadingAvatar ? (
+                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                 ) : (
-                  <Camera className="w-6 h-6 text-muted-foreground" />
+                  <Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
                 )}
-              </div>
+              </button>
             </div>
 
             {/* Contact info */}
