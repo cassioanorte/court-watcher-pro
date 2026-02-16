@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles } from "lucide-react";
@@ -39,6 +39,8 @@ const ProcessDetail = () => {
   const [uploading, setUploading] = useState(false);
   const [docCategory, setDocCategory] = useState("");
   const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
+  const [extractingExternal, setExtractingExternal] = useState(false);
+  const extractFileRef = useRef<HTMLInputElement>(null);
   // Edit movement
   const [editingMovId, setEditingMovId] = useState<string | null>(null);
   const [editMovTitle, setEditMovTitle] = useState("");
@@ -208,6 +210,50 @@ const ProcessDetail = () => {
       toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
     } finally {
       setExtractingDocId(null);
+    }
+  };
+
+  const handleExtractFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    setExtractingExternal(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]); // Remove data:...;base64, prefix
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("extract-client-data", {
+        body: { case_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({
+          title: data.updated === 0 ? "Informação" : "Erro",
+          description: data.error,
+          variant: data.updated === 0 ? "default" : "destructive",
+        });
+      } else if (data?.success) {
+        const fieldNames: Record<string, string> = {
+          cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+          civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+          nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Data de nascimento",
+          cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor",
+          atividade_economica: "Profissão",
+        };
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: `${data.updated} campo(s) atualizado(s)!`, description: updated });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingExternal(false);
+      if (extractFileRef.current) extractFileRef.current.value = "";
     }
   };
 
@@ -491,6 +537,30 @@ const ProcessDetail = () => {
 
       {activeTab === "documentos" && (
         <div className="space-y-4">
+          {/* Extract from external file button */}
+          {isLawyer && caseData.client_user_id && (
+            <div className="bg-accent/5 border border-accent/20 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Extrair dados do cliente</p>
+                <p className="text-[11px] text-muted-foreground">Faça upload de um documento do tribunal (petição, procuração, etc.) para preencher automaticamente o cadastro do cliente</p>
+              </div>
+              <input
+                ref={extractFileRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onChange={handleExtractFromFile}
+              />
+              <button
+                onClick={() => extractFileRef.current?.click()}
+                disabled={extractingExternal}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0 ml-4"
+              >
+                {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {extractingExternal ? "Extraindo..." : "Upload e extrair"}
+              </button>
+            </div>
+          )}
           {documents.length === 0 && !isLawyer && (
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhum documento anexado a este processo.</p>
           )}
