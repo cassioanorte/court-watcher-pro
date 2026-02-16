@@ -20,9 +20,10 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { userId, password } = await req.json();
-    if (!userId || !password) throw new Error("userId and password required");
-    if (password.length < 6) throw new Error("Password must be at least 6 characters");
+    const { userId, password, email } = await req.json();
+    if (!userId) throw new Error("userId required");
+    if (!password && !email) throw new Error("password or email required");
+    if (password && password.length < 6) throw new Error("Password must be at least 6 characters");
 
     // Verify caller is owner/staff in same tenant
     const { data: callerProfile } = await supabaseAdmin
@@ -41,7 +42,11 @@ Deno.serve(async (req) => {
       throw new Error("Forbidden");
     }
 
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+    const updateData: Record<string, string> = {};
+    if (password) updateData.password = password;
+    if (email) updateData.email = email;
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, updateData);
     if (error) throw error;
 
     return new Response(JSON.stringify({ success: true }), {
