@@ -18,8 +18,8 @@ function getMassImportBookmarkletCode(tenantId: string): string {
     body:JSON.stringify({html:html,tenant_id:tid,source_url:url})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.success){
-      var msg='✅ Importação concluída!\\n\\n📋 Processos encontrados: '+d.total_found+'\\n✅ Novos cadastrados: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped+'\\n👥 Partes encontradas: '+d.parties_found+'\\n🔗 Clientes vinculados: '+(d.contacts_linked||0);
-      if(d.sample_parties&&d.sample_parties.length>0){msg+='\\n\\nExemplos de partes:\\n'+d.sample_parties.slice(0,5).join('\\n');}
+      var msg='✅ Importação concluída!\\n\\n📋 Processos encontrados: '+d.total_found+'\\n✅ Novos cadastrados: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped+'\\n👤 Clientes criados: '+(d.contacts_created||0)+'\\n🔗 Clientes vinculados: '+(d.contacts_linked||0);
+      if(d.sample_parties&&d.sample_parties.length>0){msg+='\\n\\nClientes cadastrados:\\n'+d.sample_parties.slice(0,5).join('\\n');}
       alert(msg);
     }else{
       alert('❌ Erro: '+(d.error||'Falha desconhecida'));
