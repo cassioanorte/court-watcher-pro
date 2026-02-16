@@ -225,7 +225,7 @@ const ContatoDetail = () => {
         reader.readAsDataURL(file);
       });
       const { data, error } = await supabase.functions.invoke("extract-client-data", {
-        body: { contact_user_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type },
+        body: { contact_user_id: id, file_base64: base64, file_name: file.name, file_mime_type: file.type, use_ai: false },
       });
       if (error) throw error;
       if (data?.error) {
