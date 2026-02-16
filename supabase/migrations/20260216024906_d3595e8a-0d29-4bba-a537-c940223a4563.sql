@@ -1,0 +1,25 @@
+
+-- Add extended contact fields to profiles table
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS email text,
+  ADD COLUMN IF NOT EXISTS birth_date date,
+  ADD COLUMN IF NOT EXISTS civil_status text,
+  ADD COLUMN IF NOT EXISTS tags text[] DEFAULT '{}'::text[],
+  ADD COLUMN IF NOT EXISTS rg text,
+  ADD COLUMN IF NOT EXISTS ctps text,
+  ADD COLUMN IF NOT EXISTS pis text,
+  ADD COLUMN IF NOT EXISTS titulo_eleitor text,
+  ADD COLUMN IF NOT EXISTS cnh text,
+  ADD COLUMN IF NOT EXISTS passaporte text,
+  ADD COLUMN IF NOT EXISTS certidao_reservista text,
+  ADD COLUMN IF NOT EXISTS atividade_economica text,
+  ADD COLUMN IF NOT EXISTS nome_pai text,
+  ADD COLUMN IF NOT EXISTS nome_mae text,
+  ADD COLUMN IF NOT EXISTS naturalidade text,
+  ADD COLUMN IF NOT EXISTS nacionalidade text,
+  ADD COLUMN IF NOT EXISTS comentarios text,
+  ADD COLUMN IF NOT EXISTS banco text,
+  ADD COLUMN IF NOT EXISTS agencia text,
+  ADD COLUMN IF NOT EXISTS conta_bancaria text,
+  ADD COLUMN IF NOT EXISTS chave_pix text,
+  ADD COLUMN IF NOT EXISTS falecido boolean DEFAULT false;
