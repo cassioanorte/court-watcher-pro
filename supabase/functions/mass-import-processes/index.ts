@@ -72,11 +72,22 @@ function extractParties(context: string): { author: string | null; defendant: st
 
   if (author || defendant) return { author, defendant };
 
-  // Pattern 2: "NOME1 x NOME2" or "NOME1 X NOME2"
-  const vsMatch = context.match(/([A-ZÀ-Ú][A-ZÀ-Ú\s.]{4,80}?)\s+(?:x|X|vs\.?)\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.]{4,80}?)(?:\s*[-–—\n|<]|$)/);
+  // Pattern 2: "NOME1 x NOME2" — mixed case support
+  const vsMatch = context.match(/([A-Za-zÀ-ú][A-Za-zÀ-ú\s.,']{4,100}?)\s+(?:x|X|vs\.?)\s+([A-Za-zÀ-ú][A-Za-zÀ-ú\s.,']{4,100}?)(?:\s*[-–—\n|<]|$)/);
   if (vsMatch) {
     const a = cleanName(vsMatch[1]);
     const d = cleanName(vsMatch[2]);
+    if (a) author = a;
+    if (d) defendant = d;
+  }
+
+  if (author || defendant) return { author, defendant };
+
+  // Pattern 3: eproc table — "Partes: NOME1 / NOME2" or slash-separated near process
+  const slashMatch = context.match(/(?:Partes?\s*:?\s*)?([A-Za-zÀ-ú][A-Za-zÀ-ú\s.,']{4,100}?)\s*\/\s*([A-Za-zÀ-ú][A-Za-zÀ-ú\s.,']{4,100}?)(?:\s*[-–—\n|<]|$)/i);
+  if (slashMatch) {
+    const a = cleanName(slashMatch[1]);
+    const d = cleanName(slashMatch[2]);
     if (a) author = a;
     if (d) defendant = d;
   }
@@ -211,6 +222,17 @@ Deno.serve(async (req) => {
     }
 
     const parsed = parseSearchResults(html);
+    
+    // Log first 500 chars of cleaned text for debugging
+    const debugText = html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(?:div|td|tr|li|p|span|h\d)>/gi, "\n")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    console.log(`[mass-import] First 1000 chars of cleaned text:`, debugText.substring(0, 1000));
+    
     console.log(`[mass-import] Parsed ${parsed.length} processes. Samples:`,
       JSON.stringify(parsed.slice(0, 5).map(p => ({
         num: p.process_number,
