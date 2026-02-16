@@ -130,6 +130,19 @@ const ContatoDetail = () => {
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else setOfficeDocs((prev) => prev.filter((d) => d.id !== docId));
   };
+  const handleDeleteClientDoc = async (docId: string) => {
+    const { error } = await supabase.from("documents").delete().eq("id", docId);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else setClientDocs((prev) => prev.filter((d) => d.id !== docId));
+  };
+
+  const handleDeleteClientFolder = async (caseId: string) => {
+    const docsInFolder = clientDocs.filter((d) => (d.case_id || "sem-processo") === caseId);
+    const ids = docsInFolder.map((d) => d.id);
+    const { error } = await supabase.from("documents").delete().in("id", ids);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else setClientDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
+  };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
 
@@ -394,21 +407,36 @@ const ContatoDetail = () => {
                           <FolderOpen className="w-4 h-4 text-primary shrink-0 group-open:text-primary" />
                           <span className="text-sm font-medium text-foreground font-mono">{label}</span>
                           {caseInfo?.subject && <span className="text-xs text-muted-foreground truncate">— {caseInfo.subject}</span>}
-                          <span className="ml-auto text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold shrink-0">{docs.length}</span>
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold shrink-0">{docs.length}</span>
+                          <button
+                            onClick={(e) => { e.preventDefault(); if (confirm(`Excluir todos os ${docs.length} documentos desta pasta?`)) handleDeleteClientFolder(caseId); }}
+                            className="ml-2 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                            title="Excluir pasta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </summary>
                         <div className="divide-y border-t bg-muted/20">
                           {docs.map((doc) => (
-                            <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-3 px-4 pl-10 py-2.5 hover:bg-muted/50 transition-colors">
-                              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                                <FileText className="w-3.5 h-3.5 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
-                                <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
-                              </div>
-                              <Download className="w-4 h-4 text-muted-foreground shrink-0" />
-                            </a>
+                            <div key={doc.id} className="flex items-center gap-3 px-4 pl-10 py-2.5 hover:bg-muted/50 transition-colors">
+                              <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                  <FileText className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
+                                </div>
+                                <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+                              </a>
+                              <button
+                                onClick={() => handleDeleteClientDoc(doc.id)}
+                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                title="Excluir documento"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </details>
