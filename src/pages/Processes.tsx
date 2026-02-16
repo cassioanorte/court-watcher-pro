@@ -73,7 +73,7 @@ const Processes = () => {
   const filtered = processes.filter(
     (p) => {
       const q = search.toLowerCase();
-      const { author, defendant } = extractParties(p.case_summary);
+      const { author, defendant } = extractParties((p as any).parties);
       return p.process_number.includes(search) ||
         (p.subject || "").toLowerCase().includes(q) ||
         (author || "").toLowerCase().includes(q) ||
@@ -271,7 +271,7 @@ const Processes = () => {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Buscar por número ou assunto..."
+            placeholder="Buscar por número, assunto, autor ou réu..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-10 pl-9 pr-4 rounded-lg bg-card border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
@@ -337,10 +337,10 @@ const Processes = () => {
                       <p className="text-xs text-muted-foreground mt-0.5">{p.subject || "Sem assunto"}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-xs text-foreground">{extractParties(p.case_summary).author || <span className="text-muted-foreground italic">—</span>}</span>
+                      <span className="text-xs text-foreground">{extractParties((p as any).parties).author || <span className="text-muted-foreground italic">—</span>}</span>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-xs text-foreground">{extractParties(p.case_summary).defendant || <span className="text-muted-foreground italic">—</span>}</span>
+                      <span className="text-xs text-foreground">{extractParties((p as any).parties).defendant || <span className="text-muted-foreground italic">—</span>}</span>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{sourceLabels[p.source] || p.source}</span>

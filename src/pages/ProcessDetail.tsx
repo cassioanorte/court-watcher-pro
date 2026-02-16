@@ -240,10 +240,25 @@ const ProcessDetail = () => {
       </div>
 
       {/* Info cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-card rounded-lg p-4 border shadow-card">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Status</p>
           <p className="text-sm font-semibold text-foreground">{caseData.simple_status || "—"}</p>
+        </div>
+        <div className="bg-card rounded-lg p-4 border shadow-card">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Partes Envolvidas</p>
+          {(() => {
+            const parts = (caseData.parties || "").split(/\s*\|\s*/);
+            const author = parts[0]?.trim();
+            const defendant = parts[1]?.trim();
+            return (
+              <div className="space-y-0.5">
+                {author ? <p className="text-xs text-foreground"><span className="text-muted-foreground">Autor:</span> {author}</p> : null}
+                {defendant ? <p className="text-xs text-foreground"><span className="text-muted-foreground">Réu:</span> {defendant}</p> : null}
+                {!author && !defendant && <p className="text-sm text-foreground">—</p>}
+              </div>
+            );
+          })()}
         </div>
         <div className="bg-card rounded-lg p-4 border shadow-card">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Última consulta</p>

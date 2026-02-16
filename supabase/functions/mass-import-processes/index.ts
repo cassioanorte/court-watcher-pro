@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
         subject,
         simple_status: "Importado",
         automation_enabled: true,
-        case_summary: caseSummary,
+        parties: caseSummary,
       });
 
       if (caseErr) {
