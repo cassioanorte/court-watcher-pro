@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,7 @@ const Processes = () => {
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [deleteAllConfirm, setDeleteAllConfirm] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { tenantId } = useAuth();
   const { toast } = useToast();
 
@@ -149,25 +150,13 @@ const Processes = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!tenantId || deleteAllConfirm !== "EXCLUIR TODOS") return;
+  const handleDeleteSelected = async () => {
+    if (!tenantId || deleteAllConfirm !== "EXCLUIR") return;
     setDeletingAll(true);
     try {
-      // Get all case IDs for this tenant
-      const { data: allCases } = await supabase
-        .from("cases")
-        .select("id")
-        .eq("tenant_id", tenantId);
+      const caseIds = Array.from(selected);
+      if (caseIds.length === 0) return;
 
-      if (!allCases || allCases.length === 0) {
-        toast({ title: "Nenhum processo para excluir." });
-        setShowDeleteAll(false);
-        return;
-      }
-
-      const caseIds = allCases.map(c => c.id);
-
-      // Delete related data in batches
       for (let i = 0; i < caseIds.length; i += 50) {
         const batch = caseIds.slice(i, i + 50);
         await Promise.all([
@@ -178,14 +167,31 @@ const Processes = () => {
         await supabase.from("cases").delete().in("id", batch);
       }
 
-      toast({ title: "Todos os processos excluídos!", description: `${caseIds.length} processo(s) removido(s).` });
+      toast({ title: "Processos excluídos!", description: `${caseIds.length} processo(s) removido(s).` });
       setShowDeleteAll(false);
       setDeleteAllConfirm("");
+      setSelected(new Set());
       fetchProcesses();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setDeletingAll(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(p => p.id)));
     }
   };
 
@@ -237,12 +243,12 @@ const Processes = () => {
           >
             <Plus className="w-4 h-4" /> Novo Processo
           </button>
-          {processes.length > 0 && (
+          {selected.size > 0 && (
             <button
               onClick={() => { setShowDeleteAll(true); setDeleteAllConfirm(""); }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/20 transition-colors"
             >
-              <Trash2 className="w-4 h-4" /> Excluir todos
+              <Trash2 className="w-4 h-4" /> Excluir selecionados ({selected.size})
             </button>
           )}
         </div>
@@ -275,6 +281,17 @@ const Processes = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
+                  <th className="px-4 py-3 w-10">
+                    <button onClick={toggleSelectAll} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {selected.size === filtered.length && filtered.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-accent" />
+                      ) : selected.size > 0 ? (
+                        <MinusSquare className="w-4 h-4 text-accent" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processo</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Tribunal</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
@@ -290,8 +307,13 @@ const Processes = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.04 }}
-                    className="hover:bg-muted/30 transition-colors"
+                    className={cn("hover:bg-muted/30 transition-colors", selected.has(p.id) && "bg-accent/5")}
                   >
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleSelect(p.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        {selected.has(p.id) ? <CheckSquare className="w-4 h-4 text-accent" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       <Link to={`/processos/${p.id}`} className="font-medium text-foreground hover:text-accent transition-colors font-mono text-xs">
                         {p.process_number}
@@ -415,7 +437,7 @@ const Processes = () => {
         </div>
       )}
 
-      {/* Delete All Confirmation Modal */}
+      {/* Delete Selected Confirmation Modal */}
       {showDeleteAll && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-foreground/30" onClick={() => setShowDeleteAll(false)} />
@@ -425,21 +447,21 @@ const Processes = () => {
                 <AlertTriangle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground">Excluir TODOS os processos</h2>
-                <p className="text-xs text-muted-foreground">{processes.length} processo(s) serão removidos</p>
+                <h2 className="text-lg font-bold text-foreground">Excluir processos selecionados</h2>
+                <p className="text-xs text-muted-foreground">{selected.size} processo(s) serão removidos</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground mb-2">
-              Esta ação é <strong className="text-destructive">irreversível</strong>. Todos os processos, movimentações, mensagens e documentos vinculados serão excluídos permanentemente.
+              Esta ação é <strong className="text-destructive">irreversível</strong>. Os processos selecionados e todos os dados vinculados (movimentações, mensagens, documentos) serão excluídos permanentemente.
             </p>
             <p className="text-sm text-foreground mb-3">
-              Para confirmar, digite <strong className="font-mono">EXCLUIR TODOS</strong> abaixo:
+              Para confirmar, digite <strong className="font-mono">EXCLUIR</strong> abaixo:
             </p>
             <input
               type="text"
               value={deleteAllConfirm}
               onChange={(e) => setDeleteAllConfirm(e.target.value)}
-              placeholder="Digite EXCLUIR TODOS"
+              placeholder="Digite EXCLUIR"
               className="w-full h-10 px-3 rounded-lg bg-background border text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/40 mb-5"
             />
             <div className="flex gap-3">
@@ -447,11 +469,11 @@ const Processes = () => {
                 Cancelar
               </button>
               <button
-                onClick={handleDeleteAll}
-                disabled={deletingAll || deleteAllConfirm !== "EXCLUIR TODOS"}
+                onClick={handleDeleteSelected}
+                disabled={deletingAll || deleteAllConfirm !== "EXCLUIR"}
                 className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {deletingAll ? "Excluindo..." : "Excluir todos"}
+                {deletingAll ? "Excluindo..." : `Excluir ${selected.size} processo(s)`}
               </button>
             </div>
           </div>
