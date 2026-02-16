@@ -99,23 +99,31 @@ const ContatoDetail = () => {
       return;
     }
     setUploading(true);
-    const filePath = `contacts/${id}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, file);
-    if (uploadError) {
-      toast({ title: "Erro", description: uploadError.message, variant: "destructive" });
+    try {
+      const filePath = `contacts/${id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("case-documents").upload(filePath, file);
+      if (uploadError) {
+        toast({ title: "Erro no upload", description: uploadError.message, variant: "destructive" });
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(filePath);
+      const { data: docData, error: insertError } = await supabase
+        .from("contact_documents")
+        .insert({ contact_user_id: id, tenant_id: tenantId, name: file.name, file_url: urlData.publicUrl, uploaded_by: user.id, category: "Escritório" })
+        .select()
+        .single();
+      if (insertError) {
+        toast({ title: "Erro ao salvar documento", description: insertError.message, variant: "destructive" });
+      } else if (docData) {
+        setOfficeDocs((prev) => [docData, ...prev]);
+        toast({ title: "Sucesso!", description: "Documento anexado." });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro inesperado", description: err.message || "Falha ao enviar arquivo.", variant: "destructive" });
+    } finally {
       setUploading(false);
-      return;
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(filePath);
-    const { data: docData, error: insertError } = await supabase
-      .from("contact_documents")
-      .insert({ contact_user_id: id, tenant_id: tenantId, name: file.name, file_url: urlData.publicUrl, uploaded_by: user.id, category: "Escritório" })
-      .select()
-      .single();
-    if (insertError) toast({ title: "Erro", description: insertError.message, variant: "destructive" });
-    if (docData) setOfficeDocs((prev) => [docData, ...prev]);
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleAddLink = async () => {
