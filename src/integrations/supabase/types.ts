@@ -853,6 +853,7 @@ export type Database = {
           cnh: string | null
           comentarios: string | null
           conta_bancaria: string | null
+          contact_type: string | null
           cpf: string | null
           created_at: string
           ctps: string | null
@@ -890,6 +891,7 @@ export type Database = {
           cnh?: string | null
           comentarios?: string | null
           conta_bancaria?: string | null
+          contact_type?: string | null
           cpf?: string | null
           created_at?: string
           ctps?: string | null
@@ -927,6 +929,7 @@ export type Database = {
           cnh?: string | null
           comentarios?: string | null
           conta_bancaria?: string | null
+          contact_type?: string | null
           cpf?: string | null
           created_at?: string
           ctps?: string | null

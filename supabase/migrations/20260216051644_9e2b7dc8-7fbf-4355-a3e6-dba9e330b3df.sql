@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN contact_type text DEFAULT 'Cliente';
