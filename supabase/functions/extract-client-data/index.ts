@@ -189,6 +189,11 @@ IMPORTANTE: Identifique a PARTE (autor, requerente, reclamante), não o advogado
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (aiResponse.status === 402) {
+      return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace em Settings → Workspace → Usage." }), {
+        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: "Erro ao processar documento com IA." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
