@@ -133,14 +133,14 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     if (!tenantId) return;
     const { data } = await supabase
       .from("cases")
-      .select("id, process_number, case_summary, client_user_id, subject")
+      .select("id, process_number, case_summary, client_user_id, subject, parties")
       .eq("tenant_id", tenantId)
       .eq("simple_status", "Importado")
       .is("client_user_id", null)
       .order("created_at", { ascending: false });
 
     const processed = (data || []).map(c => {
-      const { author, defendant } = extractPartiesFromSummary(c.case_summary);
+      const { author, defendant } = extractPartiesFromSummary((c as any).parties);
       return { ...c, author, defendant };
     });
 
