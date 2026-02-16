@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare } from "lucide-react";
+import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,101 @@ function extractPartiesFromSummary(summary: string | null): { author: string | n
     defendant: parts[1]?.trim() || null,
   };
 }
+
+const EditablePartyName = ({
+  name,
+  onSave,
+  disabled,
+  loading,
+  onLink,
+}: {
+  name: string | null;
+  onSave: (newName: string) => void;
+  disabled: boolean;
+  loading: boolean;
+  onLink: (name: string) => void;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name || "");
+
+  if (!name && !editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-muted-foreground italic">—</span>
+        <button
+          onClick={() => { setValue(""); setEditing(true); }}
+          className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          title="Adicionar nome"
+        >
+          <Pencil className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          autoFocus
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && value.trim()) {
+              onSave(value.trim());
+              setEditing(false);
+            }
+            if (e.key === "Escape") {
+              setValue(name || "");
+              setEditing(false);
+            }
+          }}
+          className="px-2 py-1 text-xs border rounded-md bg-background text-foreground w-full min-w-[120px] focus:outline-none focus:ring-1 focus:ring-accent"
+        />
+        <button
+          onClick={() => {
+            if (value.trim()) {
+              onSave(value.trim());
+              setEditing(false);
+            }
+          }}
+          className="p-1 rounded hover:bg-accent/10 text-accent transition-colors"
+          title="Confirmar"
+        >
+          <Check className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => { setValue(name || ""); setEditing(false); }}
+          className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
+          title="Cancelar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onLink(name!)}
+        disabled={disabled}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
+        title={`Vincular "${name}" como seu cliente`}
+      >
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+        {name}
+      </button>
+      <button
+        onClick={() => { setValue(name || ""); setEditing(true); }}
+        className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+        title="Editar nome"
+      >
+        <Pencil className="w-3 h-3" />
+      </button>
+    </div>
+  );
+};
 
 const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const { tenantId } = useAuth();
@@ -165,6 +260,10 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     }
   };
 
+  const updatePartyName = (caseId: string, field: "author" | "defendant", newName: string) => {
+    setCases(prev => prev.map(c => c.id === caseId ? { ...c, [field]: newName } : c));
+  };
+
   if (loading || cases.length === 0) return null;
 
   const allSelected = selected.size === cases.length;
@@ -239,34 +338,22 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                       <p className="text-xs font-mono text-foreground">{c.process_number}</p>
                     </td>
                     <td className="px-4 py-3">
-                      {c.author ? (
-                        <button
-                          onClick={() => handleSelectParty(c, c.author!)}
-                          disabled={linkingCase === c.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
-                          title={`Vincular "${c.author}" como seu cliente`}
-                        >
-                          {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                          {c.author}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">—</span>
-                      )}
+                      <EditablePartyName
+                        name={c.author}
+                        onSave={(newName) => updatePartyName(c.id, "author", newName)}
+                        disabled={linkingCase === c.id}
+                        loading={linkingCase === c.id}
+                        onLink={(name) => handleSelectParty(c, name)}
+                      />
                     </td>
                     <td className="px-4 py-3">
-                      {c.defendant ? (
-                        <button
-                          onClick={() => handleSelectParty(c, c.defendant!)}
-                          disabled={linkingCase === c.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
-                          title={`Vincular "${c.defendant}" como seu cliente`}
-                        >
-                          {linkingCase === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                          {c.defendant}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">—</span>
-                      )}
+                      <EditablePartyName
+                        name={c.defendant}
+                        onSave={(newName) => updatePartyName(c.id, "defendant", newName)}
+                        disabled={linkingCase === c.id}
+                        loading={linkingCase === c.id}
+                        onLink={(name) => handleSelectParty(c, name)}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-xs text-muted-foreground max-w-[250px] truncate" title={c.subject || ""}>
