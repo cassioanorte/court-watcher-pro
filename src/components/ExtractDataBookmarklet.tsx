@@ -8,16 +8,42 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 function getExtractBookmarkletCode(): string {
   const code = `
 (function(){
-  /* Try to find PDF in page */
   var pdfUrl=null;
+  var imgUrl=null;
   var embeds=document.querySelectorAll('embed[type="application/pdf"],embed[src*=".pdf"],object[type="application/pdf"],iframe[src*=".pdf"]');
   if(embeds.length>0){pdfUrl=embeds[0].src||embeds[0].data;}
   if(!pdfUrl){var links=document.querySelectorAll('a[href*=".pdf"]');if(links.length>0){pdfUrl=links[0].href;}}
 
+  /* Also look for large images (scanned docs) */
+  if(!pdfUrl){
+    var imgs=document.querySelectorAll('img');
+    var largest=null;var largestArea=0;
+    for(var i=0;i<imgs.length;i++){
+      var area=imgs[i].naturalWidth*imgs[i].naturalHeight;
+      if(area>largestArea&&imgs[i].naturalWidth>400){largestArea=area;largest=imgs[i];}
+    }
+    if(largest&&largestArea>200000){imgUrl=largest.src;}
+  }
+
+  /* Also check for canvas elements (some viewers render to canvas) */
+  if(!pdfUrl&&!imgUrl){
+    var canvases=document.querySelectorAll('canvas');
+    if(canvases.length>0){
+      var biggest=null;var biggestArea=0;
+      for(var c=0;c<canvases.length;c++){
+        var ca=canvases[c].width*canvases[c].height;
+        if(ca>biggestArea){biggestArea=ca;biggest=canvases[c];}
+      }
+      if(biggest&&biggestArea>200000){
+        try{imgUrl=biggest.toDataURL('image/png');}catch(e){console.log('Canvas tainted');}
+      }
+    }
+  }
+
   function sendToBackend(base64,mimeType,fileName){
     var statusDiv=document.createElement('div');
-    statusDiv.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;';
-    statusDiv.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Identificando cliente e extraindo dados...';
+    statusDiv.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;max-width:400px;';
+    statusDiv.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Identificando cliente e extraindo dados (OCR + IA)...';
     document.body.appendChild(statusDiv);
 
     fetch('${SUPABASE_URL}/functions/v1/extract-client-data',{
@@ -40,13 +66,13 @@ function getExtractBookmarkletCode(): string {
     });
   }
 
-  if(pdfUrl){
+  function fetchAndSend(url,mime,name){
     var statusDiv=document.createElement('div');
     statusDiv.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
     statusDiv.textContent='⏳ Baixando documento...';
     document.body.appendChild(statusDiv);
 
-    fetch(pdfUrl,{credentials:'include'}).then(function(r){
+    fetch(url,{credentials:'include'}).then(function(r){
       if(!r.ok)throw new Error('Falha ao baixar: '+r.status);
       return r.arrayBuffer();
     }).then(function(buf){
@@ -58,13 +84,26 @@ function getExtractBookmarkletCode(): string {
         binary+=String.fromCharCode.apply(null,bytes.slice(i,i+chunkSize));
       }
       var base64=btoa(binary);
-      sendToBackend(base64,'application/pdf','documento.pdf');
+      sendToBackend(base64,mime,name);
     }).catch(function(e){
       statusDiv.remove();
-      alert('❌ Erro ao baixar o documento: '+e.message+'\\n\\nTente baixar o PDF manualmente e usar o botão de upload no sistema.');
+      alert('❌ Erro ao baixar o documento: '+e.message);
     });
+  }
+
+  if(pdfUrl){
+    fetchAndSend(pdfUrl,'application/pdf','documento.pdf');
+  }else if(imgUrl){
+    if(imgUrl.startsWith('data:')){
+      /* Already base64 (from canvas) */
+      var parts=imgUrl.split(',');
+      var mime=parts[0].match(/:(.*?);/)[1];
+      sendToBackend(parts[1],mime,'documento_digitalizado.png');
+    }else{
+      fetchAndSend(imgUrl,'image/jpeg','documento_digitalizado.jpg');
+    }
   }else{
-    alert('⚠️ Nenhum PDF encontrado nesta página.\\n\\nAbra o documento (PDF) no tribunal e tente novamente.');
+    alert('⚠️ Nenhum PDF ou imagem de documento encontrado nesta página.\\n\\nAbra o documento no tribunal (PDF ou imagem digitalizada) e tente novamente.');
   }
 })();
   `.replace(/\n/g, "").replace(/\s+/g, " ").trim();
@@ -96,8 +135,8 @@ const ExtractDataBookmarklet = () => {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Abra um documento (petição inicial, procuração, etc.) diretamente no <strong>tribunal</strong> e clique no favorito.
-        O sistema <strong>identifica automaticamente</strong> o cliente pelo nome/CPF e preenche os dados faltantes no cadastro.
+        Abra um documento no <strong>tribunal</strong> — PDF ou página digitalizada (OCR) — e clique no favorito.
+        O sistema <strong>identifica automaticamente</strong> o cliente e preenche os dados faltantes no cadastro.
       </p>
 
       <div className="flex items-center gap-3">
@@ -129,25 +168,25 @@ const ExtractDataBookmarklet = () => {
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">2</span>
-              <span>Acesse o <strong>tribunal</strong> (eproc, PJe, etc.) e abra o <strong>documento</strong> que contém os dados do cliente (ex: petição inicial).</span>
+              <span>Acesse o <strong>tribunal</strong> e abra o <strong>documento</strong> (PDF ou imagem digitalizada).</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">3</span>
-              <span>Com o documento <strong>aberto na tela</strong> (PDF visível), clique no favorito <strong>"📋 Extrair Dados do Cliente"</strong>.</span>
+              <span>Clique no favorito <strong>"📋 Extrair Dados do Cliente"</strong>.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">4</span>
               <span className="flex items-center gap-1">
                 <CheckCircle className="w-4 h-4 text-success shrink-0" />
-                Pronto! O sistema identifica o cliente automaticamente pelo nome/CPF e preenche os dados faltantes.
+                Pronto! O sistema faz OCR + IA, identifica o cliente e preenche os dados.
               </span>
             </li>
           </ol>
 
           <div className="pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              <strong>Importante:</strong> O cliente precisa estar <strong>cadastrado no sistema</strong> para ser identificado.
-              O sistema só preenche campos <strong>vazios</strong>, sem sobrescrever dados já existentes.
+              <strong>Funciona com:</strong> PDFs nativos, PDFs digitalizados (escaneados), imagens de documentos e páginas renderizadas em canvas.
+              O cliente precisa estar cadastrado no sistema para ser identificado.
             </p>
           </div>
         </div>
