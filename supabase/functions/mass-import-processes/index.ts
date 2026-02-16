@@ -256,13 +256,78 @@ Deno.serve(async (req) => {
     let casesCreated = 0;
     let casesSkipped = 0;
     let contactsCreated = 0;
+    let contactsLinked = 0;
     const importedProcesses: string[] = [];
     const partiesFound: string[] = [];
+    const createdContacts: string[] = [];
+
+    // Cache of party name -> profile user_id to avoid re-querying/re-creating
+    const partyCache = new Map<string, string>();
+
+    /**
+     * Find or create a contact profile for a party name.
+     * Returns the profile's user_id if found/created, null otherwise.
+     */
+    async function findOrCreateContact(partyName: string): Promise<string | null> {
+      const key = partyName.toLowerCase().trim();
+      
+      // Check cache first
+      if (partyCache.has(key)) return partyCache.get(key)!;
+
+      // Check if contact already exists by name in this tenant
+      const { data: existingContact } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("tenant_id", tenant_id)
+        .eq("contact_type", "Cliente")
+        .ilike("full_name", partyName)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingContact) {
+        partyCache.set(key, existingContact.user_id);
+        return existingContact.user_id;
+      }
+
+      // Create a new auth user + profile for this party
+      const fakeEmail = `imported_${crypto.randomUUID().slice(0, 8)}@importado.local`;
+      const tempPassword = crypto.randomUUID().slice(0, 16);
+
+      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+        email: fakeEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: partyName,
+          role: "client",
+          tenant_id: tenant_id,
+        },
+      });
+
+      if (authErr) {
+        console.error(`[mass-import] Error creating user for "${partyName}":`, authErr.message);
+        return null;
+      }
+
+      const userId = authData.user.id;
+
+      // Update profile with origin info
+      await supabase.from("profiles").update({
+        origin: "Importação em Massa",
+        contact_type: "Cliente",
+      }).eq("user_id", userId);
+
+      partyCache.set(key, userId);
+      contactsCreated++;
+      createdContacts.push(partyName);
+      console.log(`[mass-import] Created contact: "${partyName}" (${userId})`);
+      return userId;
+    }
 
     for (const proc of parsed) {
       const digits = proc.process_number.replace(/\D/g, "");
 
-      // Check if case already exists
+      // Check if case already exists (by formatted or raw number)
       const { data: existing } = await supabase
         .from("cases")
         .select("id")
@@ -273,10 +338,39 @@ Deno.serve(async (req) => {
 
       if (existing) {
         casesSkipped++;
+        // Even if case exists, try to link parties if not linked yet
+        if (proc.parties.length > 0 && existing.id) {
+          const { data: caseData } = await supabase
+            .from("cases")
+            .select("client_user_id")
+            .eq("id", existing.id)
+            .single();
+          
+          if (caseData && !caseData.client_user_id) {
+            const contactId = await findOrCreateContact(proc.parties[0]);
+            if (contactId) {
+              await supabase.from("cases").update({ client_user_id: contactId }).eq("id", existing.id);
+              contactsLinked++;
+            }
+          }
+        }
         continue;
       }
 
       const source = inferSource(proc.process_number);
+
+      // Find or create the first party as client
+      let clientUserId: string | null = null;
+      if (proc.parties.length > 0) {
+        clientUserId = await findOrCreateContact(proc.parties[0]);
+        if (clientUserId) contactsLinked++;
+        
+        // Also create remaining parties (they exist as contacts even if not linked to this case)
+        for (let pi = 1; pi < proc.parties.length; pi++) {
+          partiesFound.push(proc.parties[pi]);
+          await findOrCreateContact(proc.parties[pi]);
+        }
+      }
 
       // Create the case
       const { data: newCase, error: caseErr } = await supabase.from("cases").insert({
@@ -287,6 +381,7 @@ Deno.serve(async (req) => {
         simple_status: proc.status || "Importado",
         automation_enabled: true,
         case_summary: proc.parties.length > 0 ? `Partes: ${proc.parties.join(" x ")}` : null,
+        client_user_id: clientUserId,
       }).select("id").single();
 
       if (caseErr) {
@@ -296,30 +391,10 @@ Deno.serve(async (req) => {
 
       casesCreated++;
       importedProcesses.push(proc.process_number);
-
-      // Track parties found
-      for (const partyName of proc.parties) {
-        partiesFound.push(partyName);
-
-        // Check if contact already exists by name in this tenant
-        const { data: existingContact } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("tenant_id", tenant_id)
-          .eq("contact_type", "Cliente")
-          .ilike("full_name", partyName)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingContact && newCase) {
-          // Link existing client to case
-          await supabase.from("cases").update({ client_user_id: existingContact.id }).eq("id", newCase.id);
-          contactsCreated++;
-        }
-      }
+      for (const p of proc.parties) partiesFound.push(p);
     }
 
-    console.log(`[mass-import] Done: ${casesCreated} created, ${casesSkipped} skipped, ${contactsCreated} contacts linked, ${partiesFound.length} parties found`);
+    console.log(`[mass-import] Done: ${casesCreated} cases created, ${casesSkipped} skipped, ${contactsCreated} contacts created, ${contactsLinked} linked`);
 
     return new Response(
       JSON.stringify({
@@ -327,9 +402,10 @@ Deno.serve(async (req) => {
         total_found: parsed.length,
         cases_created: casesCreated,
         cases_skipped: casesSkipped,
-        contacts_linked: contactsCreated,
+        contacts_created: contactsCreated,
+        contacts_linked: contactsLinked,
         parties_found: partiesFound.length,
-        sample_parties: partiesFound.slice(0, 10),
+        sample_parties: [...new Set(createdContacts)].slice(0, 10),
         imported_processes: importedProcesses.slice(0, 20),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
