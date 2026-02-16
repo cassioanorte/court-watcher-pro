@@ -351,17 +351,11 @@ Deno.serve(async (req) => {
       docName = doc.name;
     }
 
-    // Default: try regex first, auto-fallback to AI if regex finds nothing useful
+    // Default: try regex only (no AI fallback)
     if (use_ai) {
       return await extractAndUpdateProfileAI(admin, lovableKey, resolvedCaseId, docBase64, docMimeType, corsHeaders);
     } else {
-      const regexResult = await extractAndUpdateProfileRegex(admin, resolvedCaseId, docBase64, docMimeType, corsHeaders, true);
-      const regexBody = await regexResult.clone().json();
-      // Auto-fallback to AI if regex found no data or PDF is image-based
-      if (regexBody.auto_fallback_ai) {
-        console.log("Regex found no useful data, auto-falling back to AI extraction");
-        return await extractAndUpdateProfileAI(admin, lovableKey, resolvedCaseId, docBase64, docMimeType, corsHeaders);
-      }
+      const regexResult = await extractAndUpdateProfileRegex(admin, resolvedCaseId, docBase64, docMimeType, corsHeaders, false);
       return regexResult;
     }
   } catch (err) {
@@ -478,8 +472,7 @@ async function extractAndUpdateProfileDirect(
 
   // Regex extraction
   if (!docMimeType.includes("pdf")) {
-    // Auto-fallback to AI for non-PDF
-    return await extractAndUpdateProfileDirect(admin, lovableKey, contactUserId, docBase64, docMimeType, corsHeaders, true);
+    return new Response(JSON.stringify({ success: true, error: "Extração por regex só funciona com PDFs de texto.", updated: 0, method: "regex" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const binaryStr = atob(docBase64);
@@ -491,7 +484,7 @@ async function extractAndUpdateProfileDirect(
   const readableRatio = readableChars.length / Math.max(pdfText.length, 1);
 
   if (pdfText.length < 20 || readableRatio < 0.3) {
-    return await extractAndUpdateProfileDirect(admin, lovableKey, contactUserId, docBase64, docMimeType, corsHeaders, true);
+    return new Response(JSON.stringify({ success: true, error: "PDF parece ser uma imagem escaneada. Não foi possível extrair texto.", updated: 0, method: "regex" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const extractedData = extractWithRegex(pdfText);
@@ -503,7 +496,7 @@ async function extractAndUpdateProfileDirect(
   }
 
   if (Object.keys(updateData).length === 0) {
-    return await extractAndUpdateProfileDirect(admin, lovableKey, contactUserId, docBase64, docMimeType, corsHeaders, true);
+    return new Response(JSON.stringify({ success: true, error: "Nenhum dado novo encontrado no documento via regex.", updated: 0, method: "regex" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const { error: updateError } = await admin.from("profiles").update(updateData).eq("user_id", contactUserId);
