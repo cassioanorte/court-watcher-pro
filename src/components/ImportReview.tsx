@@ -13,10 +13,46 @@ interface ProcessWithParties {
   parties: string[];
 }
 
+/** Terms that should never appear as party names */
+const NOISE_PATTERNS = [
+  /^direito\b/i, /^procedimento\b/i, /^cumprimento\b/i, /^execução\b/i,
+  /^incidente\b/i, /^liquidação\b/i, /^recurso\b/i, /^tutela\b/i,
+  /^mandado\b/i, /^embargos\b/i, /^ação\b/i, /^agravo\b/i, /^apelação\b/i,
+  /^matérias?\b/i, /^outras\b/i, /^ao\s+t[jrf]/i,
+  /\bmovimento\b/i, /\bsusp$/i, /\bjuntada\b/i, /\bsentença\b/i,
+  /\bdespacho\b/i, /\bpetição\b/i, /\bdecisão\b/i, /\bacórdão\b/i,
+  /\bdistribuição\b/i, /\bconclusão\b/i, /\bintimação\b/i, /\bcitação\b/i,
+  /^usucapião$/i, /^inventário$/i, /^divórcio$/i, /^interdição$/i,
+  /^partes\s*:/i, /^olada\b/i, /^em recupera/i, /^recuperação/i,
+];
+
+function isNoise(name: string): boolean {
+  const t = name.trim();
+  if (t.length < 4) return true;
+  // Pure numbers or dates
+  if (/^\d/.test(t)) return true;
+  // Must have at least 2 words for a person/company name
+  if (t.split(/\s+/).filter(w => w.length > 1).length < 2) return true;
+  return NOISE_PATTERNS.some(p => p.test(t));
+}
+
 function extractPartiesFromSummary(summary: string | null): string[] {
   if (!summary) return [];
-  // New format uses " | " separator
-  return summary.split(/\s*\|\s*/).map(p => p.trim()).filter(p => p.length > 3);
+  
+  // Remove "Partes:" prefix if present
+  let text = summary.replace(/^Partes\s*:\s*/i, "").trim();
+  
+  // Split by " | " (new format) or " x " (old format from tribunal HTML)
+  let parts: string[];
+  if (text.includes(" | ")) {
+    parts = text.split(/\s*\|\s*/);
+  } else {
+    parts = text.split(/\s+x\s+/i);
+  }
+  
+  return parts
+    .map(p => p.trim())
+    .filter(p => !isNoise(p));
 }
 
 const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
@@ -43,8 +79,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
       .map(c => ({
         ...c,
         parties: extractPartiesFromSummary(c.case_summary),
-      }))
-      .filter(c => c.parties.length > 0);
+      }));
 
     setCases(processed);
     setLoading(false);
@@ -171,7 +206,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {c.parties.map((party, i) => (
+                      {c.parties.length > 0 ? c.parties.map((party, i) => (
                         <button
                           key={i}
                           onClick={() => handleSelectParty(c, party)}
@@ -186,8 +221,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                           )}
                           {party}
                         </button>
-                      ))}
-                      {c.parties.length === 0 && (
+                      )) : (
                         <span className="text-xs text-muted-foreground italic">Partes não identificadas</span>
                       )}
                     </div>
