@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bookmark, Copy, CheckCircle, Sparkles } from "lucide-react";
+import { Copy, CheckCircle, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -8,11 +8,6 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 function getExtractBookmarkletCode(): string {
   const code = `
 (function(){
-  var NUM_PROMPT='Informe o número do processo (CNJ) vinculado ao cliente:';
-  var processNumber=prompt(NUM_PROMPT);
-  if(!processNumber||!processNumber.trim()){alert('❌ Número do processo é obrigatório.');return;}
-  processNumber=processNumber.trim();
-
   /* Try to find PDF in page */
   var pdfUrl=null;
   var embeds=document.querySelectorAll('embed[type="application/pdf"],embed[src*=".pdf"],object[type="application/pdf"],iframe[src*=".pdf"]');
@@ -22,18 +17,20 @@ function getExtractBookmarkletCode(): string {
   function sendToBackend(base64,mimeType,fileName){
     var statusDiv=document.createElement('div');
     statusDiv.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;';
-    statusDiv.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Extraindo dados do cliente...';
+    statusDiv.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Identificando cliente e extraindo dados...';
     document.body.appendChild(statusDiv);
 
     fetch('${SUPABASE_URL}/functions/v1/extract-client-data',{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':'${SUPABASE_KEY}'},
-      body:JSON.stringify({case_id:null,process_number:processNumber,file_base64:base64,file_name:fileName,file_mime_type:mimeType})
+      body:JSON.stringify({auto_identify:true,file_base64:base64,file_name:fileName,file_mime_type:mimeType})
     }).then(function(r){return r.json()}).then(function(d){
       statusDiv.remove();
-      if(d.success){
+      if(d.success&&d.updated>0){
         var fields=Object.keys(d.fields||{}).join(', ');
-        alert('✅ '+d.updated+' campo(s) atualizado(s) no cadastro do cliente!\\n\\nCampos: '+fields);
+        alert('✅ Cliente: '+d.client_name+'\\n\\n'+d.updated+' campo(s) atualizado(s)!\\n\\nCampos: '+fields);
+      }else if(d.success&&d.updated===0){
+        alert('ℹ️ Cliente identificado: '+(d.client_name||'N/A')+'\\n\\nTodos os campos já estão preenchidos ou nenhum dado novo foi encontrado.');
       }else{
         alert('⚠️ '+(d.error||'Nenhum dado encontrado no documento.'));
       }
@@ -44,7 +41,6 @@ function getExtractBookmarkletCode(): string {
   }
 
   if(pdfUrl){
-    /* Found embedded PDF - fetch it */
     var statusDiv=document.createElement('div');
     statusDiv.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
     statusDiv.textContent='⏳ Baixando documento...';
@@ -62,14 +58,13 @@ function getExtractBookmarkletCode(): string {
         binary+=String.fromCharCode.apply(null,bytes.slice(i,i+chunkSize));
       }
       var base64=btoa(binary);
-      sendToBackend(base64,'application/pdf',processNumber+'_doc.pdf');
+      sendToBackend(base64,'application/pdf','documento.pdf');
     }).catch(function(e){
       statusDiv.remove();
       alert('❌ Erro ao baixar o documento: '+e.message+'\\n\\nTente baixar o PDF manualmente e usar o botão de upload no sistema.');
     });
   }else{
-    /* No PDF found - capture page as screenshot-like approach via HTML */
-    alert('⚠️ Nenhum PDF encontrado nesta página.\\n\\nAbra o documento (PDF) no tribunal e tente novamente, ou baixe o PDF e use o botão "Upload e extrair" no detalhe do processo.');
+    alert('⚠️ Nenhum PDF encontrado nesta página.\\n\\nAbra o documento (PDF) no tribunal e tente novamente.');
   }
 })();
   `.replace(/\n/g, "").replace(/\s+/g, " ").trim();
@@ -101,8 +96,8 @@ const ExtractDataBookmarklet = () => {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Abra um documento (petição inicial, procuração, etc.) diretamente no <strong>tribunal</strong> e clique no favorito para
-        extrair automaticamente os dados de qualificação do cliente (CPF, RG, endereço, etc.) e preencher o cadastro.
+        Abra um documento (petição inicial, procuração, etc.) diretamente no <strong>tribunal</strong> e clique no favorito.
+        O sistema <strong>identifica automaticamente</strong> o cliente pelo nome/CPF e preenche os dados faltantes no cadastro.
       </p>
 
       <div className="flex items-center gap-3">
@@ -142,21 +137,17 @@ const ExtractDataBookmarklet = () => {
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">4</span>
-              <span>Informe o <strong>número do processo</strong> (CNJ) quando solicitado.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">5</span>
               <span className="flex items-center gap-1">
                 <CheckCircle className="w-4 h-4 text-success shrink-0" />
-                Pronto! Os dados serão extraídos pela IA e preenchidos automaticamente no cadastro do cliente vinculado ao processo.
+                Pronto! O sistema identifica o cliente automaticamente pelo nome/CPF e preenche os dados faltantes.
               </span>
             </li>
           </ol>
 
           <div className="pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              <strong>Importante:</strong> O sistema só preenche campos que estejam <strong>vazios</strong> no cadastro do cliente, sem sobrescrever dados já preenchidos.
-              Funciona com PDFs abertos no eproc (TRF4, TJRS) e em qualquer página que exiba um documento PDF embutido.
+              <strong>Importante:</strong> O cliente precisa estar <strong>cadastrado no sistema</strong> para ser identificado.
+              O sistema só preenche campos <strong>vazios</strong>, sem sobrescrever dados já existentes.
             </p>
           </div>
         </div>
