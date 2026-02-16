@@ -11,10 +11,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { document_id, case_id } = await req.json();
-    if (!document_id || !case_id) {
+    const { document_id, case_id, file_base64, file_name, file_mime_type } = await req.json();
+    if (!case_id) {
       return new Response(
-        JSON.stringify({ error: "document_id and case_id are required" }),
+        JSON.stringify({ error: "case_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!document_id && !file_base64) {
+      return new Response(
+        JSON.stringify({ error: "document_id or file_base64 is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -39,17 +45,42 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Get document
-    const { data: doc, error: docError } = await admin
-      .from("documents")
-      .select("file_url, name")
-      .eq("id", document_id)
-      .single();
-    if (docError || !doc) {
-      return new Response(JSON.stringify({ error: "Document not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let docBase64: string;
+    let docMimeType: string;
+    let docName: string;
+
+    if (file_base64) {
+      // Direct file upload mode
+      docBase64 = file_base64;
+      docMimeType = file_mime_type || "application/pdf";
+      docName = file_name || "document.pdf";
+    } else {
+      // Existing document mode
+      const { data: doc, error: docError } = await admin
+        .from("documents")
+        .select("file_url, name")
+        .eq("id", document_id)
+        .single();
+      if (docError || !doc) {
+        return new Response(JSON.stringify({ error: "Document not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const docResponse = await fetch(doc.file_url);
+      if (!docResponse.ok) {
+        return new Response(
+          JSON.stringify({ error: "Não foi possível baixar o documento." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const contentType = docResponse.headers.get("content-type") || "";
+      const docBytes = new Uint8Array(await docResponse.arrayBuffer());
+      docBase64 = btoa(String.fromCharCode(...docBytes));
+      docMimeType = contentType.includes("pdf") || doc.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : contentType.split(";")[0] || "image/jpeg";
+      docName = doc.name;
     }
 
     // Get case to find client
@@ -113,19 +144,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Download document
-    const docResponse = await fetch(doc.file_url);
-    if (!docResponse.ok) {
-      return new Response(
-        JSON.stringify({ error: "Não foi possível baixar o documento." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const contentType = docResponse.headers.get("content-type") || "";
-    const docBytes = new Uint8Array(await docResponse.arrayBuffer());
-    const isPdf = contentType.includes("pdf") || doc.name.toLowerCase().endsWith(".pdf");
-
     // Build AI request
     const systemPrompt = `Você é um assistente jurídico brasileiro. Extraia dados de qualificação de uma parte processual a partir do documento fornecido.
 
@@ -144,28 +162,12 @@ Regras:
 - Retorne um objeto JSON com as chaves sendo os nomes dos campos (cpf, rg, address, etc.)`;
 
     const parts: any[] = [{ text: systemPrompt }];
-
-    if (isPdf) {
-      const base64 = btoa(String.fromCharCode(...docBytes));
-      parts.push({
-        inline_data: {
-          mime_type: "application/pdf",
-          data: base64,
-        },
-      });
-    } else {
-      // For images
-      const mimeType = contentType.split(";")[0] || "image/jpeg";
-      const base64 = btoa(String.fromCharCode(...docBytes));
-      parts.push({
-        inline_data: {
-          mime_type: mimeType,
-          data: base64,
-        },
-      });
-    }
-
-    // Use tool calling for structured output
+    parts.push({
+      inline_data: {
+        mime_type: docMimeType,
+        data: docBase64,
+      },
+    });
     const aiResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
