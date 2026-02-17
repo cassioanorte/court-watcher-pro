@@ -48,12 +48,13 @@ function getMassImportBookmarkletCode(tenantId: string): string {
   if(procs.length===0){alert('Nenhum processo encontrado na página.');return;}
   var excl=prompt('📋 '+procs.length+' processos encontrados.\\n\\nPara EXCLUIR processos que contenham determinadas palavras (ex: nome de parte, município), digite abaixo separando por vírgula:\\n\\n(Deixe em branco para importar todos)');
   if(excl===null) return;
+  var norm=function(s){return s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')};
   var filtered=procs;
   if(excl.trim()){
-    var terms=excl.toLowerCase().split(',').map(function(s){return s.trim()}).filter(function(s){return s.length>0});
+    var terms=excl.split(',').map(function(s){return norm(s.trim())}).filter(function(s){return s.length>0});
     if(terms.length>0){
       filtered=procs.filter(function(p){
-        var txt=((p.author||'')+' '+(p.defendant||'')+' '+(p.subject||'')+' '+(p.classe||'')).toLowerCase();
+        var txt=norm((p.author||'')+' '+(p.defendant||'')+' '+(p.subject||'')+' '+(p.classe||''));
         for(var t=0;t<terms.length;t++){if(txt.indexOf(terms[t])>=0) return false;}
         return true;
       });
