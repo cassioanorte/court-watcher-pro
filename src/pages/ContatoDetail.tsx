@@ -303,9 +303,9 @@ const ContatoDetail = () => {
     const c = contact;
     const parts: string[] = [];
     if (c.full_name) parts.push(c.full_name.toUpperCase());
-    if (c.nacionalidade) parts.push(c.nacionalidade.toLowerCase());
-    if (c.civil_status) parts.push(c.civil_status.toLowerCase());
-    if (c.atividade_economica) parts.push(c.atividade_economica.toLowerCase());
+    if (c.nacionalidade) parts.push(c.nacionalidade);
+    if (c.civil_status) parts.push(c.civil_status);
+    if (c.atividade_economica) parts.push(c.atividade_economica);
     if (c.cpf) parts.push(`inscrito(a) no CPF sob o nº ${c.cpf}`);
     if (c.rg) parts.push(`portador(a) do RG nº ${c.rg}`);
     if (c.ctps) parts.push(`CTPS nº ${c.ctps}`);
