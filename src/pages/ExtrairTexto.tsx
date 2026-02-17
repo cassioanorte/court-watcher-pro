@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle, Loader2, AlertTriangle, Copy } from "lucide-react";
+import { CheckCircle, Loader2, AlertTriangle, Search, UserCheck } from "lucide-react";
 
 const FIELD_LABELS: Record<string, string> = {
   cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
@@ -21,6 +21,12 @@ const ExtrairTexto = () => {
   const [savedCount, setSavedCount] = useState(0);
   const [clientName, setClientName] = useState("");
 
+  // Search contacts state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ user_id: string; full_name: string; cpf: string | null }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<{ user_id: string; name: string } | null>(null);
+
   useEffect(() => {
     if (!text || text.length < 10) {
       setStatus("error");
@@ -38,11 +44,14 @@ const ExtrairTexto = () => {
       });
       if (fnError || !data?.success) {
         setStatus("error");
-        setError(data?.error || fnError?.message || "Nenhum dado encontrado.");
+        setError(data?.error || fnError?.message || "Nenhum dado encontrado no texto selecionado.");
         return;
       }
       setFields(data.fields || {});
-      setIdentifiedContact(data.identified_contact || null);
+      if (data.identified_contact) {
+        setIdentifiedContact(data.identified_contact);
+        setSelectedContact(data.identified_contact);
+      }
       setStatus("preview");
     } catch (e: any) {
       setStatus("error");
@@ -50,12 +59,30 @@ const ExtrairTexto = () => {
     }
   };
 
+  const handleSearch = async () => {
+    if (searchQuery.trim().length < 2) return;
+    setSearching(true);
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, cpf")
+        .ilike("full_name", `%${searchQuery.trim()}%`)
+        .limit(10);
+      setSearchResults(data || []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!identifiedContact) return;
+    const contact = selectedContact || identifiedContact;
+    if (!contact) return;
     setStatus("saving");
     try {
       const { data, error: fnError } = await supabase.functions.invoke("extract-selected-text", {
-        body: { selected_text: text, contact_user_id: identifiedContact.user_id },
+        body: { selected_text: text, contact_user_id: contact.user_id },
       });
       if (fnError || !data?.success) {
         setStatus("error");
@@ -63,13 +90,15 @@ const ExtrairTexto = () => {
         return;
       }
       setSavedCount(data.updated || 0);
-      setClientName(data.client_name || identifiedContact.name);
+      setClientName(data.client_name || contact.name);
       setStatus("saved");
     } catch (e: any) {
       setStatus("error");
       setError(e.message || "Erro ao salvar.");
     }
   };
+
+  const activeContact = selectedContact || identifiedContact;
 
   return (
     <div className="min-h-screen bg-background p-6 font-sans">
@@ -110,44 +139,76 @@ const ExtrairTexto = () => {
               ))}
             </div>
 
-            {identifiedContact ? (
-              <div className="space-y-3">
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                  <p className="text-sm">
-                    <span className="text-primary font-semibold">✓ Cliente identificado:</span>{" "}
-                    <strong className="text-foreground">{identifiedContact.name}</strong>
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleSave} className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90">
-                    ✅ Salvar dados no cadastro
-                  </button>
-                  <button onClick={() => window.close()} className="px-4 py-2.5 rounded-lg bg-muted text-muted-foreground text-sm hover:bg-muted/80">
-                    Cancelar
-                  </button>
-                </div>
+            {/* Contact selection */}
+            {activeContact ? (
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center justify-between">
+                <p className="text-sm">
+                  <span className="text-primary font-semibold">✓ Cliente:</span>{" "}
+                  <strong className="text-foreground">{activeContact.name}</strong>
+                </p>
+                <button
+                  onClick={() => { setSelectedContact(null); setIdentifiedContact(null); }}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Alterar
+                </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Nenhum cliente identificado automaticamente. Copie os dados e cole no campo de extração dentro do perfil do contato.
-                </p>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Selecione o contato para salvar:</p>
                 <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    placeholder="Buscar por nome..."
+                    className="flex-1 px-3 py-2 rounded-lg border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(text);
-                      alert("Texto copiado! Cole no campo de extração dentro do perfil do contato.");
-                    }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-muted text-foreground text-sm hover:bg-muted/80"
+                    onClick={handleSearch}
+                    disabled={searching || searchQuery.trim().length < 2}
+                    className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
                   >
-                    <Copy className="w-3.5 h-3.5" /> Copiar texto
-                  </button>
-                  <button onClick={() => window.close()} className="px-4 py-2.5 rounded-lg bg-muted text-muted-foreground text-sm hover:bg-muted/80">
-                    Fechar
+                    {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                   </button>
                 </div>
+                {searchResults.length > 0 && (
+                  <div className="bg-card border rounded-lg divide-y divide-border max-h-48 overflow-auto">
+                    {searchResults.map((c) => (
+                      <button
+                        key={c.user_id}
+                        onClick={() => {
+                          setSelectedContact({ user_id: c.user_id, name: c.full_name });
+                          setSearchResults([]);
+                          setSearchQuery("");
+                        }}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <span className="font-medium text-foreground">{c.full_name}</span>
+                        {c.cpf && <span className="text-xs text-muted-foreground">{c.cpf}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchResults.length === 0 && searchQuery.length >= 2 && !searching && (
+                  <p className="text-xs text-muted-foreground">Nenhum contato encontrado. Tente outro nome.</p>
+                )}
               </div>
             )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSave}
+                disabled={!activeContact}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <UserCheck className="w-4 h-4" /> Salvar dados no cadastro
+              </button>
+              <button onClick={() => window.close()} className="px-4 py-2.5 rounded-lg bg-muted text-muted-foreground text-sm hover:bg-muted/80">
+                Fechar
+              </button>
+            </div>
           </>
         )}
 
