@@ -74,32 +74,32 @@ export function getAuthenticatedCourtUrl(processNumber: string, source?: string)
   const digits = processNumber.replace(/\D/g, "");
   if (digits.length < 20) return null;
 
+  const formatted = formatCNJ(processNumber);
   const justice = digits[13];
   const tribunal = digits.slice(14, 16);
 
   // Justice 4 = Federal (TRF4)
   if (justice === "4" && tribunal === "04") {
     const origin = digits.slice(16, 20);
+    let base = "https://eproc.trf4.jus.br/eproc2trf4";
     if (origin.startsWith("71") || origin.startsWith("50")) {
-      return "https://eproc.jfrs.jus.br/eprocV2/";
+      base = "https://eproc.jfrs.jus.br/eprocV2";
+    } else if (origin.startsWith("72")) {
+      base = "https://eproc.jfsc.jus.br/eprocV2";
+    } else if (origin.startsWith("70")) {
+      base = "https://eproc.jfpr.jus.br/eprocV2";
     }
-    if (origin.startsWith("72")) {
-      return "https://eproc.jfsc.jus.br/eprocV2/";
-    }
-    if (origin.startsWith("70")) {
-      return "https://eproc.jfpr.jus.br/eprocV2/";
-    }
-    return "https://eproc.trf4.jus.br/eproc2trf4/";
+    return `${base}/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}`;
   }
 
   // Justice 8 = Estadual
   if (justice === "8" && tribunal === "21") {
-    return "https://eproc.tjrs.jus.br/eproc/";
+    return `https://eproc.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}`;
   }
 
   // Justice 5 = Trabalho
   if (justice === "5") {
-    return "https://pje.trt4.jus.br/consultaprocessual/";
+    return `https://pje.trt4.jus.br/consultaprocessual/detalhe-processo/${encodeURIComponent(formatted)}`;
   }
 
   return null;
