@@ -11,6 +11,7 @@ import {
   Check, Trash2, Edit2, Save, Loader2, ArrowRight, Building2,
   PhoneCall, Video, StickyNote, Send, CalendarIcon, LinkIcon, ExternalLink, Copy,
 } from "lucide-react";
+import CrmIntegrations from "@/components/CrmIntegrations";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +99,7 @@ const CRM = () => {
   const [allAppointments, setAllAppointments] = useState<LeadAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "integracoes">("kanban");
 
   // New lead modal
   const [showNewLead, setShowNewLead] = useState(false);
@@ -396,13 +397,22 @@ const CRM = () => {
             <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
               Lista
             </button>
+            <button onClick={() => setViewMode("integracoes")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "integracoes" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              Integrações
+            </button>
           </div>
-          <Button onClick={() => setShowNewLead(true)} className="gap-2">
-            <UserPlus className="w-4 h-4" /> Novo Lead
-          </Button>
+          {viewMode !== "integracoes" && (
+            <Button onClick={() => setShowNewLead(true)} className="gap-2">
+              <UserPlus className="w-4 h-4" /> Novo Lead
+            </Button>
+          )}
         </div>
       </div>
 
+      {viewMode === "integracoes" ? (
+        <CrmIntegrations />
+      ) : (
+      <>
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card border rounded-lg p-4 shadow-card">
@@ -983,6 +993,8 @@ const CRM = () => {
           )}
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 };
