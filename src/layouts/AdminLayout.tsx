@@ -1,11 +1,12 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -21,12 +22,11 @@ const navItems = [
 const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { tenantId } = useAuth();
+  const { tenantId, profile, role, user } = useAuth();
   const [tenantName, setTenantName] = useState("Portal Jurídico");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
   const [logoBg, setLogoBg] = useState("");
-  const { profile } = useAuth();
   useThemeLoader();
 
   useEffect(() => {
@@ -136,9 +136,62 @@ const AdminLayout = () => {
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
             </button>
-            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground">
-              {profile?.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "??"}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50">
+                  {profile?.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "??"}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 bg-popover z-[100]">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground shrink-0">
+                      {profile?.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "??"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{profile?.full_name || "Usuário"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5 space-y-1">
+                  {profile?.oab_number && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Scale className="w-3 h-3" />
+                      <span>OAB: {profile.oab_number}</span>
+                    </div>
+                  )}
+                  {role && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <User className="w-3 h-3" />
+                      <span>{role === "owner" ? "Proprietário" : role === "staff" ? "Colaborador" : role === "client" ? "Cliente" : "Super Admin"}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <LayoutDashboard className="w-3 h-3" />
+                    <span className="truncate">{tenantName}</span>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/configuracoes" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="w-4 h-4" />
+                    Configurações
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.href = "/auth";
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
