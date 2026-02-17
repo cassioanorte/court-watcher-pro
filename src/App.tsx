@@ -32,6 +32,7 @@ import AdminBilling from "./pages/admin/AdminBilling";
 import AdminTrials from "./pages/admin/AdminTrials";
 import AdminReports from "./pages/admin/AdminReports";
 import NotFound from "./pages/NotFound";
+import ExtrairTexto from "./pages/ExtrairTexto";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -90,6 +91,7 @@ const App = () => (
             {/* Auth routes */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/portal/login" element={<ClientAuth />} />
+            <Route path="/extrair-texto" element={<ExtrairTexto />} />
 
             {/* Admin / Staff routes */}
             <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
