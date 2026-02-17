@@ -1,176 +1,63 @@
 import { useState } from "react";
-import { Copy, CheckCircle, Sparkles } from "lucide-react";
+import { Copy, CheckCircle, Sparkles, MousePointerClick } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-function getExtractBookmarkletCode(): string {
+function getSelectionBookmarkletCode(): string {
   const code = `
 (function(){
-  var ENDPOINT='${SUPABASE_URL}/functions/v1/extract-client-data';
+  var ENDPOINT='${SUPABASE_URL}/functions/v1/extract-selected-text';
   var APIKEY='${SUPABASE_KEY}';
+  var sel=window.getSelection().toString().trim();
+  if(!sel||sel.length<10){alert('⚠️ Selecione o texto com os dados do cliente antes de clicar no bookmarklet.\\n\\nDica: Selecione o trecho que contém CPF, RG, endereço, etc.');return;}
 
-  function showStatus(msg){
+  function showStatus(msg,color){
     var d=document.getElementById('_ext_status');
     if(d)d.remove();
     d=document.createElement('div');
     d.id='_ext_status';
-    d.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;max-width:420px;';
-    d.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite;flex-shrink:0"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> '+msg;
+    d.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-width:480px;line-height:1.5;';
+    d.innerHTML=msg;
     document.body.appendChild(d);
     return d;
   }
   function hideStatus(){var d=document.getElementById('_ext_status');if(d)d.remove();}
 
-  function sendToBackend(base64,mimeType,fileName){
-    showStatus('Identificando cliente e extraindo dados (OCR + IA)...');
-    fetch(ENDPOINT,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':APIKEY},
-      body:JSON.stringify({auto_identify:true,file_base64:base64,file_name:fileName,file_mime_type:mimeType})
-    }).then(function(r){return r.json()}).then(function(d){
-      hideStatus();
-      if(d.success&&d.updated>0){
-        var fields=Object.keys(d.fields||{}).join(', ');
-        alert('✅ Cliente: '+d.client_name+'\\n\\n'+d.updated+' campo(s) atualizado(s)!\\n\\nCampos: '+fields);
-      }else if(d.success&&d.updated===0){
-        alert('ℹ️ Cliente: '+(d.client_name||'N/A')+'\\nTodos os campos já estão preenchidos.');
-      }else{
-        alert('⚠️ '+(d.error||'Nenhum dado encontrado.'));
-      }
-    }).catch(function(e){hideStatus();alert('❌ Erro: '+e.message);});
-  }
+  showStatus('<div style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite;flex-shrink:0"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Extraindo dados do texto selecionado...</div>');
 
-  function fetchAndSend(url,mime,name){
-    showStatus('Baixando documento...');
-    fetch(url,{credentials:'include'}).then(function(r){
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      return r.arrayBuffer();
-    }).then(function(buf){
-      var bytes=new Uint8Array(buf);
-      var binary='';var cs=8192;
-      for(var i=0;i<bytes.length;i+=cs){binary+=String.fromCharCode.apply(null,bytes.slice(i,i+cs));}
-      sendToBackend(btoa(binary),mime,name);
-    }).catch(function(e){hideStatus();alert('❌ Erro ao baixar: '+e.message);});
-  }
-
-  function imgToBase64(img){
-    var c=document.createElement('canvas');
-    c.width=img.naturalWidth||img.width;
-    c.height=img.naturalHeight||img.height;
-    var ctx=c.getContext('2d');
-    ctx.drawImage(img,0,0);
-    try{return c.toDataURL('image/png');}catch(e){return null;}
-  }
-
-  /* 1. Try PDF embeds */
-  var pdfUrl=null;
-  var el=document.querySelectorAll('embed[type="application/pdf"],embed[src*=".pdf"],object[type="application/pdf"],iframe[src*=".pdf"],iframe[src*="viewer"],iframe[src*="documento"],iframe[src*="doc"]');
-  for(var i=0;i<el.length;i++){
-    var s=el[i].src||el[i].data||'';
-    if(s&&(s.indexOf('.pdf')>-1||el[i].type==='application/pdf')){pdfUrl=s;break;}
-  }
-  if(!pdfUrl){var plinks=document.querySelectorAll('a[href*=".pdf"]');if(plinks.length>0)pdfUrl=plinks[0].href;}
-
-  if(pdfUrl){fetchAndSend(pdfUrl,'application/pdf','documento.pdf');return;}
-
-  /* 2. Try images in current page - find all significant images */
-  var allImgs=[];
-  var pageImgs=document.querySelectorAll('img');
-  for(var j=0;j<pageImgs.length;j++){
-    var im=pageImgs[j];
-    var w=im.naturalWidth||im.width||0;
-    var h=im.naturalHeight||im.height||0;
-    if(w>200&&h>200){allImgs.push({el:im,area:w*h,src:im.src});}
-  }
-
-  /* 3. Try images inside same-origin iframes */
-  var iframes=document.querySelectorAll('iframe');
-  for(var k=0;k<iframes.length;k++){
-    try{
-      var iDoc=iframes[k].contentDocument||iframes[k].contentWindow.document;
-      if(iDoc){
-        var iImgs=iDoc.querySelectorAll('img');
-        for(var m=0;m<iImgs.length;m++){
-          var ii=iImgs[m];
-          var iw=ii.naturalWidth||ii.width||0;
-          var ih=ii.naturalHeight||ii.height||0;
-          if(iw>200&&ih>200){allImgs.push({el:ii,area:iw*ih,src:ii.src});}
-        }
-        /* Also check for canvas inside iframes */
-        var iCanvases=iDoc.querySelectorAll('canvas');
-        for(var n=0;n<iCanvases.length;n++){
-          var ic=iCanvases[n];
-          if(ic.width>200&&ic.height>200){
-            try{var d=ic.toDataURL('image/png');allImgs.push({el:ic,area:ic.width*ic.height,src:d,isDataUrl:true});}catch(e){}
-          }
-        }
-      }
-    }catch(e){/* cross-origin iframe */}
-  }
-
-  /* 4. Try canvas elements in main page */
-  var canvases=document.querySelectorAll('canvas');
-  for(var p=0;p<canvases.length;p++){
-    var cv=canvases[p];
-    if(cv.width>200&&cv.height>200){
-      try{var du=cv.toDataURL('image/png');allImgs.push({el:cv,area:cv.width*cv.height,src:du,isDataUrl:true});}catch(e){}
-    }
-  }
-
-  /* Sort by area descending and pick largest */
-  allImgs.sort(function(a,b){return b.area-a.area;});
-
-  if(allImgs.length>0){
-    var best=allImgs[0];
-    if(best.isDataUrl||best.src.startsWith('data:')){
-      var parts=best.src.split(',');
-      var mimeMatch=parts[0].match(/:(.*?);/);
-      var mime=mimeMatch?mimeMatch[1]:'image/png';
-      sendToBackend(parts[1],mime,'documento_digitalizado.png');
-    }else if(best.src.startsWith('blob:')){
-      /* Handle blob URLs */
-      showStatus('Capturando imagem...');
-      fetch(best.src).then(function(r){return r.arrayBuffer();}).then(function(buf){
-        var bytes=new Uint8Array(buf);
-        var binary='';var cs=8192;
-        for(var i=0;i<bytes.length;i+=cs){binary+=String.fromCharCode.apply(null,bytes.slice(i,i+cs));}
-        sendToBackend(btoa(binary),'image/png','documento_digitalizado.png');
-      }).catch(function(){
-        /* Fallback: draw to canvas */
-        var b64=imgToBase64(best.el);
-        if(b64){var ps=b64.split(',');sendToBackend(ps[1],'image/png','documento_digitalizado.png');}
-        else{hideStatus();alert('❌ Não foi possível capturar a imagem.');}
-      });
+  fetch(ENDPOINT,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':APIKEY},
+    body:JSON.stringify({selected_text:sel,preview_only:true})
+  }).then(function(r){return r.json()}).then(function(d){
+    if(!d.success){hideStatus();alert('⚠️ '+(d.error||'Nenhum dado encontrado.'));return;}
+    var labels={cpf:'CPF',rg:'RG',address:'Endereço',phone:'Telefone',email:'Email',civil_status:'Estado Civil',nacionalidade:'Nacionalidade',naturalidade:'Naturalidade',nome_mae:'Nome da Mãe',nome_pai:'Nome do Pai',birth_date:'Nascimento',cnh:'CNH',ctps:'CTPS',pis:'PIS',titulo_eleitor:'Título Eleitor',atividade_economica:'Profissão',certidao_reservista:'Reservista',passaporte:'Passaporte'};
+    var html='<div style="margin-bottom:12px;font-weight:bold;color:#c8972e">📋 Dados encontrados ('+d.count+'):</div>';
+    for(var k in d.fields){html+='<div style="margin:4px 0"><span style="color:#94a3b8;font-size:12px">'+(labels[k]||k)+':</span> <span style="color:#fff">'+d.fields[k]+'</span></div>';}
+    
+    if(d.identified_contact){
+      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #334155"><span style="color:#22c55e">✓ Cliente identificado:</span> <strong>'+d.identified_contact.name+'</strong></div>';
+      html+='<div style="margin-top:12px;display:flex;gap:8px"><button id="_ext_save" style="background:#c8972e;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✅ Salvar dados</button><button id="_ext_cancel" style="background:#334155;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px">Cancelar</button></div>';
+      showStatus(html);
+      document.getElementById('_ext_cancel').onclick=hideStatus;
+      document.getElementById('_ext_save').onclick=function(){
+        showStatus('<div style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Salvando...</div>');
+        fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','apikey':APIKEY},body:JSON.stringify({selected_text:sel,contact_user_id:d.identified_contact.user_id})}).then(function(r){return r.json()}).then(function(r2){
+          hideStatus();
+          if(r2.success&&r2.updated>0){alert('✅ '+r2.client_name+'\\n\\n'+r2.updated+' campo(s) atualizado(s)!');}
+          else if(r2.updated===0){alert('ℹ️ Todos os campos já estavam preenchidos.');}
+          else{alert('⚠️ '+(r2.error||'Erro ao salvar.'));}
+        }).catch(function(e){hideStatus();alert('❌ Erro: '+e.message);});
+      };
     }else{
-      /* Try drawing to canvas first (avoids CORS on fetch) */
-      var b64=imgToBase64(best.el);
-      if(b64){
-        var ps=b64.split(',');
-        var mm=ps[0].match(/:(.*?);/);
-        sendToBackend(ps[1],mm?mm[1]:'image/png','documento_digitalizado.png');
-      }else{
-        /* Fallback: fetch the image URL */
-        fetchAndSend(best.src,'image/jpeg','documento_digitalizado.jpg');
-      }
+      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #334155;color:#94a3b8;font-size:12px">Para salvar, abra o contato no sistema e use o botão "Extrair do texto selecionado".</div>';
+      html+='<div style="margin-top:8px"><button id="_ext_close" style="background:#334155;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px">Fechar</button></div>';
+      showStatus(html);
+      document.getElementById('_ext_close').onclick=hideStatus;
     }
-    return;
-  }
-
-  /* 5. Last resort: try to find iframe src that might be a document viewer */
-  for(var q=0;q<iframes.length;q++){
-    var isrc=iframes[q].src||'';
-    if(isrc&&isrc.indexOf('about:')!==0&&isrc.indexOf('javascript:')!==0){
-      /* Try opening iframe src directly */
-      if(confirm('Não encontrei documento nesta página.\\n\\nDeseja tentar extrair do conteúdo do iframe?\\n\\nURL: '+isrc.substring(0,80)+'...')){
-        fetchAndSend(isrc,'application/pdf','documento.pdf');
-        return;
-      }
-    }
-  }
-
-  alert('⚠️ Nenhum documento encontrado nesta página.\\n\\nDicas:\\n• Abra o documento diretamente (clique para visualizar o PDF/imagem)\\n• Se o documento está dentro de um iframe, tente abri-lo em nova aba\\n• Você também pode baixar e usar o upload no sistema');
+  }).catch(function(e){hideStatus();alert('❌ Erro: '+e.message);});
 })();
   `.replace(/\n/g, "").replace(/\s+/g, " ").trim();
   return `javascript:${encodeURIComponent(code)}`;
@@ -179,7 +66,7 @@ function getExtractBookmarkletCode(): string {
 const ExtractDataBookmarklet = () => {
   const { toast } = useToast();
   const [showInstructions, setShowInstructions] = useState(false);
-  const bookmarkletUrl = getExtractBookmarkletCode();
+  const bookmarkletUrl = getSelectionBookmarkletCode();
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(bookmarkletUrl);
@@ -190,7 +77,7 @@ const ExtractDataBookmarklet = () => {
     <div className="bg-card rounded-lg border p-5 shadow-card space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-accent" /> Extração de Dados do Cliente (Bookmarklet)
+          <MousePointerClick className="w-4 h-4 text-accent" /> Extração por Texto Selecionado
         </h2>
         <button
           onClick={() => setShowInstructions(!showInstructions)}
@@ -201,8 +88,8 @@ const ExtractDataBookmarklet = () => {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Abra um documento no <strong>tribunal</strong> — PDF, imagem digitalizada ou página escaneada — e clique no favorito.
-        O sistema faz <strong>OCR automático</strong>, identifica o cliente e preenche os dados faltantes.
+        <strong>Selecione o texto</strong> com os dados do cliente em qualquer página (tribunal, PDF, etc.) e clique no favorito.
+        O sistema extrai CPF, RG, endereço e todos os dados de qualificação automaticamente.
       </p>
 
       <div className="flex items-center gap-3">
@@ -213,7 +100,7 @@ const ExtractDataBookmarklet = () => {
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent text-accent-foreground text-sm font-semibold cursor-grab active:cursor-grabbing shadow-md hover:opacity-90 transition-opacity select-none"
           title="Arraste para a barra de favoritos"
         >
-          <Sparkles className="w-4 h-4" /> 📋 Extrair Dados do Cliente
+          <MousePointerClick className="w-4 h-4" /> 📋 Extrair do Texto
         </a>
         <button
           onClick={handleCopyCode}
@@ -234,28 +121,33 @@ const ExtractDataBookmarklet = () => {
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">2</span>
-              <span>No tribunal, <strong>abra o documento diretamente</strong> — clique para visualizar o PDF ou a imagem digitalizada.</span>
+              <span>Abra o documento no <strong>tribunal ou qualquer página</strong>.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">3</span>
-              <span>Clique no favorito <strong>"📋 Extrair Dados do Cliente"</strong>.</span>
+              <span><strong>Selecione com o mouse</strong> o trecho com os dados de qualificação do cliente.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">4</span>
+              <span>Clique no favorito <strong>"📋 Extrair do Texto"</strong>.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">5</span>
               <span className="flex items-center gap-1">
-                <CheckCircle className="w-4 h-4 text-success shrink-0" />
-                Pronto! OCR + IA identifica o cliente e preenche os dados automaticamente.
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                Confira os dados extraídos e confirme para salvar no cadastro do cliente.
               </span>
             </li>
           </ol>
 
           <div className="pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              <strong>Compatível com:</strong> PDFs nativos, documentos digitalizados (escaneados), imagens de documentos, 
-              visualizadores em canvas e iframes. O cliente precisa estar cadastrado no sistema.
+              <strong>Dados extraídos:</strong> CPF, RG, Endereço, Telefone, Email, Estado Civil, Nacionalidade, Naturalidade, 
+              Nome dos pais, Data de nascimento, CNH, CTPS, PIS, Título de Eleitor, Profissão, Passaporte e Certidão de Reservista.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              <strong>Dica:</strong> Se o documento não for detectado, tente abri-lo diretamente em uma nova aba (clique direito → "Abrir em nova aba").
+              <strong>Dica:</strong> Se o cliente tiver CPF cadastrado no sistema, ele será identificado automaticamente.
+              Caso contrário, use o botão dentro do perfil do contato.
             </p>
           </div>
         </div>

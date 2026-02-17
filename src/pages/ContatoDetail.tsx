@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen, Sparkles } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen, Sparkles, MousePointerClick, ClipboardPaste, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -32,6 +32,10 @@ const ContatoDetail = () => {
   const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
   const [extractingExternal, setExtractingExternal] = useState(false);
   const extractFileRef = useRef<HTMLInputElement>(null);
+  const [showTextExtract, setShowTextExtract] = useState(false);
+  const [extractText, setExtractText] = useState("");
+  const [extractingText, setExtractingText] = useState(false);
+  const [extractPreview, setExtractPreview] = useState<Record<string, string> | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -250,6 +254,49 @@ const ContatoDetail = () => {
     }
   };
 
+  const handleExtractFromSelectedText = async (save = false) => {
+    if (!extractText.trim() || extractText.trim().length < 10) {
+      toast({ title: "Texto muito curto", description: "Cole ou digite o trecho com os dados de qualificação.", variant: "destructive" });
+      return;
+    }
+    setExtractingText(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-selected-text", {
+        body: { selected_text: extractText, contact_user_id: save ? id : undefined, preview_only: !save },
+      });
+      if (error) throw error;
+      if (!data?.success) {
+        toast({ title: "Aviso", description: data?.error || "Nenhum dado encontrado.", variant: "default" });
+        setExtractPreview(null);
+        return;
+      }
+      if (save && data.updated !== undefined) {
+        const fieldNames: Record<string, string> = {
+          cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+          civil_status: "Estado civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+          nome_mae: "Nome da mãe", nome_pai: "Nome do pai", birth_date: "Nascimento",
+          cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título de eleitor", atividade_economica: "Profissão",
+          certidao_reservista: "Reservista", passaporte: "Passaporte",
+        };
+        const updated = Object.keys(data.fields || {}).map((k) => fieldNames[k] || k).join(", ");
+        toast({ title: data.updated > 0 ? `${data.updated} campo(s) atualizado(s)!` : "Nenhum campo novo", description: data.updated > 0 ? updated : "Todos os campos já estavam preenchidos." });
+        if (data.updated > 0) {
+          const { data: refreshed } = await supabase.from("profiles").select("*").eq("user_id", id).single();
+          if (refreshed) setContact(refreshed);
+        }
+        setExtractPreview(null);
+        setExtractText("");
+        setShowTextExtract(false);
+      } else {
+        setExtractPreview(data.fields || {});
+      }
+    } catch (err: any) {
+      toast({ title: "Erro na extração", description: err.message, variant: "destructive" });
+    } finally {
+      setExtractingText(false);
+    }
+  };
+
   const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
 
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
@@ -392,7 +439,75 @@ const ContatoDetail = () => {
           ))}
         </TabsList>
 
-        <TabsContent value="cadastro" className="mt-6">
+        <TabsContent value="cadastro" className="mt-6 space-y-4">
+          {/* Extract from selected text */}
+          <div className="bg-card border rounded-lg overflow-hidden">
+            <button
+              onClick={() => { setShowTextExtract(!showTextExtract); setExtractPreview(null); }}
+              className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-accent hover:bg-accent/5 transition-colors"
+            >
+              <MousePointerClick className="w-4 h-4" />
+              Extrair dados de texto selecionado
+              <span className="text-[10px] text-muted-foreground ml-auto">{showTextExtract ? "▲" : "▼"}</span>
+            </button>
+            {showTextExtract && (
+              <div className="px-4 pb-4 space-y-3 border-t">
+                <p className="text-xs text-muted-foreground pt-3">
+                  Cole abaixo o trecho copiado do documento (tribunal, PDF, etc.) com os dados de qualificação do cliente.
+                </p>
+                <textarea
+                  value={extractText}
+                  onChange={(e) => { setExtractText(e.target.value); setExtractPreview(null); }}
+                  placeholder="Cole aqui o texto com CPF, RG, endereço, estado civil, filiação, etc."
+                  rows={5}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleExtractFromSelectedText(false)}
+                    disabled={extractingText || extractText.trim().length < 10}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-accent/40 text-accent text-xs font-semibold hover:bg-accent/5 transition-colors disabled:opacity-50"
+                  >
+                    {extractingText ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardPaste className="w-3.5 h-3.5" />}
+                    Visualizar dados
+                  </button>
+                  {extractPreview && Object.keys(extractPreview).length > 0 && (
+                    <button
+                      onClick={() => handleExtractFromSelectedText(true)}
+                      disabled={extractingText}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {extractingText ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                      Salvar no cadastro
+                    </button>
+                  )}
+                </div>
+                {extractPreview && (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-foreground mb-2">
+                      {Object.keys(extractPreview).length} dado(s) encontrado(s):
+                    </p>
+                    {Object.entries(extractPreview).map(([key, value]) => {
+                      const labels: Record<string, string> = {
+                        cpf: "CPF", rg: "RG", address: "Endereço", phone: "Telefone", email: "Email",
+                        civil_status: "Estado Civil", nacionalidade: "Nacionalidade", naturalidade: "Naturalidade",
+                        nome_mae: "Nome da Mãe", nome_pai: "Nome do Pai", birth_date: "Nascimento",
+                        cnh: "CNH", ctps: "CTPS", pis: "PIS", titulo_eleitor: "Título Eleitor",
+                        atividade_economica: "Profissão", certidao_reservista: "Reservista", passaporte: "Passaporte",
+                      };
+                      return (
+                        <div key={key} className="flex items-center gap-2 text-xs">
+                          <span className="text-muted-foreground w-28 text-right shrink-0">{labels[key] || key}:</span>
+                          <span className="text-foreground font-medium">{value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="bg-card border rounded-lg divide-y">
             {/* Photo section */}
             <div className="flex items-center py-4 px-4">
