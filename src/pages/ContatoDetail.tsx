@@ -301,24 +301,26 @@ const ContatoDetail = () => {
 
   const handleCopyQualificacao = () => {
     const c = contact;
+    const toTitleCase = (s: string) => s.toLowerCase().replace(/(?:^|\s)\S/g, (ch) => ch.toUpperCase());
+    const low = (s: string) => s.toLowerCase();
     const parts: string[] = [];
     if (c.full_name) parts.push(c.full_name.toUpperCase());
-    if (c.nacionalidade) parts.push(c.nacionalidade);
-    if (c.civil_status) parts.push(c.civil_status);
-    if (c.atividade_economica) parts.push(c.atividade_economica);
+    if (c.nacionalidade) parts.push(low(c.nacionalidade));
+    if (c.civil_status) parts.push(low(c.civil_status));
+    if (c.atividade_economica) parts.push(low(c.atividade_economica));
     if (c.cpf) parts.push(`inscrito(a) no CPF sob o nº ${c.cpf}`);
     if (c.rg) parts.push(`portador(a) do RG nº ${c.rg}`);
     if (c.ctps) parts.push(`CTPS nº ${c.ctps}`);
     if (c.pis) parts.push(`PIS/PASEP nº ${c.pis}`);
     if (c.titulo_eleitor) parts.push(`Título de Eleitor nº ${c.titulo_eleitor}`);
     if (c.cnh) parts.push(`CNH nº ${c.cnh}`);
-    if (c.nome_mae) parts.push(`filho(a) de ${c.nome_mae}`);
-    if (c.nome_pai && c.nome_mae) parts.push(`e de ${c.nome_pai}`);
-    else if (c.nome_pai) parts.push(`filho(a) de ${c.nome_pai}`);
-    if (c.naturalidade) parts.push(`natural de ${c.naturalidade}`);
+    if (c.nome_mae) parts.push(`filho(a) de ${toTitleCase(c.nome_mae)}`);
+    if (c.nome_pai && c.nome_mae) parts.push(`e de ${toTitleCase(c.nome_pai)}`);
+    else if (c.nome_pai) parts.push(`filho(a) de ${toTitleCase(c.nome_pai)}`);
+    if (c.naturalidade) parts.push(`natural de ${toTitleCase(c.naturalidade)}`);
     if (c.birth_date) parts.push(`nascido(a) em ${formatDate(c.birth_date)}`);
-    if (c.address) parts.push(`residente e domiciliado(a) na ${c.address}`);
-    if (c.email) parts.push(`e-mail: ${c.email}`);
+    if (c.address) parts.push(`residente e domiciliado(a) na ${low(c.address)}`);
+    if (c.email) parts.push(`e-mail: ${low(c.email)}`);
     if (c.phone) parts.push(`telefone: ${c.phone}`);
     const text = parts.join(", ") + ".";
     navigator.clipboard.writeText(text);
