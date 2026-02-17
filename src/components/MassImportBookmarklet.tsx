@@ -21,7 +21,6 @@ function getMassImportBookmarkletCode(tenantId: string): string {
     numText=numText.replace(/\\s/g,'').trim();
     if(!cnj.test(numText)) continue;
     var num=numText.match(cnj)[0];
-    var hdr=document.querySelectorAll('table tr th,table tr td');
     var colMap={autor:3,reu:4,classe:5,assunto:7};
     var ths=rows[0]?rows[0].querySelectorAll('th,td'):[];
     for(var h=0;h<ths.length;h++){
@@ -47,14 +46,32 @@ function getMassImportBookmarkletCode(tenantId: string): string {
     }
   }
   if(procs.length===0){alert('Nenhum processo encontrado na página.');return;}
+  var excl=prompt('📋 '+procs.length+' processos encontrados.\\n\\nPara EXCLUIR processos que contenham determinadas palavras (ex: nome de parte, município), digite abaixo separando por vírgula:\\n\\n(Deixe em branco para importar todos)');
+  if(excl===null) return;
+  var filtered=procs;
+  if(excl.trim()){
+    var terms=excl.toLowerCase().split(',').map(function(s){return s.trim()}).filter(function(s){return s.length>0});
+    if(terms.length>0){
+      filtered=procs.filter(function(p){
+        var txt=((p.author||'')+' '+(p.defendant||'')+' '+(p.subject||'')+' '+(p.classe||'')).toLowerCase();
+        for(var t=0;t<terms.length;t++){if(txt.indexOf(terms[t])>=0) return false;}
+        return true;
+      });
+    }
+  }
+  var removed=procs.length-filtered.length;
+  if(removed>0){
+    if(!confirm('✅ '+filtered.length+' processos serão importados.\\n❌ '+removed+' processos excluídos pelo filtro.\\n\\nContinuar?')) return;
+  }
+  if(filtered.length===0){alert('Nenhum processo restante após o filtro.');return;}
   var tid='${tenantId}';
   fetch('${SUPABASE_URL}/functions/v1/mass-import-processes',{
     method:'POST',
     headers:{'Content-Type':'application/json','apikey':'${SUPABASE_KEY}'},
-    body:JSON.stringify({processes:procs,tenant_id:tid})
+    body:JSON.stringify({processes:filtered,tenant_id:tid})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.success){
-      alert('✅ Importação concluída!\\n\\n📋 Encontrados: '+d.total_found+'\\n✅ Novos: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped);
+      alert('✅ Importação concluída!\\n\\n📋 Enviados: '+filtered.length+'\\n✅ Novos: '+d.cases_created+'\\n⏭️ Já existentes: '+d.cases_skipped+(removed>0?'\\n🚫 Filtrados: '+removed:''));
     }else{
       alert('❌ Erro: '+(d.error||'Falha desconhecida'));
     }
