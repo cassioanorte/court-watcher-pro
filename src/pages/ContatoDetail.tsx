@@ -319,7 +319,7 @@ const ContatoDetail = () => {
     else if (c.nome_pai) parts.push(`filho(a) de ${toTitleCase(c.nome_pai)}`);
     if (c.naturalidade) parts.push(`natural de ${toTitleCase(c.naturalidade)}`);
     if (c.birth_date) parts.push(`nascido(a) em ${formatDate(c.birth_date)}`);
-    if (c.address) parts.push(`residente e domiciliado(a) na ${low(c.address)}`);
+    if (c.address) parts.push(`residente e domiciliado(a) na ${toTitleCase(c.address)}`);
     if (c.email) parts.push(`e-mail: ${low(c.email)}`);
     if (c.phone) parts.push(`telefone: ${c.phone}`);
     const text = parts.join(", ") + ".";
