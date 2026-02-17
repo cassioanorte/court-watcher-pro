@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check } from "lucide-react";
+import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { getCourtUrl } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
@@ -335,7 +336,23 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-xs font-mono text-foreground">{c.process_number}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-mono text-foreground">{c.process_number}</p>
+                        {(() => {
+                          const url = getCourtUrl(c.process_number);
+                          return url ? (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
+                              title="Consultar no tribunal"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : null;
+                        })()}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <EditablePartyName
