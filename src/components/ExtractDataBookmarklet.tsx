@@ -1,63 +1,21 @@
 import { useState } from "react";
-import { Copy, CheckCircle, Sparkles, MousePointerClick } from "lucide-react";
+import { Copy, CheckCircle, MousePointerClick } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
 function getSelectionBookmarkletCode(): string {
+  // Use the preview URL to open a popup that handles extraction
+  // This bypasses CSP restrictions on tribunal websites
+  const appUrl = window.location.origin;
   const code = `
 (function(){
-  var ENDPOINT='${SUPABASE_URL}/functions/v1/extract-selected-text';
-  var APIKEY='${SUPABASE_KEY}';
   var sel=window.getSelection().toString().trim();
   if(!sel||sel.length<10){alert('⚠️ Selecione o texto com os dados do cliente antes de clicar no bookmarklet.\\n\\nDica: Selecione o trecho que contém CPF, RG, endereço, etc.');return;}
-
-  function showStatus(msg,color){
-    var d=document.getElementById('_ext_status');
-    if(d)d.remove();
-    d=document.createElement('div');
-    d.id='_ext_status';
-    d.style.cssText='position:fixed;top:20px;right:20px;z-index:999999;background:#1a2332;color:#fff;padding:16px 24px;border-radius:12px;font-family:system-ui;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-width:480px;line-height:1.5;';
-    d.innerHTML=msg;
-    document.body.appendChild(d);
-    return d;
-  }
-  function hideStatus(){var d=document.getElementById('_ext_status');if(d)d.remove();}
-
-  showStatus('<div style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite;flex-shrink:0"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Extraindo dados do texto selecionado...</div>');
-
-  fetch(ENDPOINT,{
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':APIKEY},
-    body:JSON.stringify({selected_text:sel,preview_only:true})
-  }).then(function(r){return r.json()}).then(function(d){
-    if(!d.success){hideStatus();alert('⚠️ '+(d.error||'Nenhum dado encontrado.'));return;}
-    var labels={cpf:'CPF',rg:'RG',address:'Endereço',phone:'Telefone',email:'Email',civil_status:'Estado Civil',nacionalidade:'Nacionalidade',naturalidade:'Naturalidade',nome_mae:'Nome da Mãe',nome_pai:'Nome do Pai',birth_date:'Nascimento',cnh:'CNH',ctps:'CTPS',pis:'PIS',titulo_eleitor:'Título Eleitor',atividade_economica:'Profissão',certidao_reservista:'Reservista',passaporte:'Passaporte'};
-    var html='<div style="margin-bottom:12px;font-weight:bold;color:#c8972e">📋 Dados encontrados ('+d.count+'):</div>';
-    for(var k in d.fields){html+='<div style="margin:4px 0"><span style="color:#94a3b8;font-size:12px">'+(labels[k]||k)+':</span> <span style="color:#fff">'+d.fields[k]+'</span></div>';}
-    
-    if(d.identified_contact){
-      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #334155"><span style="color:#22c55e">✓ Cliente identificado:</span> <strong>'+d.identified_contact.name+'</strong></div>';
-      html+='<div style="margin-top:12px;display:flex;gap:8px"><button id="_ext_save" style="background:#c8972e;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✅ Salvar dados</button><button id="_ext_cancel" style="background:#334155;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px">Cancelar</button></div>';
-      showStatus(html);
-      document.getElementById('_ext_cancel').onclick=hideStatus;
-      document.getElementById('_ext_save').onclick=function(){
-        showStatus('<div style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8972e" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Salvando...</div>');
-        fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','apikey':APIKEY},body:JSON.stringify({selected_text:sel,contact_user_id:d.identified_contact.user_id})}).then(function(r){return r.json()}).then(function(r2){
-          hideStatus();
-          if(r2.success&&r2.updated>0){alert('✅ '+r2.client_name+'\\n\\n'+r2.updated+' campo(s) atualizado(s)!');}
-          else if(r2.updated===0){alert('ℹ️ Todos os campos já estavam preenchidos.');}
-          else{alert('⚠️ '+(r2.error||'Erro ao salvar.'));}
-        }).catch(function(e){hideStatus();alert('❌ Erro: '+e.message);});
-      };
-    }else{
-      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #334155;color:#94a3b8;font-size:12px">Para salvar, abra o contato no sistema e use o botão "Extrair do texto selecionado".</div>';
-      html+='<div style="margin-top:8px"><button id="_ext_close" style="background:#334155;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px">Fechar</button></div>';
-      showStatus(html);
-      document.getElementById('_ext_close').onclick=hideStatus;
-    }
-  }).catch(function(e){hideStatus();alert('❌ Erro: '+e.message);});
+  var url='${appUrl}/extrair-texto?text='+encodeURIComponent(sel);
+  var w=Math.min(600,screen.width-100);
+  var h=Math.min(700,screen.height-100);
+  var left=(screen.width-w)/2;
+  var top=(screen.height-h)/2;
+  window.open(url,'_extractPopup','width='+w+',height='+h+',left='+left+',top='+top+',scrollbars=yes,resizable=yes');
 })();
   `.replace(/\n/g, "").replace(/\s+/g, " ").trim();
   return `javascript:${encodeURIComponent(code)}`;
