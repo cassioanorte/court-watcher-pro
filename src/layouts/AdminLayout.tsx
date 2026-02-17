@@ -26,6 +26,7 @@ const AdminLayout = () => {
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
   const [logoBg, setLogoBg] = useState("");
+  const { profile } = useAuth();
   useThemeLoader();
 
   useEffect(() => {
@@ -136,7 +137,7 @@ const AdminLayout = () => {
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
             </button>
             <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground">
-              AJ
+              {profile?.full_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "??"}
             </div>
           </div>
         </header>
