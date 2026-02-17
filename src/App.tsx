@@ -33,6 +33,7 @@ import AdminTrials from "./pages/admin/AdminTrials";
 import AdminReports from "./pages/admin/AdminReports";
 import NotFound from "./pages/NotFound";
 import ExtrairTexto from "./pages/ExtrairTexto";
+import LeadCapture from "./pages/LeadCapture";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -92,6 +93,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/portal/login" element={<ClientAuth />} />
             <Route path="/extrair-texto" element={<ExtrairTexto />} />
+            <Route path="/lead-form" element={<LeadCapture />} />
 
             {/* Admin / Staff routes */}
             <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
