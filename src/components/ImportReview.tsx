@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check, ExternalLink, Lock } from "lucide-react";
+import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check, ExternalLink, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getCourtUrl, getAuthenticatedCourtUrl } from "@/lib/courtUrls";
+import { getCourtUrl } from "@/lib/courtUrls";
+import { formatCNJ } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
@@ -340,7 +341,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                         <p className="text-xs font-mono text-foreground">{c.process_number}</p>
                         {(() => {
                           const publicUrl = getCourtUrl(c.process_number);
-                          const authUrl = getAuthenticatedCourtUrl(c.process_number);
+                          const formatted = formatCNJ(c.process_number);
                           return (
                             <>
                               {publicUrl && (
@@ -354,17 +355,16 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                                   <ExternalLink className="w-3 h-3" />
                                 </a>
                               )}
-                              {authUrl && (
-                                <a
-                                  href={authUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
-                                  title="Abrir eproc (autenticado — para segredo de justiça)"
-                                >
-                                  <Lock className="w-3 h-3" />
-                                </a>
-                              )}
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(formatted);
+                                  toast({ title: "Número copiado!", description: formatted });
+                                }}
+                                className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
+                                title="Copiar número formatado (para colar no eproc)"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
                             </>
                           );
                         })()}
