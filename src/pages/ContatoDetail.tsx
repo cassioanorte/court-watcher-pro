@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen, Sparkles, MousePointerClick, ClipboardPaste, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen, Sparkles, MousePointerClick, ClipboardPaste, CheckCircle2, Copy } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -299,6 +299,32 @@ const ContatoDetail = () => {
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
 
+  const handleCopyQualificacao = () => {
+    const c = contact;
+    const parts: string[] = [];
+    if (c.full_name) parts.push(c.full_name.toUpperCase());
+    if (c.nacionalidade) parts.push(c.nacionalidade.toLowerCase());
+    if (c.civil_status) parts.push(c.civil_status.toLowerCase());
+    if (c.atividade_economica) parts.push(c.atividade_economica.toLowerCase());
+    if (c.cpf) parts.push(`inscrito(a) no CPF sob o nº ${c.cpf}`);
+    if (c.rg) parts.push(`portador(a) do RG nº ${c.rg}`);
+    if (c.ctps) parts.push(`CTPS nº ${c.ctps}`);
+    if (c.pis) parts.push(`PIS/PASEP nº ${c.pis}`);
+    if (c.titulo_eleitor) parts.push(`Título de Eleitor nº ${c.titulo_eleitor}`);
+    if (c.cnh) parts.push(`CNH nº ${c.cnh}`);
+    if (c.nome_mae) parts.push(`filho(a) de ${c.nome_mae}`);
+    if (c.nome_pai && c.nome_mae) parts.push(`e de ${c.nome_pai}`);
+    else if (c.nome_pai) parts.push(`filho(a) de ${c.nome_pai}`);
+    if (c.naturalidade) parts.push(`natural de ${c.naturalidade}`);
+    if (c.birth_date) parts.push(`nascido(a) em ${formatDate(c.birth_date)}`);
+    if (c.address) parts.push(`residente e domiciliado(a) na ${c.address}`);
+    if (c.email) parts.push(`e-mail: ${c.email}`);
+    if (c.phone) parts.push(`telefone: ${c.phone}`);
+    const text = parts.join(", ") + ".";
+    navigator.clipboard.writeText(text);
+    toast({ title: "Qualificação copiada!", description: "Texto formatado para petição copiado para a área de transferência." });
+  };
+
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
   if (!contact) return <div className="text-muted-foreground text-sm p-4">Contato não encontrado.</div>;
 
@@ -407,9 +433,18 @@ const ContatoDetail = () => {
                 </button>
               </>
             ) : (
-              <button onClick={openEdit} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <Pencil className="w-4 h-4" />
-              </button>
+              <>
+                <button
+                  onClick={handleCopyQualificacao}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title="Copiar qualificação para petição"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copiar Qualificação
+                </button>
+                <button onClick={openEdit} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </>
             )}
           </div>
         </div>
