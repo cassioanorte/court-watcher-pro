@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +46,7 @@ const Processes = () => {
   const [deletingAll, setDeletingAll] = useState(false);
   const [deleteAllConfirm, setDeleteAllConfirm] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"ativos" | "arquivados">("ativos");
   const { tenantId } = useAuth();
   const { toast } = useToast();
 
@@ -70,7 +71,11 @@ const Processes = () => {
     return { author: parts[0]?.trim() || null, defendant: parts[1]?.trim() || null };
   };
 
-  const filtered = processes.filter(
+  const tabProcesses = processes.filter((p) => activeTab === "arquivados" ? (p as any).archived === true : !(p as any).archived);
+  const activeCount = processes.filter((p) => !(p as any).archived).length;
+  const archivedCount = processes.filter((p) => (p as any).archived === true).length;
+
+  const filtered = tabProcesses.filter(
     (p) => {
       const q = search.toLowerCase();
       const { author, defendant } = extractParties((p as any).parties);
@@ -80,6 +85,17 @@ const Processes = () => {
         (defendant || "").toLowerCase().includes(q);
     }
   );
+
+  const handleArchiveToggle = async (p: Tables<"cases">) => {
+    const newArchived = !(p as any).archived;
+    const { error } = await supabase.from("cases").update({ archived: newArchived } as any).eq("id", p.id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: newArchived ? "Processo arquivado!" : "Processo desarquivado!" });
+      fetchProcesses();
+    }
+  };
 
   const formatDate = (d: string) => {
     const diff = Date.now() - new Date(d).getTime();
@@ -212,7 +228,7 @@ const Processes = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Processos</h1>
-          <p className="text-sm text-muted-foreground mt-1">{processes.length} processo{processes.length !== 1 ? "s" : ""} cadastrado{processes.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-muted-foreground mt-1">{activeCount} ativo{activeCount !== 1 ? "s" : ""}{archivedCount > 0 ? ` · ${archivedCount} arquivado${archivedCount !== 1 ? "s" : ""}` : ""}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -277,6 +293,22 @@ const Processes = () => {
             className="w-full h-10 pl-9 pr-4 rounded-lg bg-card border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1 w-fit">
+        <button
+          onClick={() => { setActiveTab("ativos"); setSelected(new Set()); }}
+          className={cn("px-4 py-2 rounded-md text-sm font-medium transition-colors", activeTab === "ativos" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          Ativos ({activeCount})
+        </button>
+        <button
+          onClick={() => { setActiveTab("arquivados"); setSelected(new Set()); }}
+          className={cn("px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5", activeTab === "arquivados" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          <Archive className="w-3.5 h-3.5" /> Arquivados ({archivedCount})
+        </button>
       </div>
 
       <ImportReview onUpdate={fetchProcesses} />
@@ -360,6 +392,13 @@ const Processes = () => {
                     <td className="px-4 py-3 text-right text-xs text-muted-foreground">{formatDate(p.updated_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleArchiveToggle(p)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title={(p as any).archived ? "Desarquivar" : "Arquivar"}
+                        >
+                          {(p as any).archived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+                        </button>
                         <button onClick={() => openEdit(p)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Editar">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>

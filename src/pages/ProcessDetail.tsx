@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -306,6 +306,11 @@ const ProcessDetail = () => {
             <p className="text-sm text-muted-foreground mt-1">{caseData.subject || "Sem assunto"}</p>
           </div>
           <div className="flex items-center gap-2">
+            {caseData.archived && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                <Archive className="w-3 h-3" /> Arquivado
+              </span>
+            )}
             {caseData.automation_enabled && (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-success bg-success/15 px-2.5 py-1 rounded-full">
                 <RefreshCw className="w-3 h-3" /> Automação ativa
@@ -314,6 +319,24 @@ const ProcessDetail = () => {
             <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full">
               {sourceLabel[caseData.source] || caseData.source}
             </span>
+            {isLawyer && (
+              <button
+                onClick={async () => {
+                  const newArchived = !caseData.archived;
+                  const { error } = await supabase.from("cases").update({ archived: newArchived } as any).eq("id", id);
+                  if (error) {
+                    toast({ title: "Erro", description: error.message, variant: "destructive" });
+                  } else {
+                    setCaseData((prev: any) => ({ ...prev, archived: newArchived }));
+                    toast({ title: newArchived ? "Processo arquivado!" : "Processo desarquivado!" });
+                  }
+                }}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border hover:bg-muted transition-colors text-muted-foreground"
+              >
+                {caseData.archived ? <ArchiveRestore className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+                {caseData.archived ? "Desarquivar" : "Arquivar"}
+              </button>
+            )}
           </div>
         </div>
       </div>
