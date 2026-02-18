@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Plus, Search, Pencil, Trash2, X, Clock, DollarSign, Users, Scale } from "lucide-react";
+import { Building2, Plus, Search, Pencil, Trash2, X, Clock, DollarSign, Users, Scale, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,12 +34,14 @@ interface TenantForm {
   ownerPassword: string;
   monthly_fee: string;
   trial_duration_days: string;
+  ai_credits_limit: string;
 }
 
 const defaultForm: TenantForm = {
   name: "", slug: "", website: "", whatsapp: "",
   ownerName: "", ownerEmail: "", ownerPassword: "",
   monthly_fee: "0", trial_duration_days: "",
+  ai_credits_limit: "0",
 };
 
 const trialOptions = [
@@ -166,6 +168,7 @@ const AdminTenants = () => {
         if (form.website) updates.website = form.website;
         if (form.whatsapp) updates.whatsapp = form.whatsapp;
         updates.monthly_fee = parseFloat(form.monthly_fee) || 0;
+        updates.ai_credits_limit = parseInt(form.ai_credits_limit) || 0;
         updates.subscription_status = form.trial_duration_days ? "trial" : "active";
         if (form.trial_duration_days) {
           const days = parseInt(form.trial_duration_days);
@@ -197,6 +200,7 @@ const AdminTenants = () => {
         website: form.website || null,
         whatsapp: form.whatsapp || null,
         monthly_fee: parseFloat(form.monthly_fee) || 0,
+        ai_credits_limit: parseInt(form.ai_credits_limit) || 0,
       };
 
       if (form.trial_duration_days) {
@@ -296,6 +300,21 @@ const AdminTenants = () => {
             placeholder="0.00"
           />
         </div>
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase">Créditos de IA / mês</label>
+        <div className="relative">
+          <Sparkles className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="number"
+            min="0"
+            value={form.ai_credits_limit}
+            onChange={(e) => setForm({ ...form, ai_credits_limit: e.target.value })}
+            className="w-full mt-1 h-9 pl-9 pr-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+            placeholder="0 = sem IA"
+          />
+        </div>
+        <p className="text-[10px] text-slate-600 mt-1">0 = plano sem IA. Exemplo: 50, 100, 200</p>
       </div>
       <div>
         <label className="text-xs text-slate-400 uppercase">Período de teste</label>
@@ -456,8 +475,9 @@ const AdminTenants = () => {
                               whatsapp: t.whatsapp || "",
                               ownerName: t.ownerName || "",
                               ownerEmail: t.ownerEmail || "",
-                              monthly_fee: String(t.monthly_fee || 0),
-                              trial_duration_days: "",
+                               monthly_fee: String(t.monthly_fee || 0),
+                               trial_duration_days: "",
+                               ai_credits_limit: String((t as any).ai_credits_limit || 0),
                             });
                           }} className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
                             <Pencil className="w-4 h-4" />
