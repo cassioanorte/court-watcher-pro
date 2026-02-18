@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Phone, Mail, MapPin, Scale } from "lucide-react";
 
@@ -255,27 +255,33 @@ const TEMPLATE_WRAPPER: Record<string, { bg: string; footer: string }> = {
 
 const LandingPagePublic = () => {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get("preview") === "1";
   const [data, setData] = useState<LPData | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
-    supabase
+    const query = supabase
       .from("landing_pages")
       .select("title, template, content")
-      .eq("slug", slug)
-      .eq("status", "published")
-      .limit(1)
-      .then(({ data: rows }) => {
-        if (rows && rows.length > 0) {
-          const r = rows[0] as any;
-          setData({ title: r.title, template: r.template, content: r.content });
-          document.title = r.title;
-        } else {
-          setNotFound(true);
-        }
-      });
-  }, [slug]);
+      .eq("slug", slug);
+    
+    // In preview mode, show any status; otherwise only published
+    if (!isPreview) {
+      query.eq("status", "published");
+    }
+
+    query.limit(1).then(({ data: rows }) => {
+      if (rows && rows.length > 0) {
+        const r = rows[0] as any;
+        setData({ title: r.title, template: r.template, content: r.content });
+        document.title = r.title;
+      } else {
+        setNotFound(true);
+      }
+    });
+  }, [slug, isPreview]);
 
   if (notFound) {
     return (
