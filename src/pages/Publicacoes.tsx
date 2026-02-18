@@ -69,7 +69,13 @@ const Publicacoes = () => {
         body: { publication_id: pub.id },
       });
 
-      if (error) throw error;
+      if (error) {
+        // supabase SDK wraps non-2xx responses; try to extract JSON error message
+        const errMsg = typeof data === 'object' && data?.error
+          ? data.error
+          : error.message || "Erro ao analisar publicação";
+        throw new Error(errMsg);
+      }
       if (data?.error) throw new Error(data.error);
 
       // Update publication in state
