@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "pwa-icon-192.png", "pwa-icon-512.png"],
       manifest: {
-        name: "Court Watcher Pro",
-        short_name: "CourtWatch",
+        name: "Portal Jurídico",
+        short_name: "Portal",
         description: "Sistema de gestão jurídica inteligente",
         theme_color: "#1e3a5f",
         background_color: "#ffffff",
