@@ -35,6 +35,7 @@ const AdminLayout = () => {
       if (data) {
         setTenantName(data.name || "Portal Jurídico");
         setTenantLogo(data.logo_url || null);
+        document.title = data.name || "Portal Jurídico";
         const tc = data.theme_colors as unknown as Partial<ThemeColors> | null;
         const merged = { ...DEFAULT_THEME, ...tc };
         setLogoFilter(getLogoFilter(merged));

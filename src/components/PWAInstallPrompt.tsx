@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,6 +12,18 @@ interface BeforeInstallPromptEvent extends Event {
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const { tenantId } = useAuth();
+  const [tenantName, setTenantName] = useState("Court Watcher Pro");
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("tenants").select("name").eq("id", tenantId).single().then(({ data }) => {
+      if (data?.name) {
+        setTenantName(data.name);
+        document.title = data.name;
+      }
+    });
+  }, [tenantId]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("pwa-prompt-dismissed");
@@ -52,7 +66,7 @@ export default function PWAInstallPrompt() {
             <Download className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-card-foreground">Instalar Court Watcher Pro</h3>
+            <h3 className="font-semibold text-card-foreground">Instalar {tenantName}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Instale o app no seu dispositivo para acesso rápido e experiência offline.
             </p>
