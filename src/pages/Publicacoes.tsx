@@ -64,16 +64,24 @@ const Publicacoes = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Não autenticado");
 
-      const { data, error } = await supabase.functions.invoke("analyze-publication", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { publication_id: pub.id },
-      });
+      let data: any;
+      let error: any;
+      try {
+        const result = await supabase.functions.invoke("analyze-publication", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: { publication_id: pub.id },
+        });
+        data = result.data;
+        error = result.error;
+      } catch (invokeErr: any) {
+        // supabase SDK can throw on non-2xx responses
+        throw new Error(invokeErr?.message || "Erro ao conectar com o serviço de IA");
+      }
 
       if (error) {
-        // supabase SDK wraps non-2xx responses; try to extract JSON error message
         const errMsg = typeof data === 'object' && data?.error
           ? data.error
-          : error.message || "Erro ao analisar publicação";
+          : (error.message || "Erro ao analisar publicação");
         throw new Error(errMsg);
       }
       if (data?.error) throw new Error(data.error);
