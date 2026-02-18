@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
       if (updates.address !== undefined) updateData.address = updates.address || null;
       if (updates.origin !== undefined) updateData.origin = updates.origin || null;
       if (updates.position !== undefined) updateData.position = updates.position || null;
+      if (updates.email !== undefined) updateData.email = updates.email || null;
       const { error: updateError } = await supabase
         .from("profiles")
         .update(updateData)
@@ -100,12 +101,17 @@ Deno.serve(async (req) => {
 
       if (updateError) throw updateError;
 
-      // Reset password if provided
+      // Update auth user (password and/or email)
+      const authUpdates: Record<string, string> = {};
       if (updates.new_password && updates.new_password.length >= 6) {
-        const { error: pwError } = await supabase.auth.admin.updateUserById(target_user_id, {
-          password: updates.new_password,
-        });
-        if (pwError) throw pwError;
+        authUpdates.password = updates.new_password;
+      }
+      if (updates.email) {
+        authUpdates.email = updates.email;
+      }
+      if (Object.keys(authUpdates).length > 0) {
+        const { error: authError } = await supabase.auth.admin.updateUserById(target_user_id, authUpdates);
+        if (authError) throw authError;
       }
 
       return new Response(JSON.stringify({ success: true }), {
