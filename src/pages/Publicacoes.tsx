@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale } from "lucide-react";
+import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2 } from "lucide-react";
 import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,10 @@ interface Publication {
   read: boolean;
   created_at: string;
   external_url: string | null;
+  ai_summary: string | null;
+  ai_deadlines: string | null;
+  ai_next_steps: string | null;
+  ai_analyzed_at: string | null;
 }
 
 const Publicacoes = () => {
@@ -40,6 +44,66 @@ const Publicacoes = () => {
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [aiCredits, setAiCredits] = useState<{ limit: number; used: number } | null>(null);
+
+  // Fetch AI credits
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.from("tenants").select("ai_credits_limit, ai_credits_used").eq("id", tenantId).single()
+      .then(({ data }) => {
+        if (data) setAiCredits({ limit: data.ai_credits_limit, used: data.ai_credits_used });
+      });
+  }, [tenantId]);
+
+  const handleAnalyze = async (pub: Publication, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (analyzingId) return;
+    setAnalyzingId(pub.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Não autenticado");
+
+      const { data, error } = await supabase.functions.invoke("analyze-publication", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { publication_id: pub.id },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Update publication in state
+      setPublications(prev => prev.map(p => p.id === pub.id ? {
+        ...p,
+        ai_summary: data.summary,
+        ai_deadlines: data.deadlines,
+        ai_next_steps: data.next_steps,
+        ai_analyzed_at: new Date().toISOString(),
+      } : p));
+
+      // Update selected pub if open
+      if (selectedPub?.id === pub.id) {
+        setSelectedPub(prev => prev ? {
+          ...prev,
+          ai_summary: data.summary,
+          ai_deadlines: data.deadlines,
+          ai_next_steps: data.next_steps,
+          ai_analyzed_at: new Date().toISOString(),
+        } : null);
+      }
+
+      // Increment local credits
+      if (aiCredits && !data.already_analyzed) {
+        setAiCredits({ ...aiCredits, used: aiCredits.used + 1 });
+      }
+
+      toast({ title: data.already_analyzed ? "Análise já realizada" : "Análise concluída!", description: "A publicação foi analisada pela IA." });
+    } catch (err: any) {
+      toast({ title: "Erro na análise", description: err.message, variant: "destructive" });
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
 
   const fetchPublications = async () => {
     if (!tenantId) return;
@@ -210,6 +274,22 @@ const Publicacoes = () => {
           {syncing ? "Verificando e-mails..." : "Verificar E-mails"}
         </Button>
       </div>
+
+      {/* AI Credits indicator */}
+      {aiCredits && aiCredits.limit > 0 && (
+        <div className="flex items-center gap-2 bg-card border rounded-lg px-4 py-2">
+          <Sparkles className="w-4 h-4 text-accent" />
+          <span className="text-sm text-muted-foreground">
+            Análises IA: <span className="font-semibold text-foreground">{aiCredits.used}</span> / {aiCredits.limit} usadas
+          </span>
+          <div className="flex-1 max-w-[120px] h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent rounded-full transition-all"
+              style={{ width: `${Math.min(100, (aiCredits.used / aiCredits.limit) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <EmailIntegrationSetup />
 
@@ -387,6 +467,17 @@ const Publicacoes = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* AI analyze button */}
+                  {aiCredits && aiCredits.limit > 0 && (
+                    <button
+                      onClick={(e) => handleAnalyze(pub, e)}
+                      disabled={analyzingId === pub.id}
+                      className={`p-1 transition-colors ${pub.ai_analyzed_at ? 'text-accent' : 'text-muted-foreground hover:text-accent'}`}
+                      title={pub.ai_analyzed_at ? "Já analisado pela IA" : "Analisar com IA"}
+                    >
+                      {analyzingId === pub.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    </button>
+                  )}
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleRead(pub); }}
                     className="text-muted-foreground hover:text-foreground transition-colors p-1"
@@ -530,6 +621,51 @@ const Publicacoes = () => {
                     {selectedPub.content}
                   </div>
                 )}
+                {/* AI Analysis Section */}
+                {selectedPub.ai_analyzed_at ? (
+                  <div className="bg-accent/5 border border-accent/20 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-accent" />
+                      <span className="text-sm font-semibold text-accent">Análise por IA</span>
+                    </div>
+                    {selectedPub.ai_summary && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                          <Brain className="w-3 h-3" /> Resumo
+                        </p>
+                        <p className="text-sm text-foreground">{selectedPub.ai_summary}</p>
+                      </div>
+                    )}
+                    {selectedPub.ai_deadlines && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Prazos
+                        </p>
+                        <p className="text-sm text-foreground">{selectedPub.ai_deadlines}</p>
+                      </div>
+                    )}
+                    {selectedPub.ai_next_steps && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                          <ArrowRight className="w-3 h-3" /> Próximos Passos
+                        </p>
+                        <p className="text-sm text-foreground">{selectedPub.ai_next_steps}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : aiCredits && aiCredits.limit > 0 && aiCredits.used < aiCredits.limit ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze(selectedPub)}
+                    disabled={analyzingId === selectedPub.id}
+                    className="gap-2"
+                  >
+                    {analyzingId === selectedPub.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {analyzingId === selectedPub.id ? "Analisando..." : "Analisar com IA"}
+                  </Button>
+                ) : null}
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"

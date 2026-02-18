@@ -457,6 +457,10 @@ export type Database = {
       }
       dje_publications: {
         Row: {
+          ai_analyzed_at: string | null
+          ai_deadlines: string | null
+          ai_next_steps: string | null
+          ai_summary: string | null
           case_id: string | null
           content: string | null
           created_at: string
@@ -475,6 +479,10 @@ export type Database = {
           unique_hash: string
         }
         Insert: {
+          ai_analyzed_at?: string | null
+          ai_deadlines?: string | null
+          ai_next_steps?: string | null
+          ai_summary?: string | null
           case_id?: string | null
           content?: string | null
           created_at?: string
@@ -493,6 +501,10 @@ export type Database = {
           unique_hash: string
         }
         Update: {
+          ai_analyzed_at?: string | null
+          ai_deadlines?: string | null
+          ai_next_steps?: string | null
+          ai_summary?: string | null
           case_id?: string | null
           content?: string | null
           created_at?: string
@@ -969,6 +981,9 @@ export type Database = {
       }
       tenants: {
         Row: {
+          ai_credits_limit: number
+          ai_credits_reset_at: string | null
+          ai_credits_used: number
           blocked_at: string | null
           created_at: string
           id: string
@@ -987,6 +1002,9 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          ai_credits_limit?: number
+          ai_credits_reset_at?: string | null
+          ai_credits_used?: number
           blocked_at?: string | null
           created_at?: string
           id?: string
@@ -1005,6 +1023,9 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          ai_credits_limit?: number
+          ai_credits_reset_at?: string | null
+          ai_credits_used?: number
           blocked_at?: string | null
           created_at?: string
           id?: string
