@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Scale, Users, TrendingUp, LucideIcon } from "lucide-react";
+import { Scale, Users, CalendarDays, LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface StatCard {
@@ -14,11 +14,11 @@ interface StatCard {
 interface Props {
   casesCount: number;
   clientsCount: number;
-  movementsCount: number;
+  appointmentsCount: number;
   loading: boolean;
 }
 
-const DashboardStatsCards = ({ casesCount, clientsCount, movementsCount, loading }: Props) => {
+const DashboardStatsCards = ({ casesCount, clientsCount, appointmentsCount, loading }: Props) => {
   const stats: StatCard[] = [
     {
       label: "Processos Ativos",
@@ -37,10 +37,10 @@ const DashboardStatsCards = ({ casesCount, clientsCount, movementsCount, loading
       iconBg: "bg-[hsl(152,60%,42%)]/20",
     },
     {
-      label: "Movimentações",
-      value: movementsCount,
-      icon: TrendingUp,
-      link: "/processos",
+      label: "Compromissos da Semana",
+      value: appointmentsCount,
+      icon: CalendarDays,
+      link: "/agenda",
       gradient: "from-[hsl(38,80%,45%)] to-[hsl(38,70%,55%)]",
       iconBg: "bg-accent/20",
     },

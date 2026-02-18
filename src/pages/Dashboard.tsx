@@ -41,7 +41,7 @@ const Dashboard = () => {
   const { tenantId } = useAuth();
   const [casesCount, setCasesCount] = useState(0);
   const [clientsCount, setClientsCount] = useState(0);
-  const [movementsCount, setMovementsCount] = useState(0);
+  const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [todayPubs, setTodayPubs] = useState<Publication[]>([]);
   const [todayMovements, setTodayMovements] = useState<TodayMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,15 +90,19 @@ const Dashboard = () => {
     if (!tenantId) return;
     const load = async () => {
       const today = new Date().toISOString().split("T")[0];
-      const [casesRes, profilesRes, movementsRes, pubsRes] = await Promise.all([
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      const weekEndStr = weekEnd.toISOString();
+
+      const [casesRes, profilesRes, appointmentsRes, pubsRes] = await Promise.all([
         supabase.from("cases").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id").eq("tenant_id", tenantId),
-        supabase.from("movements").select("id", { count: "exact", head: true }),
+        supabase.from("appointments").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("start_at", new Date().toISOString()).lte("start_at", weekEndStr),
         supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
       ]);
 
       setCasesCount(casesRes.count || 0);
-      setMovementsCount(movementsRes.count || 0);
+      setAppointmentsCount(appointmentsRes.count || 0);
       setTodayPubs((pubsRes.data || []) as Publication[]);
 
       if (profilesRes.data && profilesRes.data.length > 0) {
@@ -138,7 +142,7 @@ const Dashboard = () => {
       <DashboardStatsCards
         casesCount={casesCount}
         clientsCount={clientsCount}
-        movementsCount={movementsCount}
+        appointmentsCount={appointmentsCount}
         loading={loading}
       />
 
