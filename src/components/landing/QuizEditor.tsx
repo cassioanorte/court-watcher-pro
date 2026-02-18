@@ -158,7 +158,7 @@ const QuizEditor = ({ quiz: quizProp, onChange }: QuizEditorProps) => {
                 <div className="ml-6 space-y-2">
                   {q.options.map((opt, oIdx) => (
                     <div key={oIdx} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-4" translate="no">{String.fromCharCode(65 + oIdx)}</span>
+                      <span className="text-xs text-muted-foreground w-4 notranslate" translate="no" aria-hidden="true">{["A","B","C","D","E","F"][oIdx] || oIdx}</span>
                       <Input
                         value={opt.label}
                         onChange={(e) => updateOption(qIdx, oIdx, "label", e.target.value)}
