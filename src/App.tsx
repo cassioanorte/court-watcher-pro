@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import AdminLayout from "./layouts/AdminLayout";
 import SuperAdminLayout from "./layouts/SuperAdminLayout";
 import Dashboard from "./pages/Dashboard";
@@ -86,6 +87,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PWAInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
