@@ -734,6 +734,56 @@ export type Database = {
           },
         ]
       }
+      landing_pages: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string
+          id: string
+          published_at: string | null
+          slug: string
+          status: string
+          template: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          created_by: string
+          id?: string
+          published_at?: string | null
+          slug: string
+          status?: string
+          template?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string
+          id?: string
+          published_at?: string | null
+          slug?: string
+          status?: string
+          template?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landing_pages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           case_id: string
