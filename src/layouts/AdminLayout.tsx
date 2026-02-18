@@ -163,10 +163,10 @@ const AdminLayout = () => {
                       <span>OAB: {profile.oab_number}</span>
                     </div>
                   )}
-                  {role && (
+                  {(role || profile?.position) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <User className="w-3 h-3" />
-                      <span>{role === "owner" ? "Proprietário" : role === "staff" ? "Colaborador" : role === "client" ? "Cliente" : "Super Admin"}</span>
+                      <span>{profile?.position ? ({socio:"Sócio",advogado_associado:"Advogado Associado",advogado_parceiro:"Advogado Parceiro",funcionario:"Funcionário",estagiario:"Estagiário"} as Record<string,string>)[profile.position] || profile.position : role === "owner" ? "Proprietário" : role === "staff" ? "Colaborador" : role === "client" ? "Cliente" : "Super Admin"}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">

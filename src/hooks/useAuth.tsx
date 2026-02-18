@@ -10,7 +10,7 @@ interface AuthContextType {
   loading: boolean;
   role: AppRole | null;
   tenantId: string | null;
-  profile: { full_name: string; avatar_url: string | null; oab_number: string | null } | null;
+  profile: { full_name: string; avatar_url: string | null; oab_number: string | null; position: string | null } | null;
   tenantBlocked: boolean;
   tenantBlockReason: string | null;
   signOut: () => Promise<void>;
@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const [roleRes, profileRes] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", userId),
-        supabase.from("profiles").select("full_name, avatar_url, oab_number, tenant_id").eq("user_id", userId).single(),
+        supabase.from("profiles").select("full_name, avatar_url, oab_number, position, tenant_id").eq("user_id", userId).single(),
       ]);
 
       if (roleRes.data && roleRes.data.length > 0) {
@@ -58,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           full_name: profileRes.data.full_name,
           avatar_url: profileRes.data.avatar_url,
           oab_number: profileRes.data.oab_number,
+          position: profileRes.data.position,
         });
 
         // Check tenant blocking (skip for superadmins)
