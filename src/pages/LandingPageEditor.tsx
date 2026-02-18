@@ -25,6 +25,7 @@ interface LPContent {
   contactPhone: string;
   contactEmail: string;
   contactAddress: string;
+  contactWhatsapp: string;
   footerText: string;
   sections?: { id: string; label: string; visible: boolean }[];
 }
@@ -49,7 +50,7 @@ const LandingPageEditor = () => {
     aboutTitle: "", aboutText: "",
     services: [], testimonials: [],
     contactTitle: "", contactPhone: "", contactEmail: "", contactAddress: "",
-    footerText: "",
+    contactWhatsapp: "", footerText: "",
     sections: DEFAULT_SECTIONS,
   });
   const [saving, setSaving] = useState(false);
@@ -329,7 +330,7 @@ const LandingPageEditor = () => {
                 <Label>Título da seção</Label>
                 <Input value={content.contactTitle} onChange={(e) => updateContent("contactTitle", e.target.value)} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Telefone</Label>
                   <Input value={content.contactPhone} onChange={(e) => updateContent("contactPhone", e.target.value)} />
@@ -341,6 +342,11 @@ const LandingPageEditor = () => {
                 <div>
                   <Label>Endereço</Label>
                   <Input value={content.contactAddress} onChange={(e) => updateContent("contactAddress", e.target.value)} />
+                </div>
+                <div>
+                  <Label>WhatsApp (com DDD)</Label>
+                  <Input value={content.contactWhatsapp || ""} onChange={(e) => updateContent("contactWhatsapp", e.target.value)} placeholder="(51) 99999-9999" />
+                  <p className="text-[10px] text-muted-foreground mt-1">Um botão flutuante aparecerá na landing page</p>
                 </div>
               </div>
               <div>
