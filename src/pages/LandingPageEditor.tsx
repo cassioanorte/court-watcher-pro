@@ -180,7 +180,7 @@ const LandingPageEditor = () => {
             <Sparkles className="w-4 h-4" /> Gerar com IA
           </Button>
           <Button variant="outline" size="sm" asChild className="gap-1">
-            <a href={`/lp/${slug}`} target="_blank" rel="noopener noreferrer">
+            <a href={`/lp/${slug}?preview=1`} target="_blank" rel="noopener noreferrer">
               <Eye className="w-4 h-4" /> Preview
             </a>
           </Button>
