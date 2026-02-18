@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Phone, Mail, MapPin, Scale } from "lucide-react";
+import QuizSection from "@/components/landing/QuizSection";
+import type { QuizConfig } from "@/components/landing/QuizSection";
 
 interface LPContent {
   heroTitle: string;
@@ -19,12 +21,14 @@ interface LPContent {
   contactWhatsapp?: string;
   footerText: string;
   sections?: { id: string; label: string; visible: boolean }[];
+  quiz?: QuizConfig;
 }
 
 interface LPData {
   title: string;
   template: string;
   content: LPContent;
+  tenant_id: string;
 }
 
 const DEFAULT_SECTIONS = [
@@ -33,6 +37,7 @@ const DEFAULT_SECTIONS = [
   { id: "services", label: "Serviços", visible: true },
   { id: "testimonials", label: "Depoimentos", visible: true },
   { id: "contact", label: "Contato", visible: true },
+  { id: "quiz", label: "Quiz", visible: false },
 ];
 
 // ── Section renderers per template ──
@@ -264,7 +269,7 @@ const LandingPagePublic = () => {
     if (!slug) return;
     const query = supabase
       .from("landing_pages")
-      .select("title, template, content")
+      .select("title, template, content, tenant_id")
       .eq("slug", slug);
     
     // In preview mode, show any status; otherwise only published
@@ -275,7 +280,7 @@ const LandingPagePublic = () => {
     query.limit(1).then(({ data: rows }) => {
       if (rows && rows.length > 0) {
         const r = rows[0] as any;
-        setData({ title: r.title, template: r.template, content: r.content });
+        setData({ title: r.title, template: r.template, content: r.content, tenant_id: r.tenant_id });
         document.title = r.title;
       } else {
         setNotFound(true);
@@ -319,6 +324,17 @@ const LandingPagePublic = () => {
       {sections
         .filter((s) => s.visible)
         .map((section) => {
+          if (section.id === "quiz" && data.content.quiz?.enabled) {
+            return (
+              <QuizSection
+                key="quiz"
+                quiz={data.content.quiz}
+                whatsappNumber={whatsappNumber}
+                tenantId={data.tenant_id}
+                variant={templateKey as any}
+              />
+            );
+          }
           const Renderer = sectionRenderers[section.id];
           if (!Renderer) return null;
           return <Renderer key={section.id} content={data.content} />;
