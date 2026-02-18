@@ -368,11 +368,16 @@ const LandingPageEditor = () => {
                   // Auto-toggle quiz section visibility when quiz is enabled/disabled
                   const currentSections = content.sections || DEFAULT_SECTIONS;
                   const quizSectionIdx = currentSections.findIndex(s => s.id === "quiz");
-                  if (quizSectionIdx >= 0 && currentSections[quizSectionIdx].visible !== quiz.enabled) {
-                    const updatedSections = currentSections.map((s, i) =>
-                      i === quizSectionIdx ? { ...s, visible: quiz.enabled } : s
-                    );
-                    updateContent("sections", updatedSections);
+                  if (quizSectionIdx >= 0) {
+                    if (currentSections[quizSectionIdx].visible !== quiz.enabled) {
+                      const updatedSections = currentSections.map((s, i) =>
+                        i === quizSectionIdx ? { ...s, visible: quiz.enabled } : s
+                      );
+                      updateContent("sections", updatedSections);
+                    }
+                  } else {
+                    // Quiz section doesn't exist in array, add it
+                    updateContent("sections", [...currentSections, { id: "quiz", label: "Quiz", visible: quiz.enabled }]);
                   }
                 }}
               />
