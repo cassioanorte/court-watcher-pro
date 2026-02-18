@@ -50,6 +50,7 @@ const TeamManagement = () => {
   // Edit state
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editOab, setEditOab] = useState("");
   const [editCpf, setEditCpf] = useState("");
@@ -130,7 +131,7 @@ const TeamManagement = () => {
     setResult(null);
   };
 
-  const handleOpenEdit = (m: TeamMember) => {
+  const handleOpenEdit = async (m: TeamMember) => {
     setEditMember(m);
     setEditName(m.full_name);
     setEditPhone(m.phone || "");
@@ -138,6 +139,9 @@ const TeamManagement = () => {
     setEditCpf(m.cpf || "");
     setEditPosition(m.position || "");
     setEditNewPassword("");
+    // Fetch email from profiles table
+    const { data: profile } = await supabase.from("profiles").select("email").eq("user_id", m.user_id).single();
+    setEditEmail(profile?.email || "");
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -151,6 +155,7 @@ const TeamManagement = () => {
           target_user_id: editMember.user_id,
           updates: {
             full_name: editName,
+            email: editEmail || null,
             phone: editPhone || null,
             oab_number: editOab || null,
             cpf: editCpf || null,
@@ -379,6 +384,10 @@ const TeamManagement = () => {
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome completo *</label>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</label>
+                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@exemplo.com" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPF</label>
