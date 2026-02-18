@@ -35,6 +35,9 @@ import AdminReports from "./pages/admin/AdminReports";
 import NotFound from "./pages/NotFound";
 import ExtrairTexto from "./pages/ExtrairTexto";
 import LeadCapture from "./pages/LeadCapture";
+import LandingPages from "./pages/LandingPages";
+import LandingPageEditor from "./pages/LandingPageEditor";
+import LandingPagePublic from "./pages/LandingPagePublic";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -96,6 +99,7 @@ const App = () => (
             <Route path="/portal/login" element={<ClientAuth />} />
             <Route path="/extrair-texto" element={<ExtrairTexto />} />
             <Route path="/lead-form" element={<LeadCapture />} />
+            <Route path="/lp/:slug" element={<LandingPagePublic />} />
 
             {/* Admin / Staff routes */}
             <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
@@ -110,6 +114,8 @@ const App = () => (
               <Route path="contatos/:id" element={<ContatoDetail />} />
               <Route path="financeiro" element={<Financeiro />} />
               <Route path="cobranca" element={<Cobranca />} />
+              <Route path="landing-pages" element={<LandingPages />} />
+              <Route path="landing-pages/:id" element={<LandingPageEditor />} />
               <Route path="configuracoes" element={<Settings />} />
             </Route>
 
