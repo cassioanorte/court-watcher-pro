@@ -190,7 +190,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: Qu
                   onClick={() => handleAnswer(currentQuestion.id, opt.score)}
                   className={`w-full text-left p-4 rounded-lg border hover:border-gray-400 transition-all hover:shadow-sm flex items-center gap-3`}
                 >
-                  <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium shrink-0">
+                  <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium shrink-0" translate="no">
                     {String.fromCharCode(65 + i)}
                   </span>
                   <span>{opt.label}</span>
