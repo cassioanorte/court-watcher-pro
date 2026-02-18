@@ -363,7 +363,18 @@ const LandingPageEditor = () => {
             <TabsContent value="quiz" className="mt-4">
               <QuizEditor
                 quiz={content.quiz || {} as QuizConfig}
-                onChange={(quiz) => updateContent("quiz" as any, quiz)}
+                onChange={(quiz) => {
+                  updateContent("quiz" as any, quiz);
+                  // Auto-toggle quiz section visibility when quiz is enabled/disabled
+                  const currentSections = content.sections || DEFAULT_SECTIONS;
+                  const quizSectionIdx = currentSections.findIndex(s => s.id === "quiz");
+                  if (quizSectionIdx >= 0 && currentSections[quizSectionIdx].visible !== quiz.enabled) {
+                    const updatedSections = currentSections.map((s, i) =>
+                      i === quizSectionIdx ? { ...s, visible: quiz.enabled } : s
+                    );
+                    updateContent("sections", updatedSections);
+                  }
+                }}
               />
             </TabsContent>
           </Tabs>
