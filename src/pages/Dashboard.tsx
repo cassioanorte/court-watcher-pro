@@ -1,10 +1,14 @@
 import { motion } from "framer-motion";
-import { Scale, Users, TrendingUp, Newspaper, ArrowRight, Activity, Clock, Eye } from "lucide-react";
+import { Newspaper, ArrowRight, Activity, Clock, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardCalendar from "@/components/DashboardCalendar";
+import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
+import DashboardCasesChart from "@/components/dashboard/DashboardCasesChart";
+import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
+import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -108,7 +112,6 @@ const Dashboard = () => {
     fetchTodayMovements();
   }, [tenantId, fetchTodayMovements]);
 
-  // Auto-refresh movements every hour
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTodayMovements();
@@ -124,12 +127,6 @@ const Dashboard = () => {
     }
   };
 
-  const stats = [
-    { label: "Processos Ativos", value: casesCount, icon: Scale, link: "/processos" },
-    { label: "Contatos", value: clientsCount, icon: Users, link: "/contatos" },
-    { label: "Movimentações", value: movementsCount, icon: TrendingUp, link: "/processos" },
-  ];
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -137,75 +134,70 @@ const Dashboard = () => {
         <p className="text-sm text-muted-foreground mt-1">Visão geral do escritório</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {stats.map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-            <Link to={stat.link} className="block bg-card rounded-lg p-5 shadow-card border hover:shadow-card-hover hover:border-accent/30 transition-all">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{stat.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1 font-display">{loading ? "–" : stat.value}</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-accent/15 flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-accent" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+      {/* Stat Cards with gradients */}
+      <DashboardStatsCards
+        casesCount={casesCount}
+        clientsCount={clientsCount}
+        movementsCount={movementsCount}
+        loading={loading}
+      />
+
+      {/* Charts + Pipeline row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardCasesChart />
+        <DashboardCrmPipeline />
       </div>
 
-      {/* Today's Movements Alert */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <div className="bg-card rounded-lg border shadow-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-accent" />
-              <h2 className="font-semibold text-foreground">Movimentações de Hoje</h2>
-              {todayMovements.length > 0 && (
-                <Badge variant="default" className="text-xs">{todayMovements.length}</Badge>
-              )}
+      {/* Deadlines + Movements row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardDeadlines />
+
+        {/* Today's Movements */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <div className="bg-card rounded-xl border shadow-card p-5 h-full">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-accent" />
+                <h2 className="font-semibold text-foreground">Movimentações de Hoje</h2>
+                {todayMovements.length > 0 && (
+                  <Badge variant="default" className="text-xs">{todayMovements.length}</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {lastMovRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <Button variant="ghost" size="sm" onClick={fetchTodayMovements} className="text-muted-foreground text-xs h-7 px-2">
+                  Atualizar
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                Atualizado {lastMovRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-              <Button variant="ghost" size="sm" onClick={fetchTodayMovements} className="text-muted-foreground text-xs h-7 px-2">
-                Atualizar
-              </Button>
-            </div>
+            {todayMovements.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma movimentação hoje</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {todayMovements.map((mov) => (
+                  <Link key={mov.id} to={`/processos/${mov.case_id}`} className="block rounded-md border p-3 hover:border-accent/30 transition-all">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-[10px] font-mono">{mov.process_number}</Badge>
+                    </div>
+                    <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
+                    {mov.details && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mov.details}</p>}
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {new Date(mov.occurred_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-          {todayMovements.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma movimentação registrada hoje</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {todayMovements.map((mov) => (
-                <Link
-                  key={mov.id}
-                  to={`/processos/${mov.case_id}`}
-                  className="block rounded-md border p-3 hover:border-accent/30 transition-all"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-[10px] font-mono">{mov.process_number}</Badge>
-                  </div>
-                  <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
-                  {mov.details && (
-                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mov.details}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {new Date(mov.occurred_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       {/* Today's Publications */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <div className="bg-card rounded-lg border shadow-card p-5">
+        <div className="bg-card rounded-xl border shadow-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Newspaper className="w-5 h-5 text-accent" />
@@ -215,9 +207,7 @@ const Dashboard = () => {
               )}
             </div>
             <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
-              <Link to="/publicacoes">
-                Ver todas <ArrowRight className="w-4 h-4" />
-              </Link>
+              <Link to="/publicacoes">Ver todas <ArrowRight className="w-4 h-4" /></Link>
             </Button>
           </div>
           {todayPubs.length === 0 ? (
@@ -232,17 +222,11 @@ const Dashboard = () => {
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-[10px]">{pub.source}</Badge>
-                    {pub.publication_type && (
-                      <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>
-                    )}
+                    {pub.publication_type && <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>}
                     {!pub.read && <span className="w-2 h-2 rounded-full bg-accent" />}
                   </div>
-                  <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>
-                    {pub.title}
-                  </p>
-                  {pub.process_number && (
-                    <p className="text-xs text-muted-foreground font-mono mt-1">{pub.process_number}</p>
-                  )}
+                  <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>{pub.title}</p>
+                  {pub.process_number && <p className="text-xs text-muted-foreground font-mono mt-1">{pub.process_number}</p>}
                 </button>
               ))}
             </div>
@@ -263,14 +247,10 @@ const Dashboard = () => {
             {selectedPub?.publication_type && <Badge variant="secondary" className="text-xs">{selectedPub.publication_type}</Badge>}
             {selectedPub?.organ && <span className="text-xs text-muted-foreground">{selectedPub.organ}</span>}
           </div>
-          {selectedPub?.process_number && (
-            <p className="text-xs text-muted-foreground font-mono mt-2">{selectedPub.process_number}</p>
-          )}
+          {selectedPub?.process_number && <p className="text-xs text-muted-foreground font-mono mt-2">{selectedPub.process_number}</p>}
           <Separator className="my-2" />
           <ScrollArea className="max-h-72">
-            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-              {selectedPub?.content || "Conteúdo não disponível."}
-            </p>
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedPub?.content || "Conteúdo não disponível."}</p>
           </ScrollArea>
           {selectedPub?.external_url && (
             <div className="mt-3">
