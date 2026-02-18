@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Save, Eye, Plus, Trash2, Sparkles, ChevronUp, ChevronDown, EyeOff, GripVertical, Loader2 } from "lucide-react";
+import QuizEditor from "@/components/landing/QuizEditor";
+import type { QuizConfig } from "@/components/landing/QuizSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +30,7 @@ interface LPContent {
   contactWhatsapp: string;
   footerText: string;
   sections?: { id: string; label: string; visible: boolean }[];
+  quiz?: QuizConfig;
 }
 
 const DEFAULT_SECTIONS = [
@@ -36,6 +39,7 @@ const DEFAULT_SECTIONS = [
   { id: "services", label: "Serviços", visible: true },
   { id: "testimonials", label: "Depoimentos", visible: true },
   { id: "contact", label: "Contato", visible: true },
+  { id: "quiz", label: "Quiz", visible: false },
 ];
 
 const LandingPageEditor = () => {
@@ -251,12 +255,13 @@ const LandingPageEditor = () => {
         {/* Right: Content editor */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="hero" className="w-full">
-            <TabsList className="grid grid-cols-5 w-full">
+            <TabsList className="grid grid-cols-6 w-full">
               <TabsTrigger value="hero">Hero</TabsTrigger>
               <TabsTrigger value="about">Sobre</TabsTrigger>
               <TabsTrigger value="services">Serviços</TabsTrigger>
               <TabsTrigger value="testimonials">Depoimentos</TabsTrigger>
               <TabsTrigger value="contact">Contato</TabsTrigger>
+              <TabsTrigger value="quiz">Quiz</TabsTrigger>
             </TabsList>
 
             <TabsContent value="hero" className="space-y-4 mt-4">
@@ -353,6 +358,13 @@ const LandingPageEditor = () => {
                 <Label>Texto do rodapé</Label>
                 <Input value={content.footerText} onChange={(e) => updateContent("footerText", e.target.value)} />
               </div>
+            </TabsContent>
+
+            <TabsContent value="quiz" className="mt-4">
+              <QuizEditor
+                quiz={content.quiz || {} as QuizConfig}
+                onChange={(quiz) => updateContent("quiz" as any, quiz)}
+              />
             </TabsContent>
           </Tabs>
         </div>

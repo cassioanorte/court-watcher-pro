@@ -50,3 +50,9 @@ verify_jwt = false
 
 [functions.generate-landing-page]
 verify_jwt = false
+
+[functions.save-quiz-lead]
+verify_jwt = false
+
+[functions.generate-quiz]
+verify_jwt = false
