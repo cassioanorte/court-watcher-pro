@@ -13,7 +13,7 @@ export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const { tenantId } = useAuth();
-  const [tenantName, setTenantName] = useState("Court Watcher Pro");
+  const [tenantName, setTenantName] = useState("Portal Jurídico");
 
   useEffect(() => {
     if (!tenantId) return;
