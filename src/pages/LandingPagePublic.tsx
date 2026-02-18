@@ -40,6 +40,15 @@ const DEFAULT_SECTIONS = [
   { id: "quiz", label: "Quiz", visible: false },
 ];
 
+// Ensure quiz section exists in sections array
+const ensureQuizSection = (sections: typeof DEFAULT_SECTIONS, quizEnabled?: boolean) => {
+  const hasQuiz = sections.some(s => s.id === "quiz");
+  if (!hasQuiz) {
+    return [...sections, { id: "quiz", label: "Quiz", visible: quizEnabled || false }];
+  }
+  return sections;
+};
+
 // ── Section renderers per template ──
 
 const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
@@ -310,7 +319,7 @@ const LandingPagePublic = () => {
   const templateKey = data.template || "classic";
   const sectionRenderers = TEMPLATE_SECTIONS[templateKey] || classicSections;
   const wrapper = TEMPLATE_WRAPPER[templateKey] || TEMPLATE_WRAPPER.classic;
-  const sections = data.content.sections || DEFAULT_SECTIONS;
+  const sections = ensureQuizSection(data.content.sections || DEFAULT_SECTIONS, data.content.quiz?.enabled);
 
   const normalizeWhatsapp = (raw: string) => {
     const digits = raw.replace(/\D/g, "");
@@ -324,7 +333,7 @@ const LandingPagePublic = () => {
       {sections
         .filter((s) => s.visible)
         .map((section) => {
-          if (section.id === "quiz" && data.content.quiz?.enabled) {
+          if (section.id === "quiz" && data.content.quiz?.enabled && data.content.quiz.questions?.length > 0) {
             return (
               <QuizSection
                 key="quiz"
