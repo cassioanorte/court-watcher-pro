@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus, Pencil, X, Save, User, CreditCard, MapPin, Globe } from "lucide-react";
+import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus, Pencil, X, Save, User, CreditCard, MapPin, Globe, Archive } from "lucide-react";
 import NewProcessModal from "@/components/NewProcessModal";
 
 const sourceLabels: Record<string, string> = {
@@ -231,7 +231,9 @@ const ClientDetail = () => {
       {/* Processes - expandable */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-foreground">Processos ({cases.length})</h2>
+          <h2 className="text-base font-semibold text-foreground">
+            Processos Ativos ({cases.filter(c => !c.archived).length})
+          </h2>
           <button
             onClick={() => setShowNewProcess(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
@@ -239,11 +241,11 @@ const ClientDetail = () => {
             <Plus className="w-3.5 h-3.5" /> Novo Processo
           </button>
         </div>
-        {cases.length === 0 ? (
-          <p className="text-sm text-muted-foreground bg-card rounded-lg border p-4">Nenhum processo vinculado a este cliente.</p>
+        {cases.filter(c => !c.archived).length === 0 ? (
+          <p className="text-sm text-muted-foreground bg-card rounded-lg border p-4">Nenhum processo ativo vinculado a este cliente.</p>
         ) : (
           <div className="space-y-3">
-            {cases.map((c, i) => {
+            {cases.filter(c => !c.archived).map((c, i) => {
               const isExpanded = expandedCase === c.id;
               const caseMov = movements[c.id] || [];
               const isLoadingMov = loadingMovements === c.id;
@@ -360,6 +362,32 @@ const ClientDetail = () => {
           </div>
         )}
       </div>
+
+      {/* Archived processes */}
+      {cases.filter(c => c.archived).length > 0 && (
+        <div>
+          <h2 className="text-base font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+            <Archive className="w-4 h-4" /> Processos Arquivados ({cases.filter(c => c.archived).length})
+          </h2>
+          <div className="space-y-2">
+            {cases.filter(c => c.archived).map((c, i) => (
+              <Link
+                key={c.id}
+                to={`/processos/${c.id}`}
+                className="block bg-card rounded-lg border p-4 shadow-card opacity-70 hover:opacity-100 transition-opacity"
+              >
+                <p className="text-sm font-mono text-foreground">{c.process_number}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{c.subject || "Sem assunto"}</p>
+                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                  <span>{sourceLabels[c.source] || c.source}</span>
+                  <span>·</span>
+                  <span>{formatDate(c.updated_at)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       <NewProcessModal
         open={showNewProcess}
         onClose={() => setShowNewProcess(false)}
