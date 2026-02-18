@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.analyze-publication]
 verify_jwt = false
+
+[functions.generate-landing-page]
+verify_jwt = false
