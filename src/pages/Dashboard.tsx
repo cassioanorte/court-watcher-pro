@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Newspaper, ArrowRight, Activity, Clock, Eye } from "lucide-react";
+import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink } from "lucide-react";
+import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -256,15 +257,31 @@ const Dashboard = () => {
           <ScrollArea className="max-h-72">
             <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedPub?.content || "Conteúdo não disponível."}</p>
           </ScrollArea>
-          {selectedPub?.external_url && (
-            <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(() => {
+              const numbers = selectedPub?.process_number
+                ? [selectedPub.process_number]
+                : extractProcessNumbers((selectedPub?.title || "") + " " + (selectedPub?.content || ""));
+              return numbers.map((pn) => {
+                const url = getCourtUrl(pn, selectedPub?.source);
+                if (!url) return null;
+                return (
+                  <Button key={pn} variant="outline" size="sm" asChild className="gap-1">
+                    <a href={url} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-4 h-4" /> Ver no tribunal
+                    </a>
+                  </Button>
+                );
+              });
+            })()}
+            {selectedPub?.external_url && (
               <Button variant="outline" size="sm" asChild className="gap-1">
                 <a href={selectedPub.external_url} target="_blank" rel="noopener noreferrer">
                   <Eye className="w-4 h-4" /> Ver original
                 </a>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
