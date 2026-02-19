@@ -252,36 +252,45 @@ const Dashboard = () => {
             {selectedPub?.publication_type && <Badge variant="secondary" className="text-xs">{selectedPub.publication_type}</Badge>}
             {selectedPub?.organ && <span className="text-xs text-muted-foreground">{selectedPub.organ}</span>}
           </div>
-          {selectedPub?.process_number && <p className="text-xs text-muted-foreground font-mono mt-2">{selectedPub.process_number}</p>}
+          {(() => {
+            const allText = (selectedPub?.title || "") + " " + (selectedPub?.content || "");
+            const numbers = extractProcessNumbers(allText);
+            if (selectedPub?.process_number && !numbers.includes(selectedPub.process_number)) {
+              numbers.unshift(selectedPub.process_number);
+            }
+            if (numbers.length === 0) return null;
+            return (
+              <div className="space-y-1.5 mt-2">
+                <p className="text-xs font-medium text-muted-foreground">Processos identificados:</p>
+                {numbers.map((pn) => {
+                  const url = getCourtUrl(pn, selectedPub?.source);
+                  return (
+                    <div key={pn} className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-foreground">{pn}</span>
+                      {url && (
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 transition-colors" title="Ver no tribunal">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
           <Separator className="my-2" />
           <ScrollArea className="max-h-72">
             <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{selectedPub?.content || "Conteúdo não disponível."}</p>
           </ScrollArea>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(() => {
-              const numbers = selectedPub?.process_number
-                ? [selectedPub.process_number]
-                : extractProcessNumbers((selectedPub?.title || "") + " " + (selectedPub?.content || ""));
-              return numbers.map((pn) => {
-                const url = getCourtUrl(pn, selectedPub?.source);
-                if (!url) return null;
-                return (
-                  <Button key={pn} variant="outline" size="sm" asChild className="gap-1">
-                    <a href={url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4" /> Ver no tribunal
-                    </a>
-                  </Button>
-                );
-              });
-            })()}
-            {selectedPub?.external_url && (
+          {selectedPub?.external_url && (
+            <div className="mt-3">
               <Button variant="outline" size="sm" asChild className="gap-1">
                 <a href={selectedPub.external_url} target="_blank" rel="noopener noreferrer">
                   <Eye className="w-4 h-4" /> Ver original
                 </a>
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
