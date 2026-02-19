@@ -71,11 +71,11 @@ const Dashboard = () => {
 
     const { data: movs } = await supabase
       .from("movements")
-      .select("id, title, details, occurred_at, case_id")
+      .select("id, title, details, occurred_at, created_at, case_id")
       .in("case_id", caseIds)
-      .gte("occurred_at", startOfDay)
-      .lte("occurred_at", endOfDay)
-      .order("occurred_at", { ascending: false })
+      .gte("created_at", startOfDay)
+      .lte("created_at", endOfDay)
+      .order("created_at", { ascending: false })
       .limit(50);
 
     setTodayMovements(
