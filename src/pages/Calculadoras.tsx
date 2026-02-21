@@ -27,6 +27,7 @@ import DivorcioCalc from "@/components/calculadoras/DivorcioCalc";
 import HerancaCalc from "@/components/calculadoras/HerancaCalc";
 import SucessorCalc from "@/components/calculadoras/SucessorCalc";
 import DistratoImovelCalc from "@/components/calculadoras/DistratoImovelCalc";
+import EspacoLocaticioCalc from "@/components/calculadoras/EspacoLocaticioCalc";
 import DanoMoralCalc from "@/components/calculadoras/DanoMoralCalc";
 import CobrancaIndevidaCalc from "@/components/calculadoras/CobrancaIndevidaCalc";
 import RevisaoBancariaCalc from "@/components/calculadoras/RevisaoBancariaCalc";
@@ -137,6 +138,7 @@ const categorias: Categoria[] = [
     id: "imobiliario", label: "Imobiliário", icon: Home,
     calculadoras: [
       { id: "distrato_imovel", name: "Distrato Imobiliário", description: "Calcule a restituição conforme a Lei 13.786/2018.", icon: Calculator },
+      { id: "espaco_locaticio", name: "Espaço", description: "Simplifique o cálculo de valores locatícios com facilidade.", icon: Home },
     ],
   },
   {
@@ -170,6 +172,7 @@ const calcComponents: Record<string, React.FC> = {
   heranca: HerancaCalc,
   sucessor: SucessorCalc,
   distrato_imovel: DistratoImovelCalc,
+  espaco_locaticio: EspacoLocaticioCalc,
   dano_moral: DanoMoralCalc,
   cobranca_indevida: CobrancaIndevidaCalc,
   revisao_bancaria: RevisaoBancariaCalc,
