@@ -28,10 +28,13 @@ const ProcessDetail = () => {
   // Editable fields
   const [editingSummary, setEditingSummary] = useState(false);
   const [editingNextStep, setEditingNextStep] = useState(false);
+  const [editingParties, setEditingParties] = useState(false);
   const [caseSummary, setCaseSummary] = useState("");
   const [nextStep, setNextStep] = useState("");
   const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
   const [nextStepDueDate, setNextStepDueDate] = useState<string>("");
+  const [partiesText, setPartiesText] = useState("");
+  const [savingParties, setSavingParties] = useState(false);
   const [savingSummary, setSavingSummary] = useState(false);
   const [savingNextStep, setSavingNextStep] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
