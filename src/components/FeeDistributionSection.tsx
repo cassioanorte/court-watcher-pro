@@ -110,6 +110,8 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       setFormOrderId("");
       setFormLawyerId("");
       setFormAmount("");
+      setFormPercent("");
+      setFormMode("valor");
       setFormDescription("");
       setFormPaidAt("");
       fetchDistributions();
