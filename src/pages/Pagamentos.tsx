@@ -358,11 +358,89 @@ const Pagamentos = () => {
   const startEdit = (order: PaymentOrder) => {
     setEditing(true);
     setEditForm({ ...order });
+    // Pre-fill the form fields for PDF upload reuse
+    setFormDocUrl(order.document_url || "");
+    setFormDocName(order.document_name || "");
+    setFormAiExtracted(order.ai_extracted || false);
   };
 
   const cancelEdit = () => {
     setEditing(false);
     setEditForm({});
+    setFormDocUrl("");
+    setFormDocName("");
+    setFormAiExtracted(false);
+  };
+
+  const handleEditFileUpload = async (file: File) => {
+    if (!tenantId || !user?.id) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${tenantId}/${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from("payment-documents").upload(path, file);
+    if (uploadErr) { toast.error("Erro no upload: " + uploadErr.message); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("payment-documents").getPublicUrl(path);
+    setEditForm(f => ({ ...f, document_url: urlData.publicUrl, document_name: file.name }));
+    toast.success("PDF enviado!");
+
+    setExtracting(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let pdfText = "";
+      const textDecoder = new TextDecoder("latin1");
+      const rawStr = textDecoder.decode(bytes);
+      const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+      let match;
+      while ((match = streamRegex.exec(rawStr)) !== null) {
+        const content = match[1];
+        const textParts = content.match(/\(([^)]*)\)/g);
+        if (textParts) pdfText += textParts.map(p => p.slice(1, -1)).join(" ") + "\n";
+        const tjParts = content.match(/\[(.*?)\]\s*TJ/g);
+        if (tjParts) { tjParts.forEach(tj => { const parts = tj.match(/\(([^)]*)\)/g); if (parts) pdfText += parts.map(p => p.slice(1, -1)).join("") + " "; }); pdfText += "\n"; }
+      }
+      const asciiLines = rawStr.split("\n").filter(line => { const readable = line.replace(/[^\x20-\x7E\xC0-\xFF]/g, "").trim(); return readable.length > 10 && !line.includes("stream") && !line.includes("endobj"); });
+      if (asciiLines.length > 0) pdfText += "\n" + asciiLines.join("\n");
+
+      if (pdfText.trim().length < 30) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-payment-data`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ text: pdfText.slice(0, 8000), file_name: file.name }),
+      });
+      const body = await response.json();
+      if (!response.ok) { toast.error(body?.error || `Erro ${response.status}`); setExtracting(false); setUploading(false); return; }
+
+      if (body?.data) {
+        const d = body.data;
+        setEditForm(f => ({
+          ...f,
+          ...(d.type && { type: d.type }),
+          ...(d.gross_amount && { gross_amount: d.gross_amount }),
+          ...(d.office_fees_percent && { office_fees_percent: d.office_fees_percent }),
+          ...(d.court_costs && { court_costs: d.court_costs }),
+          ...(d.social_security && { social_security: d.social_security }),
+          ...(d.income_tax && { income_tax: d.income_tax }),
+          ...(d.beneficiary_name && { beneficiary_name: d.beneficiary_name }),
+          ...(d.beneficiary_cpf && { beneficiary_cpf: d.beneficiary_cpf }),
+          ...(d.process_number && { process_number: d.process_number }),
+          ...(d.court && { court: d.court }),
+          ...(d.entity && { entity: d.entity }),
+          ...(d.reference_date && { reference_date: d.reference_date }),
+          ...(d.expected_payment_date && { expected_payment_date: d.expected_payment_date }),
+          ai_extracted: true,
+          ai_raw_data: d,
+        }));
+        if (d.process_number && cases.length > 0) {
+          const cleanNum = d.process_number.replace(/\D/g, "");
+          const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
+          if (matchedCase) setEditForm(f => ({ ...f, case_id: matchedCase.id }));
+        }
+        toast.success("Dados extraídos e atualizados!");
+      }
+    } catch (err) { toast.info("Não foi possível extrair dados. Edite manualmente."); }
+    setExtracting(false);
+    setUploading(false);
   };
 
   const saveEdit = async () => {
@@ -393,6 +471,10 @@ const Pagamentos = () => {
       reference_date: editForm.reference_date || null,
       notes: editForm.notes || null,
       case_id: editForm.case_id || null,
+      document_url: editForm.document_url || null,
+      document_name: editForm.document_name || null,
+      ai_extracted: editForm.ai_extracted || false,
+      ai_raw_data: editForm.ai_raw_data || null,
     };
 
     const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
@@ -401,8 +483,7 @@ const Pagamentos = () => {
     const updated = { ...editForm, ...updates, office_amount: officeCalc, client_amount: clientCalc } as PaymentOrder;
     setOrders(prev => prev.map(o => o.id === editForm.id ? { ...o, ...updated } : o));
     setSelected(updated);
-    setEditing(false);
-    setEditForm({});
+    cancelEdit();
     toast.success("Registro atualizado!");
   };
 
@@ -743,6 +824,22 @@ const Pagamentos = () => {
           )}
           {selected && editing && (
             <div className="space-y-3 mt-2">
+              {/* PDF Upload for edit */}
+              <FileDropZone
+                onFile={handleEditFileUpload}
+                accept=".pdf"
+                loading={uploading || extracting}
+                loadingText={extracting ? "Extraindo dados..." : "Enviando..."}
+                label="Anexar novo PDF para atualizar dados"
+                sublabel="Os campos serão atualizados automaticamente"
+                fileName={editForm.document_name || undefined}
+                onClear={() => setEditForm(f => ({ ...f, document_url: null, document_name: null }))}
+              />
+              {editForm.ai_extracted && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Dados extraídos por IA
+                </Badge>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>

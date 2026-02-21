@@ -6,6 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
@@ -15,13 +18,31 @@ interface PaymentOrder {
   type: string;
   status: string;
   gross_amount: number;
+  office_fees_percent: number;
   office_amount: number;
   client_amount: number;
+  court_costs: number;
+  social_security: number;
+  income_tax: number;
   beneficiary_name: string | null;
+  beneficiary_cpf: string | null;
   process_number: string | null;
-  case_id: string | null;
+  court: string | null;
+  entity: string | null;
+  reference_date: string | null;
   expected_payment_date: string | null;
+  document_url: string | null;
+  document_name: string | null;
+  ai_extracted: boolean;
+  ai_raw_data: any;
+  notes: string | null;
+  case_id: string | null;
   created_at: string;
+}
+
+interface CaseOption {
+  id: string;
+  process_number: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
@@ -32,26 +53,35 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = 
 };
 
 const PaymentOrdersTracker = () => {
-  const { tenantId } = useAuth();
+  const { tenantId, user } = useAuth();
   const [orders, setOrders] = useState<PaymentOrder[]>([]);
+  const [cases, setCases] = useState<CaseOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ beneficiary_name: "", process_number: "", gross_amount: "", office_amount: "", client_amount: "", expected_payment_date: "" });
+  const [editOrder, setEditOrder] = useState<PaymentOrder | null>(null);
+  const [editForm, setEditForm] = useState<Partial<PaymentOrder>>({});
+  const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     if (!tenantId) return;
     const { data } = await supabase
       .from("payment_orders" as any)
-      .select("id, type, status, gross_amount, office_amount, client_amount, beneficiary_name, process_number, case_id, expected_payment_date, created_at")
+      .select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
     setOrders((data || []) as unknown as PaymentOrder[]);
     setLoading(false);
   }, [tenantId]);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  const fetchCases = useCallback(async () => {
+    if (!tenantId) return;
+    const { data } = await supabase.from("cases").select("id, process_number").eq("tenant_id", tenantId).eq("archived", false).order("process_number").limit(200);
+    setCases((data || []) as CaseOption[]);
+  }, [tenantId]);
+
+  useEffect(() => { fetchOrders(); fetchCases(); }, [fetchOrders, fetchCases]);
 
   const togglePaid = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "sacado" ? "aguardando" : "sacado";
@@ -69,39 +99,125 @@ const PaymentOrdersTracker = () => {
   };
 
   const startEdit = (o: PaymentOrder) => {
-    setEditingId(o.id);
-    setEditForm({
-      beneficiary_name: o.beneficiary_name || "",
-      process_number: o.process_number || "",
-      gross_amount: String(o.gross_amount || 0),
-      office_amount: String(o.office_amount || 0),
-      client_amount: String(o.client_amount || 0),
-      expected_payment_date: o.expected_payment_date || "",
-    });
+    setEditOrder(o);
+    setEditForm({ ...o });
+  };
+
+  const cancelEdit = () => {
+    setEditOrder(null);
+    setEditForm({});
+  };
+
+  const handleEditFileUpload = async (file: File) => {
+    if (!tenantId || !user?.id) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${tenantId}/${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from("payment-documents").upload(path, file);
+    if (uploadErr) { toast.error("Erro no upload: " + uploadErr.message); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("payment-documents").getPublicUrl(path);
+    setEditForm(f => ({ ...f, document_url: urlData.publicUrl, document_name: file.name }));
+    toast.success("PDF enviado!");
+
+    setExtracting(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let pdfText = "";
+      const textDecoder = new TextDecoder("latin1");
+      const rawStr = textDecoder.decode(bytes);
+      const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+      let match;
+      while ((match = streamRegex.exec(rawStr)) !== null) {
+        const content = match[1];
+        const textParts = content.match(/\(([^)]*)\)/g);
+        if (textParts) pdfText += textParts.map(p => p.slice(1, -1)).join(" ") + "\n";
+        const tjParts = content.match(/\[(.*?)\]\s*TJ/g);
+        if (tjParts) { tjParts.forEach(tj => { const parts = tj.match(/\(([^)]*)\)/g); if (parts) pdfText += parts.map(p => p.slice(1, -1)).join("") + " "; }); pdfText += "\n"; }
+      }
+      const asciiLines = rawStr.split("\n").filter(line => { const readable = line.replace(/[^\x20-\x7E\xC0-\xFF]/g, "").trim(); return readable.length > 10 && !line.includes("stream") && !line.includes("endobj"); });
+      if (asciiLines.length > 0) pdfText += "\n" + asciiLines.join("\n");
+
+      if (pdfText.trim().length < 30) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-payment-data`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ text: pdfText.slice(0, 8000), file_name: file.name }),
+      });
+      const body = await response.json();
+      if (!response.ok) { toast.error(body?.error || `Erro ${response.status}`); setExtracting(false); setUploading(false); return; }
+
+      if (body?.data) {
+        const d = body.data;
+        setEditForm(f => ({
+          ...f,
+          ...(d.type && { type: d.type }),
+          ...(d.gross_amount && { gross_amount: d.gross_amount }),
+          ...(d.office_fees_percent && { office_fees_percent: d.office_fees_percent }),
+          ...(d.court_costs && { court_costs: d.court_costs }),
+          ...(d.social_security && { social_security: d.social_security }),
+          ...(d.income_tax && { income_tax: d.income_tax }),
+          ...(d.beneficiary_name && { beneficiary_name: d.beneficiary_name }),
+          ...(d.beneficiary_cpf && { beneficiary_cpf: d.beneficiary_cpf }),
+          ...(d.process_number && { process_number: d.process_number }),
+          ...(d.court && { court: d.court }),
+          ...(d.entity && { entity: d.entity }),
+          ...(d.reference_date && { reference_date: d.reference_date }),
+          ...(d.expected_payment_date && { expected_payment_date: d.expected_payment_date }),
+          ai_extracted: true,
+          ai_raw_data: d,
+        }));
+        if (d.process_number && cases.length > 0) {
+          const cleanNum = d.process_number.replace(/\D/g, "");
+          const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
+          if (matchedCase) setEditForm(f => ({ ...f, case_id: matchedCase.id }));
+        }
+        toast.success("Dados extraídos e atualizados!");
+      }
+    } catch (err) { toast.info("Não foi possível extrair dados. Edite manualmente."); }
+    setExtracting(false);
+    setUploading(false);
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
-    const { error } = await supabase.from("payment_orders" as any).update({
+    if (!editForm.id) return;
+    const gross = parseFloat(String(editForm.gross_amount)) || 0;
+    const feeP = parseFloat(String(editForm.office_fees_percent)) || 0;
+    const costs = parseFloat(String(editForm.court_costs)) || 0;
+    const soc = parseFloat(String(editForm.social_security)) || 0;
+    const tax = parseFloat(String(editForm.income_tax)) || 0;
+    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+
+    const updates = {
+      type: editForm.type,
       beneficiary_name: editForm.beneficiary_name || null,
+      beneficiary_cpf: editForm.beneficiary_cpf || null,
       process_number: editForm.process_number || null,
-      gross_amount: parseFloat(editForm.gross_amount) || 0,
-      office_amount: parseFloat(editForm.office_amount) || 0,
-      client_amount: parseFloat(editForm.client_amount) || 0,
+      court: editForm.court || null,
+      entity: editForm.entity || null,
+      gross_amount: gross,
+      office_fees_percent: feeP,
+      office_amount: officeCalc,
+      client_amount: clientCalc,
+      court_costs: costs,
+      social_security: soc,
+      income_tax: tax,
       expected_payment_date: editForm.expected_payment_date || null,
-    }).eq("id", editingId);
+      reference_date: editForm.reference_date || null,
+      notes: editForm.notes || null,
+      case_id: editForm.case_id || null,
+      document_url: editForm.document_url || null,
+      document_name: editForm.document_name || null,
+      ai_extracted: editForm.ai_extracted || false,
+      ai_raw_data: editForm.ai_raw_data || null,
+    };
+
+    const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
     if (error) { toast.error("Erro ao salvar"); return; }
-    setOrders(prev => prev.map(o => o.id === editingId ? {
-      ...o,
-      beneficiary_name: editForm.beneficiary_name || null,
-      process_number: editForm.process_number || null,
-      gross_amount: parseFloat(editForm.gross_amount) || 0,
-      office_amount: parseFloat(editForm.office_amount) || 0,
-      client_amount: parseFloat(editForm.client_amount) || 0,
-      expected_payment_date: editForm.expected_payment_date || null,
-    } : o));
-    setEditingId(null);
-    toast.success("Registro atualizado");
+    setOrders(prev => prev.map(o => o.id === editForm.id ? { ...o, ...updates, office_amount: officeCalc, client_amount: clientCalc } as PaymentOrder : o));
+    cancelEdit();
+    toast.success("Registro atualizado!");
   };
 
   const deleteOrder = async (id: string) => {
@@ -125,7 +241,6 @@ const PaymentOrdersTracker = () => {
 
   const pending = orders.filter(o => o.status === "aguardando" || o.status === "liberado");
   const paid = orders.filter(o => o.status === "sacado");
-
   const pendingTotal = pending.reduce((s, o) => s + (o.gross_amount || 0), 0);
   const paidTotal = paid.reduce((s, o) => s + (o.gross_amount || 0), 0);
 
@@ -203,7 +318,6 @@ const PaymentOrdersTracker = () => {
                   const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
                   const StIcon = st.icon;
                   const isPaid = o.status === "sacado";
-                  const isEditing = editingId === o.id;
                   return (
                     <motion.tr
                       key={o.id}
@@ -219,29 +333,19 @@ const PaymentOrdersTracker = () => {
                         <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
                       </td>
                       <td className={`p-3 font-medium ${isPaid ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                        {isEditing ? (
-                          <Input value={editForm.beneficiary_name} onChange={e => setEditForm(f => ({ ...f, beneficiary_name: e.target.value }))} className="h-7 text-xs" />
-                        ) : (o.beneficiary_name || "—")}
+                        {o.beneficiary_name || "—"}
                       </td>
                       <td className="p-3 text-muted-foreground font-mono text-xs">
-                        {isEditing ? (
-                          <Input value={editForm.process_number} onChange={e => setEditForm(f => ({ ...f, process_number: e.target.value }))} className="h-7 text-xs font-mono" />
-                        ) : (o.process_number || "—")}
+                        {o.process_number || "—"}
                       </td>
                       <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
-                        {isEditing ? (
-                          <Input type="number" value={editForm.gross_amount} onChange={e => setEditForm(f => ({ ...f, gross_amount: e.target.value }))} className="h-7 text-xs text-right w-24 ml-auto" />
-                        ) : fmt(o.gross_amount)}
+                        {fmt(o.gross_amount)}
                       </td>
                       <td className={`p-3 text-right font-medium ${isPaid ? "text-muted-foreground" : "text-accent"}`}>
-                        {isEditing ? (
-                          <Input type="number" value={editForm.office_amount} onChange={e => setEditForm(f => ({ ...f, office_amount: e.target.value }))} className="h-7 text-xs text-right w-24 ml-auto" />
-                        ) : fmt(o.office_amount)}
+                        {fmt(o.office_amount)}
                       </td>
                       <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
-                        {isEditing ? (
-                          <Input type="number" value={editForm.client_amount} onChange={e => setEditForm(f => ({ ...f, client_amount: e.target.value }))} className="h-7 text-xs text-right w-24 ml-auto" />
-                        ) : fmt(o.client_amount)}
+                        {fmt(o.client_amount)}
                       </td>
                       <td className="p-3">
                         <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
@@ -259,23 +363,16 @@ const PaymentOrdersTracker = () => {
                         </Select>
                       </td>
                       <td className="p-3 text-xs text-muted-foreground">
-                        {isEditing ? (
-                          <Input type="date" value={editForm.expected_payment_date} onChange={e => setEditForm(f => ({ ...f, expected_payment_date: e.target.value }))} className="h-7 text-xs w-32" />
-                        ) : (o.expected_payment_date ? new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR") : "—")}
+                        {o.expected_payment_date ? new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
                       </td>
                       <td className="p-3">
                         <div className="flex items-center justify-center gap-1">
-                          {isEditing ? (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={saveEdit}><Save className="w-3.5 h-3.5" /></Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(null)}><X className="w-3.5 h-3.5" /></Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEdit(o)}><Pencil className="w-3.5 h-3.5" /></Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteOrder(o.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-                            </>
-                          )}
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEdit(o)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteOrder(o.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </motion.tr>
@@ -286,6 +383,127 @@ const PaymentOrdersTracker = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editOrder} onOpenChange={(open) => { if (!open) cancelEdit(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar {editForm.type === "precatorio" ? "Precatório" : "RPV"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {/* PDF Upload */}
+            <FileDropZone
+              onFile={handleEditFileUpload}
+              accept=".pdf"
+              loading={uploading || extracting}
+              loadingText={extracting ? "Extraindo dados..." : "Enviando..."}
+              label="Anexar novo PDF para atualizar dados"
+              sublabel="Os campos serão atualizados automaticamente"
+              fileName={editForm.document_name || undefined}
+              onClear={() => setEditForm(f => ({ ...f, document_url: null, document_name: null }))}
+            />
+            {editForm.ai_extracted && (
+              <Badge variant="secondary" className="text-xs gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Dados extraídos por IA
+              </Badge>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
+                <Select value={editForm.type || "rpv"} onValueChange={v => setEditForm(f => ({ ...f, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rpv">RPV</SelectItem>
+                    <SelectItem value="precatorio">Precatório</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Vincular Processo</label>
+                <Select value={editForm.case_id || "none"} onValueChange={v => setEditForm(f => ({ ...f, case_id: v === "none" ? null : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {cases.map(c => <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Beneficiário</label>
+                <Input value={editForm.beneficiary_name || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
+                <Input value={editForm.beneficiary_cpf || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_cpf: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
+              <Input value={editForm.process_number || ""} onChange={e => setEditForm(f => ({ ...f, process_number: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Vara/Tribunal</label>
+                <Input value={editForm.court || ""} onChange={e => setEditForm(f => ({ ...f, court: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Entidade Devedora</label>
+                <Input value={editForm.entity || ""} onChange={e => setEditForm(f => ({ ...f, entity: e.target.value }))} placeholder="INSS, União..." />
+              </div>
+            </div>
+
+            <hr className="border-border" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valores</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Valor Bruto (R$)</label>
+                <Input type="number" step="0.01" value={editForm.gross_amount ?? ""} onChange={e => setEditForm(f => ({ ...f, gross_amount: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
+                <Input type="number" step="0.1" value={editForm.office_fees_percent ?? ""} onChange={e => setEditForm(f => ({ ...f, office_fees_percent: parseFloat(e.target.value) || 0 }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
+                <Input type="number" step="0.01" value={editForm.court_costs ?? ""} onChange={e => setEditForm(f => ({ ...f, court_costs: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
+                <Input type="number" step="0.01" value={editForm.social_security ?? ""} onChange={e => setEditForm(f => ({ ...f, social_security: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">IR</label>
+                <Input type="number" step="0.01" value={editForm.income_tax ?? ""} onChange={e => setEditForm(f => ({ ...f, income_tax: parseFloat(e.target.value) || 0 }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Data Base Cálculo</label>
+                <Input type="date" value={editForm.reference_date || ""} onChange={e => setEditForm(f => ({ ...f, reference_date: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Previsão Pagamento</label>
+                <Input type="date" value={editForm.expected_payment_date || ""} onChange={e => setEditForm(f => ({ ...f, expected_payment_date: e.target.value }))} />
+              </div>
+            </div>
+            <Textarea placeholder="Observações" value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={cancelEdit} className="gap-1">
+                <X className="w-4 h-4" /> Cancelar
+              </Button>
+              <Button size="sm" onClick={saveEdit} className="gap-1">
+                <Save className="w-4 h-4" /> Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
