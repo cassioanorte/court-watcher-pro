@@ -177,9 +177,9 @@ const Dashboard = () => {
       {/* Task Notifications */}
       <DashboardTaskNotifications />
 
-      {/* Charts + Pipeline row */}
+      {/* Reminders + Pipeline row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardCasesChart />
+        <DashboardReminders />
         <DashboardCrmPipeline />
       </div>
 
