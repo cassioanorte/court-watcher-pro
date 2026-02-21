@@ -112,6 +112,8 @@ const PaymentOrdersTracker = () => {
     toast.success("Registro excluído");
   };
 
+  const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
+
   const filtered = orders.filter(o => {
     if (filterStatus !== "all" && o.status !== filterStatus) return false;
     if (search) {
