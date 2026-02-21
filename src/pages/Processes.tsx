@@ -396,6 +396,15 @@ const Processes = () => {
                     <td className="px-4 py-3 text-right text-xs text-muted-foreground">{formatDate(p.updated_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {isOwner && (
+                          <button
+                            onClick={() => setAccessControlCase({ id: p.id, process_number: p.process_number })}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+                            title="Controle de acesso"
+                          >
+                            <Shield className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleArchiveToggle(p)}
                           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
