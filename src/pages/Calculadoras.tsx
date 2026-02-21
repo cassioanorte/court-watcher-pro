@@ -33,6 +33,15 @@ import BuscaApreensaoCalc from "@/components/calculadoras/BuscaApreensaoCalc";
 import RevisaoCcbCalc from "@/components/calculadoras/RevisaoCcbCalc";
 import CapitalGiroCalc from "@/components/calculadoras/CapitalGiroCalc";
 import CreditoRuralCalc from "@/components/calculadoras/CreditoRuralCalc";
+import InssRestituicaoCalc from "@/components/calculadoras/InssRestituicaoCalc";
+import RevisaoPasepCalc from "@/components/calculadoras/RevisaoPasepCalc";
+import ContribuicoesAtrasoCalc from "@/components/calculadoras/ContribuicoesAtrasoCalc";
+import RestabelecimentoCalc from "@/components/calculadoras/RestabelecimentoCalc";
+import ComplementacaoCalc from "@/components/calculadoras/ComplementacaoCalc";
+import BpcLoasCalc from "@/components/calculadoras/BpcLoasCalc";
+import RestituicaoTetoCalc from "@/components/calculadoras/RestituicaoTetoCalc";
+import RestituicaoIrDoencaCalc from "@/components/calculadoras/RestituicaoIrDoencaCalc";
+import FatorPrevidenciarioCalc from "@/components/calculadoras/FatorPrevidenciarioCalc";
 
 interface Calculadora {
   id: string;
@@ -63,6 +72,15 @@ const categorias: Categoria[] = [
       { id: "tempo_contribuicao", name: "Tempo de Contribuição", description: "Calcule o tempo total de contribuição a partir dos vínculos.", icon: Clock },
       { id: "rmi", name: "Renda Mensal Inicial (RMI)", description: "Simule o valor do benefício com base nos salários de contribuição.", icon: Calculator },
       { id: "simulador_aposentadoria", name: "Simulador de Aposentadoria", description: "Verifique requisitos nas regras de transição (pedágio, pontos, idade mínima).", icon: Briefcase },
+      { id: "fator_previdenciario", name: "Fator Previdenciário", description: "Calcule o fator previdenciário com base na idade, tempo de contribuição e expectativa de sobrevida.", icon: Calculator },
+      { id: "inss_restituicao", name: "INSS (Restituição)", description: "Analisar descontos em seguros do INSS e simular o acordo administrativo para a restituição.", icon: Building2 },
+      { id: "revisao_pasep", name: "Revisão do PASEP", description: "Recálculo do saldo do PASEP aplicando os juros, revisões e atualizações previstas na lei.", icon: Calculator },
+      { id: "contribuicoes_atraso", name: "Contribuições em Atraso", description: "Calcular quanto o cliente precisa contribuir em atraso e aproveitar períodos não reconhecidos pelo INSS.", icon: Clock },
+      { id: "restabelecimento", name: "Restabelecimento", description: "Encontre RMI e o Valor da Causa do benefício cessado pelo INSS que deseja restabelecer.", icon: Calculator },
+      { id: "complementacao", name: "Complementação", description: "Descubra quanto complementar nos casos de alíquotas de planos simplificados (5% a 11%).", icon: Percent },
+      { id: "bpc_loas", name: "Análise BPC/LOAS", description: "Verifique o cumprimento dos requisitos de miserabilidade do BPC/LOAS com composição familiar e renda.", icon: Heart },
+      { id: "restituicao_teto", name: "Restituição Acima do Teto", description: "Estimar o valor das contribuições pagas acima do teto do INSS passíveis de restituição.", icon: Percent },
+      { id: "restituicao_ir_doenca", name: "Restituição IR Doença Grave", description: "Simular a restituição de IR para aposentados/pensionistas com doenças graves (Lei 7.713/88).", icon: FileText },
     ],
   },
   {
@@ -146,6 +164,15 @@ const calcComponents: Record<string, React.FC> = {
   revisao_ccb: RevisaoCcbCalc,
   capital_giro: CapitalGiroCalc,
   credito_rural: CreditoRuralCalc,
+  fator_previdenciario: FatorPrevidenciarioCalc,
+  inss_restituicao: InssRestituicaoCalc,
+  revisao_pasep: RevisaoPasepCalc,
+  contribuicoes_atraso: ContribuicoesAtrasoCalc,
+  restabelecimento: RestabelecimentoCalc,
+  complementacao: ComplementacaoCalc,
+  bpc_loas: BpcLoasCalc,
+  restituicao_teto: RestituicaoTetoCalc,
+  restituicao_ir_doenca: RestituicaoIrDoencaCalc,
 };
 
 export default function Calculadoras() {
