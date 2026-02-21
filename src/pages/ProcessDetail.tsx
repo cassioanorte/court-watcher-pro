@@ -88,11 +88,12 @@ const ProcessDetail = () => {
   useEffect(() => {
     if (!id) return;
     const load = async () => {
-      const [caseRes, movRes, msgRes, docRes] = await Promise.all([
+      const [caseRes, movRes, msgRes, docRes, taskRes] = await Promise.all([
         supabase.from("cases").select("*").eq("id", id).single(),
         supabase.from("movements").select("*").eq("case_id", id).order("occurred_at", { ascending: false }),
         supabase.from("messages").select("*").eq("case_id", id).order("created_at", { ascending: true }),
         supabase.from("documents").select("*").eq("case_id", id).order("created_at", { ascending: false }),
+        supabase.from("task_assignments").select("*").eq("case_id", id).eq("completed", false).order("created_at", { ascending: false }),
       ]);
       if (caseRes.data) {
         setCaseData(caseRes.data);
