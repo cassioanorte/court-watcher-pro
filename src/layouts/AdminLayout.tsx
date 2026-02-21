@@ -20,6 +20,7 @@ const navItems = [
   { to: "/cobranca", icon: Receipt, label: "Cobrança" },
   { to: "/pagamentos", icon: Banknote, label: "Pagamentos" },
   { to: "/landing-pages", icon: Globe, label: "Landing Pages" },
+  { to: "/agentes-ia", icon: Bot, label: "Agentes de IA" },
 ];
 
 const AdminLayout = () => {

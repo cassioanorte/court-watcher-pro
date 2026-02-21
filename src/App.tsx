@@ -120,6 +120,7 @@ const App = () => (
               <Route path="landing-pages" element={<LandingPages />} />
               <Route path="landing-pages/:id" element={<LandingPageEditor />} />
               <Route path="configuracoes" element={<Settings />} />
+              <Route path="agentes-ia" element={<AgentesIA />} />
             </Route>
 
             {/* Client portal routes */}
