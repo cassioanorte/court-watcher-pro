@@ -466,14 +466,21 @@ const ClientProcessDetail = () => {
                   accept=".pdf,.jpg,.jpeg,.png,.webp"
                   onChange={handleExtractFromFile}
                 />
-                <button
-                  onClick={() => extractFileRef.current?.click()}
-                  disabled={extractingExternal}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold disabled:opacity-50"
-                >
-                  {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  {extractingExternal ? "Extraindo dados..." : "Upload e extrair dados"}
-                </button>
+                <FileDropZone
+                  onFile={(f) => {
+                    const dt = new DataTransfer();
+                    dt.items.add(f);
+                    if (extractFileRef.current) {
+                      extractFileRef.current.files = dt.files;
+                      extractFileRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                  }}
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  loading={extractingExternal}
+                  loadingText="Extraindo dados..."
+                  label="Arraste o arquivo aqui ou clique para extrair dados"
+                  compact
+                />
               </div>
 
               <input
