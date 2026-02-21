@@ -464,9 +464,19 @@ const DashboardCalendar = () => {
               {selectedAppt.case_id && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo vinculado</p>
-                  <p className="text-sm text-accent mt-0.5">
-                    {cases.find((c) => c.id === selectedAppt.case_id)?.process_number || "Ver processo"}
-                  </p>
+                  <Link to={`/processos/${selectedAppt.case_id}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {cases.find((c) => c.id === selectedAppt.case_id)?.process_number || "Ver processo"} →
+                  </Link>
+                </div>
+              )}
+              {selectedAppt.lead_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Lead vinculado</p>
+                  <Link to={`/crm`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Ver no CRM →
+                  </Link>
                 </div>
               )}
               <div className="flex gap-2 pt-2">
