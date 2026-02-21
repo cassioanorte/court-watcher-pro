@@ -40,8 +40,10 @@ const StaffAccessControl = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
 
+  const canManageAccess = role === "owner" || role === "superadmin";
+
   useEffect(() => {
-    if (!tenantId || role !== "owner") return;
+    if (!tenantId || !canManageAccess) return;
     loadData();
   }, [tenantId, role]);
 
