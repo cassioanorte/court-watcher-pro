@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
 import { FeeDistributionSection } from "@/components/FeeDistributionSection";
+import { createCashFlowEntriesOnSacado, removeCashFlowEntriesOnUnsacado } from "@/lib/cashFlowAutoEntries";
 
 
 
@@ -300,10 +301,20 @@ const Pagamentos = () => {
   };
 
   const updateStatus = async (id: string, newStatus: string) => {
+    const order = orders.find(o => o.id === id);
+    const oldStatus = order?.status;
     await supabase.from("payment_orders" as any).update({ status: newStatus }).eq("id", id);
+    if (order && tenantId && user?.id) {
+      if (newStatus === "sacado" && oldStatus !== "sacado") {
+        const result = await createCashFlowEntriesOnSacado(order as any, tenantId, user.id);
+        if (!result.success) toast.error("Erro ao lançar no caixa: " + result.error);
+      } else if (oldStatus === "sacado" && newStatus !== "sacado") {
+        await removeCashFlowEntriesOnUnsacado(id, order.process_number, order.beneficiary_name, order.type, tenantId);
+      }
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: newStatus } : null);
-    toast.success("Status atualizado");
+    toast.success(newStatus === "sacado" ? "Pago — lançado no caixa" : "Status atualizado");
   };
 
   const deleteOrder = async (id: string) => {
