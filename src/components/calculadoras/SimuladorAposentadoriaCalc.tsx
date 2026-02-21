@@ -6,12 +6,30 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle } from "lucide-react";
+import CnisUpload from "./CnisUpload";
+import type { CnisDados } from "@/lib/cnisParser";
 
 export default function SimuladorAposentadoriaCalc() {
   const [sexo, setSexo] = useState("masculino");
   const [idade, setIdade] = useState("");
   const [tempoContrib, setTempoContrib] = useState("");
   const [resultado, setResultado] = useState<{ regras: { nome: string; atende: boolean; detalhe: string }[] } | null>(null);
+
+  const handleCnisData = (dados: CnisDados) => {
+    // Set tempo de contribuição from CNIS
+    setTempoContrib(String(dados.tempoTotal.anos));
+    
+    // Calculate age if birth date is available
+    if (dados.dataNascimento) {
+      const birth = new Date(dados.dataNascimento);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      setIdade(String(age));
+    }
+  };
 
   const calcular = () => {
     const i = parseInt(idade);
@@ -51,6 +69,8 @@ export default function SimuladorAposentadoriaCalc() {
 
   return (
     <div className="space-y-4">
+      <CnisUpload onDataExtracted={handleCnisData} />
+
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Sexo</Label>
           <Select value={sexo} onValueChange={setSexo}>

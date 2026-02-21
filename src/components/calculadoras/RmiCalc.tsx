@@ -6,11 +6,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
+import CnisUpload from "./CnisUpload";
+import type { CnisDados } from "@/lib/cnisParser";
 
 export default function RmiCalc() {
   const [salarios, setSalarios] = useState<string[]>(["", "", ""]);
   const [regra, setRegra] = useState("pos_reforma");
   const [resultado, setResultado] = useState<{ media: number; coeficiente: number; rmi: number } | null>(null);
+
+  const handleCnisData = (dados: CnisDados) => {
+    if (dados.salarios.length > 0) {
+      setSalarios(dados.salarios.map(s => s.valor.toFixed(2)));
+      toast.success(`${dados.salarios.length} salários de contribuição importados do CNIS`);
+    }
+  };
 
   const addSalario = () => setSalarios([...salarios, ""]);
   const removeSalario = (i: number) => setSalarios(salarios.filter((_, idx) => idx !== i));
@@ -28,15 +37,13 @@ export default function RmiCalc() {
     let coeficiente: number;
 
     if (regra === "pos_reforma") {
-      // Pós EC 103/2019: média de 100% dos salários, coeficiente 60% + 2% por ano acima de 20a (homem) / 15a (mulher)
       media = valores.reduce((a, b) => a + b, 0) / valores.length;
-      coeficiente = 0.6; // base 60%
+      coeficiente = 0.6;
     } else {
-      // Pré-reforma: média dos 80% maiores
       const sorted = [...valores].sort((a, b) => b - a);
       const top80 = sorted.slice(0, Math.ceil(sorted.length * 0.8));
       media = top80.reduce((a, b) => a + b, 0) / top80.length;
-      coeficiente = 0.7; // base simplificado
+      coeficiente = 0.7;
     }
 
     const rmi = media * coeficiente;
@@ -45,6 +52,8 @@ export default function RmiCalc() {
 
   return (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+      <CnisUpload onDataExtracted={handleCnisData} />
+
       <div>
         <Label>Regra de cálculo</Label>
         <Select value={regra} onValueChange={setRegra}>

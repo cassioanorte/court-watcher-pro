@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import CnisUpload from "./CnisUpload";
+import type { CnisDados } from "@/lib/cnisParser";
 
 export default function FatorPrevidenciarioCalc() {
   const [idade, setIdade] = useState("");
@@ -47,8 +49,24 @@ export default function FatorPrevidenciarioCalc() {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const handleCnisData = (dados: CnisDados) => {
+    setTempoContribuicao(String(dados.tempoTotal.anos));
+    if (dados.dataNascimento) {
+      const birth = new Date(dados.dataNascimento);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age--;
+      setIdade(String(age));
+    }
+    if (dados.salarios.length > 0) {
+      const media = dados.salarios.reduce((a, b) => a + b.valor, 0) / dados.salarios.length;
+      setMediaSalarios(media.toFixed(2));
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <CnisUpload onDataExtracted={handleCnisData} />
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Idade (anos)</Label><Input type="number" value={idade} onChange={e => setIdade(e.target.value)} /></div>
         <div><Label>Tempo de Contribuição (anos)</Label><Input type="number" value={tempoContribuicao} onChange={e => setTempoContribuicao(e.target.value)} /></div>
