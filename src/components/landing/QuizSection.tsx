@@ -19,11 +19,19 @@ interface QuizConfig {
   collectContactOnUnqualified: boolean;
 }
 
+interface QuizBranding {
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  textColor?: string;
+}
+
 interface QuizSectionProps {
   quiz: QuizConfig;
   whatsappNumber?: string;
   tenantId: string;
   variant?: "classic" | "modern" | "minimal";
+  branding?: QuizBranding;
 }
 
 const normalizeWhatsapp = (raw: string) => {
@@ -31,7 +39,7 @@ const normalizeWhatsapp = (raw: string) => {
   return digits.startsWith("55") ? digits : `55${digits}`;
 };
 
-const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: QuizSectionProps) => {
+const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", branding }: QuizSectionProps) => {
   const [currentStep, setCurrentStep] = useState(0); // 0 = intro, 1..n = questions, n+1 = result
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [result, setResult] = useState<"qualified" | "unqualified" | null>(null);
@@ -122,8 +130,8 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: Qu
     handleWhatsappRedirect();
   };
 
-  // Styles per variant
-  const styles = {
+  // Styles per variant (fallback)
+  const fallbackStyles = {
     classic: {
       bg: "bg-amber-50",
       card: "bg-white border shadow-sm",
@@ -150,10 +158,16 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: Qu
     },
   };
 
-  const s = styles[variant];
+  const s = fallbackStyles[variant];
+
+  // Dynamic branding overrides
+  const brandingBgStyle = branding?.secondaryColor ? { backgroundColor: branding.secondaryColor } : undefined;
+  const brandingBtnStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor, color: branding.textColor || '#fff' } : undefined;
+  const brandingAccentStyle = branding?.primaryColor ? { color: branding.primaryColor } : undefined;
+  const brandingProgressStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor } : undefined;
 
   return (
-    <section className={`py-16 px-6 ${s.bg}`}>
+    <section className={`py-16 px-6 ${s.bg}`} style={brandingBgStyle}>
       <div className="max-w-2xl mx-auto">
         {/* Progress bar */}
         {!isIntro && !isResult && (
@@ -163,7 +177,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: Qu
               <span>{Math.round((currentStep / totalQuestions) * 100)}%</span>
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className={`h-full ${s.progress} rounded-full transition-all duration-500`} style={{ width: `${(currentStep / totalQuestions) * 100}%` }} />
+              <div className={`h-full ${s.progress} rounded-full transition-all duration-500`} style={{ width: `${(currentStep / totalQuestions) * 100}%`, ...(brandingProgressStyle || {}) }} />
             </div>
           </div>
         )}
@@ -171,9 +185,9 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: Qu
         {/* Intro */}
         {isIntro && (
           <div className={`${s.card} p-8 text-center rounded-xl`}>
-            <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${s.accent}`}>{quiz.title}</h2>
+            <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${s.accent}`} style={brandingAccentStyle}>{quiz.title}</h2>
             <p className="text-gray-600 mb-6">{quiz.subtitle}</p>
-            <button onClick={() => setCurrentStep(1)} className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2`}>
+            <button onClick={() => setCurrentStep(1)} className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2`} style={brandingBtnStyle}>
               Começar <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -238,7 +252,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: Qu
               <button
                 onClick={handleQualifiedContact}
                 disabled={!contactForm.name.trim() || !contactForm.phone.trim()}
-                className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2 disabled:opacity-50`}
+                className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2 disabled:opacity-50`} style={brandingBtnStyle}
               >
                 <Phone className="w-4 h-4" /> Falar com Advogado pelo WhatsApp
               </button>

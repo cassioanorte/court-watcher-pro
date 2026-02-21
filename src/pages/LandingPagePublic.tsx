@@ -48,9 +48,9 @@ const DEFAULT_SECTIONS = [
   { id: "hero", label: "Hero", visible: true },
   { id: "about", label: "Sobre", visible: true },
   { id: "services", label: "Serviços", visible: true },
+  { id: "quiz", label: "Quiz", visible: false },
   { id: "testimonials", label: "Depoimentos", visible: true },
   { id: "contact", label: "Contato", visible: true },
-  { id: "quiz", label: "Quiz", visible: false },
 ];
 
 // Ensure quiz section exists in sections array
@@ -83,12 +83,15 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
     const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
     return (
       <section className="bg-gradient-to-br from-slate-900 to-slate-700 text-white py-24 px-6" style={bgStyle}>
-        <div className="max-w-4xl mx-auto text-center">
-          {b?.logoUrl ? (
-            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
-          ) : (
-            <Scale className="w-12 h-12 mx-auto mb-6 text-amber-400" style={b?.accentColor ? { color: b.accentColor } : undefined} />
-          )}
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            {b?.logoUrl ? (
+              <img src={b.logoUrl} alt="Logo" className="h-20 md:h-24 object-contain" style={{ filter: logoFilter }} />
+            ) : (
+              <Scale className="w-12 h-12 text-amber-400" style={b?.accentColor ? { color: b.accentColor } : undefined} />
+            )}
+          </div>
+          <div className="text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4" style={textStyle}>{content.heroTitle}</h1>
           <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
           {content.heroCtaText && (
@@ -96,6 +99,7 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
               {content.heroCtaText}
             </a>
           )}
+          </div>
         </div>
       </section>
     );
@@ -171,10 +175,13 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
     return (
       <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white py-28 px-6 relative overflow-hidden" style={bgStyle}>
         
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-4xl mx-auto relative z-10">
           {b?.logoUrl && (
-            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
+            <div className="mb-8">
+              <img src={b.logoUrl} alt="Logo" className="h-20 md:h-24 object-contain" style={{ filter: logoFilter }} />
+            </div>
           )}
+          <div className="text-center">
           <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight" style={textStyle}>{content.heroTitle}</h1>
           <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
           {content.heroCtaText && (
@@ -182,6 +189,7 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
               {content.heroCtaText}
             </a>
           )}
+          </div>
         </div>
       </section>
     );
@@ -260,7 +268,7 @@ const minimalSections: Record<string, React.FC<{ content: LPContent }>> = {
       <section className="py-32 px-6 border-b">
         <div className="max-w-3xl mx-auto">
           {b?.logoUrl && (
-            <img src={b.logoUrl} alt="Logo" className="h-12 mb-8 object-contain" style={{ filter: logoFilter }} />
+            <img src={b.logoUrl} alt="Logo" className="h-20 md:h-24 mb-8 object-contain" style={{ filter: logoFilter }} />
           )}
           <h1 className="text-5xl md:text-6xl font-light mb-6 leading-tight">{content.heroTitle}</h1>
           <p className="text-xl text-gray-500 mb-10">{content.heroSubtitle}</p>
@@ -414,6 +422,7 @@ const LandingPagePublic = () => {
                 whatsappNumber={whatsappNumber}
                 tenantId={data.tenant_id}
                 variant={templateKey as any}
+                branding={data.content.branding}
               />
             );
           }
