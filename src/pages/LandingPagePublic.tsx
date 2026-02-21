@@ -170,7 +170,7 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
     const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
     return (
       <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white py-28 px-6 relative overflow-hidden" style={bgStyle}>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')] opacity-40" />
+        
         <div className="max-w-4xl mx-auto text-center relative z-10">
           {b?.logoUrl && (
             <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
