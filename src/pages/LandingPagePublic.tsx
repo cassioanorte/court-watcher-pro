@@ -109,7 +109,7 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
     </section>
   ) : null,
   services: ({ content }) => content.services.length > 0 ? (
-    <section className="py-16 px-6 bg-slate-50">
+    <section className="py-16 px-6" style={content.branding?.secondaryColor ? { backgroundColor: content.branding.secondaryColor } : { backgroundColor: '#f8fafc' }}>
       <div className="max-w-5xl mx-auto">
         <h2 className="text-3xl font-bold mb-10 text-center">Áreas de Atuação</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
