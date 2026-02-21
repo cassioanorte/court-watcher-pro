@@ -169,9 +169,8 @@ const ContatoDetail = () => {
     else setClientDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !id || !tenantId) return;
+  const uploadAvatarFile = async (file: File) => {
+    if (!id || !tenantId) return;
     setUploadingAvatar(true);
     try {
       const filePath = `avatars/${id}/${Date.now()}_${file.name}`;
@@ -188,6 +187,11 @@ const ContatoDetail = () => {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadAvatarFile(file);
   };
 
   const handleExtractFromDoc = async (docId: string, fileUrl: string, useAi = false) => {
