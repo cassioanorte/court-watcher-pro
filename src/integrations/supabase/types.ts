@@ -1032,6 +1032,47 @@ export type Database = {
           },
         ]
       }
+      staff_case_access: {
+        Row: {
+          access_mode: Database["public"]["Enums"]["case_access_mode"]
+          allowed_client_ids: string[] | null
+          allowed_oab_numbers: string[] | null
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_mode?: Database["public"]["Enums"]["case_access_mode"]
+          allowed_client_ids?: string[] | null
+          allowed_oab_numbers?: string[] | null
+          created_at?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_mode?: Database["public"]["Enums"]["case_access_mode"]
+          allowed_client_ids?: string[] | null
+          allowed_oab_numbers?: string[] | null
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_case_access_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           ai_credits_limit: number
@@ -1153,6 +1194,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_case: {
+        Args: { _case_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_email_by_cpf: { Args: { _cpf: string }; Returns: string }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
@@ -1166,6 +1211,7 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "staff" | "client" | "superadmin"
+      case_access_mode: "all" | "own_only" | "own_plus_oab" | "own_plus_clients"
       crm_stage:
         | "contato_inicial"
         | "reuniao_agendada"
@@ -1341,6 +1387,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "staff", "client", "superadmin"],
+      case_access_mode: ["all", "own_only", "own_plus_oab", "own_plus_clients"],
       crm_stage: [
         "contato_inicial",
         "reuniao_agendada",
