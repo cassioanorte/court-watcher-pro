@@ -545,7 +545,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                       <Clock className="w-3 h-3" /> {formatDateTime(a.start_at)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     <button
                       onClick={() => startEdit(a)}
                       title="Editar"
@@ -562,6 +562,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                     </button>
                     <button
                       onClick={async () => {
+                        if (!confirm("Tem certeza que deseja excluir este atendimento?")) return;
                         const { error } = await supabase.from("appointments").delete().eq("id", a.id);
                         if (error) {
                           toast({ title: "Erro ao excluir", variant: "destructive" });
@@ -571,7 +572,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                         }
                       }}
                       title="Excluir"
-                      className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-destructive"
+                      className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-destructive/70 hover:text-destructive"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
