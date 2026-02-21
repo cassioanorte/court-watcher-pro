@@ -430,7 +430,18 @@ const Pagamentos = () => {
           </DialogHeader>
 
           {/* PDF Upload */}
-          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+          <div
+            className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${uploading ? "" : "hover:border-accent/50"}`}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("border-accent", "bg-accent/5"); }}
+            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-accent", "bg-accent/5"); }}
+            onDrop={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              e.currentTarget.classList.remove("border-accent", "bg-accent/5");
+              const f = e.dataTransfer.files?.[0];
+              if (f && f.type === "application/pdf") handleFileUpload(f);
+              else if (f) toast.error("Apenas arquivos PDF são aceitos");
+            }}
+          >
             {formDocName ? (
               <div className="flex items-center gap-2 justify-center">
                 <FileText className="w-5 h-5 text-accent" />
@@ -452,7 +463,7 @@ const Pagamentos = () => {
                 />
                 <Upload className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  {uploading ? (extracting ? "Extraindo dados..." : "Enviando...") : "Clique para enviar PDF (RPV/Precatório)"}
+                  {uploading ? (extracting ? "Extraindo dados..." : "Enviando...") : "Arraste o PDF aqui ou clique para selecionar"}
                 </p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Os dados serão preenchidos automaticamente</p>
               </label>
