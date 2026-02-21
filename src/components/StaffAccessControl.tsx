@@ -132,7 +132,7 @@ const StaffAccessControl = () => {
     }
   };
 
-  if (role !== "owner") return null;
+  if (!canManageAccess) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-card rounded-lg border p-5 shadow-card space-y-4">
