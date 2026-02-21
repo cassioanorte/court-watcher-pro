@@ -3,57 +3,88 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-export interface TaskNotification {
+export interface TaskAssignment {
   id: string;
-  title: string;
-  body: string | null;
   case_id: string | null;
-  read: boolean;
+  assigned_by: string;
+  assigned_to: string;
+  task_description: string;
+  process_number: string | null;
+  parties: string | null;
+  due_date: string | null;
+  completed: boolean;
+  completed_at: string | null;
   created_at: string;
 }
 
 export function useTaskNotifications() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<TaskNotification[]>([]);
+  const [receivedTasks, setReceivedTasks] = useState<TaskAssignment[]>([]);
+  const [delegatedTasks, setDelegatedTasks] = useState<TaskAssignment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchTasks = useCallback(async () => {
     if (!user?.id) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, title, body, case_id, read, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setNotifications((data || []) as TaskNotification[]);
+    const [receivedRes, delegatedRes] = await Promise.all([
+      supabase
+        .from("task_assignments" as any)
+        .select("*")
+        .eq("assigned_to", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("task_assignments" as any)
+        .select("*")
+        .eq("assigned_by", user.id)
+        .neq("assigned_to", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+    setReceivedTasks((receivedRes.data || []) as TaskAssignment[]);
+    setDelegatedTasks((delegatedRes.data || []) as TaskAssignment[]);
     setLoading(false);
   }, [user?.id]);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    fetchTasks();
+  }, [fetchTasks]);
 
-  // Realtime subscription for popup
+  // Realtime subscription for popup on new task assigned to me
   useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel(`notifications-${user.id}`)
+      .channel(`task-assignments-${user.id}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
+          table: "task_assignments",
+          filter: `assigned_to=eq.${user.id}`,
         },
         (payload) => {
-          const newNotif = payload.new as TaskNotification;
-          setNotifications((prev) => [newNotif, ...prev]);
-          toast.info(newNotif.title, {
-            description: newNotif.body || undefined,
-            duration: 8000,
-          });
+          const newTask = payload.new as TaskAssignment;
+          if (newTask.assigned_by !== user.id) {
+            toast.info(`Nova tarefa: ${newTask.task_description}`, {
+              description: `Processo: ${newTask.process_number || "—"}${newTask.due_date ? ` | Prazo: ${new Date(newTask.due_date + "T12:00:00").toLocaleDateString("pt-BR")}` : ""}`,
+              duration: 8000,
+            });
+          }
+          setReceivedTasks((prev) => [newTask, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "task_assignments",
+          filter: `assigned_by=eq.${user.id}`,
+        },
+        () => {
+          // Refetch delegated tasks on any change
+          fetchTasks();
         }
       )
       .subscribe();
@@ -61,23 +92,31 @@ export function useTaskNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, fetchTasks]);
 
-  const markAsRead = useCallback(async (notifId: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", notifId);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
-    );
+  const markComplete = useCallback(async (taskId: string) => {
+    await supabase
+      .from("task_assignments" as any)
+      .update({ completed: true, completed_at: new Date().toISOString() })
+      .eq("id", taskId);
+    const updateList = (prev: TaskAssignment[]) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: true, completed_at: new Date().toISOString() } : t));
+    setReceivedTasks(updateList);
+    setDelegatedTasks(updateList);
   }, []);
 
-  const markAsUnread = useCallback(async (notifId: string) => {
-    await supabase.from("notifications").update({ read: false }).eq("id", notifId);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notifId ? { ...n, read: false } : n))
-    );
+  const markIncomplete = useCallback(async (taskId: string) => {
+    await supabase
+      .from("task_assignments" as any)
+      .update({ completed: false, completed_at: null })
+      .eq("id", taskId);
+    const updateList = (prev: TaskAssignment[]) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: false, completed_at: null } : t));
+    setReceivedTasks(updateList);
+    setDelegatedTasks(updateList);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = receivedTasks.filter((t) => !t.completed).length;
 
-  return { notifications, loading, unreadCount, markAsRead, markAsUnread, refetch: fetchNotifications };
+  return { receivedTasks, delegatedTasks, loading, unreadCount, markComplete, markIncomplete, refetch: fetchTasks };
 }

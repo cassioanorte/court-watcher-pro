@@ -480,11 +480,20 @@ const ProcessDetail = () => {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Prazo</label>
+                <input
+                  type="date"
+                  value={nextStepDueDate}
+                  onChange={(e) => setNextStepDueDate(e.target.value)}
+                  className="w-full mt-1 h-9 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
               <div className="flex gap-2">
                 <button onClick={handleSaveNextStep} disabled={savingNextStep} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold disabled:opacity-50">
                   {savingNextStep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Salvar
                 </button>
-                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); setNextStepResponsibleId(caseData.next_step_responsible_id || null); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
+                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); setNextStepResponsibleId(caseData.next_step_responsible_id || null); setNextStepDueDate(""); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
               </div>
             </div>
           ) : (
