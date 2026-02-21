@@ -212,8 +212,8 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
     if (error) {
       toast({ title: "Erro ao desvincular", variant: "destructive" });
     } else {
-      setData(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
       toast({ title: "Cliente desvinculado do compromisso!" });
+      await refreshData(data.id);
     }
     setSaving(false);
   };
