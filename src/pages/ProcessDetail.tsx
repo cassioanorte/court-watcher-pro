@@ -47,6 +47,8 @@ const ProcessDetail = () => {
   const [nextStep, setNextStep] = useState("");
   const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
   const [nextStepDueDate, setNextStepDueDate] = useState<string>("");
+  const [caseTasks, setCaseTasks] = useState<any[]>([]);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [partiesText, setPartiesText] = useState("");
   const [savingParties, setSavingParties] = useState(false);
   const [savingSummary, setSavingSummary] = useState(false);
