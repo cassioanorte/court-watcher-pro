@@ -136,11 +136,20 @@ const Pagamentos = () => {
     const costs = parseFloat(formCourtCosts) || 0;
     const soc = parseFloat(formSocSec) || 0;
     const tax = parseFloat(formTax) || 0;
-    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
-    setFormOffice(officeCalc > 0 ? officeCalc.toString() : "");
-    setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
-  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax]);
+    const taxP = parseFloat(formTaxPercent) || 0;
+
+    if (formOwnership === "escritorio") {
+      // 100% do escritório, sem divisão com cliente
+      const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
+      setFormOffice(gross > 0 ? (gross - taxAmount).toString() : "");
+      setFormClient("0");
+    } else {
+      const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+      const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+      setFormOffice(officeCalc > 0 ? officeCalc.toString() : "");
+      setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
+    }
+  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax, formOwnership, formTaxPercent]);
 
   const applyRpvData = (d: Partial<RpvData>) => {
     if (d.type) setFormType(d.type);
