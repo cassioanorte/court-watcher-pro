@@ -4,63 +4,77 @@
  */
 export async function extractColorsFromImage(imageUrl: string, maxColors = 6): Promise<string[]> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
+    // Try to fetch the image as a blob first to avoid CORS issues
+    const loadViaBlob = async () => {
       try {
-        const canvas = document.createElement("canvas");
-        const size = 100; // downsample for speed
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return resolve([]);
-
-        ctx.drawImage(img, 0, 0, size, size);
-        const data = ctx.getImageData(0, 0, size, size).data;
-
-        // Bucket colors by rounding to nearest 16
-        const buckets = new Map<string, number>();
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-          if (a < 128) continue; // skip transparent pixels
-
-          // Round to reduce noise
-          const rr = Math.round(r / 16) * 16;
-          const gg = Math.round(g / 16) * 16;
-          const bb = Math.round(b / 16) * 16;
-
-          // Skip near-white and near-black (they're not useful theme colors)
-          const lum = 0.299 * rr + 0.587 * gg + 0.114 * bb;
-          if (lum > 240 || lum < 15) continue;
-
-          const key = `#${rr.toString(16).padStart(2, "0")}${gg.toString(16).padStart(2, "0")}${bb.toString(16).padStart(2, "0")}`;
-          buckets.set(key, (buckets.get(key) || 0) + 1);
-        }
-
-        // Sort by frequency
-        const sorted = [...buckets.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .map(([hex]) => hex);
-
-        // Deduplicate similar colors (distance < 60)
-        const unique: string[] = [];
-        for (const hex of sorted) {
-          if (unique.length >= maxColors) break;
-          const rgb = hexToRgb(hex);
-          const tooClose = unique.some((u) => {
-            const other = hexToRgb(u);
-            return colorDistance(rgb, other) < 60;
-          });
-          if (!tooClose) unique.push(hex);
-        }
-
-        resolve(unique.length > 0 ? unique : ["#c8972e"]); // fallback
+        const resp = await fetch(imageUrl);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        loadImage(blobUrl, () => URL.revokeObjectURL(blobUrl));
       } catch {
-        resolve(["#c8972e"]);
+        // Fallback: try direct loading with crossOrigin
+        loadImage(imageUrl);
       }
     };
-    img.onerror = () => reject(new Error("Falha ao carregar imagem"));
-    img.src = imageUrl;
+
+    const loadImage = (src: string, cleanup?: () => void) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const size = 100;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { cleanup?.(); return resolve([]); }
+
+          ctx.drawImage(img, 0, 0, size, size);
+          const data = ctx.getImageData(0, 0, size, size).data;
+
+          const buckets = new Map<string, number>();
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+            if (a < 128) continue;
+            const rr = Math.round(r / 16) * 16;
+            const gg = Math.round(g / 16) * 16;
+            const bb = Math.round(b / 16) * 16;
+            const lum = 0.299 * rr + 0.587 * gg + 0.114 * bb;
+            if (lum > 240 || lum < 15) continue;
+            const key = `#${rr.toString(16).padStart(2, "0")}${gg.toString(16).padStart(2, "0")}${bb.toString(16).padStart(2, "0")}`;
+            buckets.set(key, (buckets.get(key) || 0) + 1);
+          }
+
+          const sorted = [...buckets.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([hex]) => hex);
+
+          const unique: string[] = [];
+          for (const hex of sorted) {
+            if (unique.length >= maxColors) break;
+            const rgb = hexToRgb(hex);
+            const tooClose = unique.some((u) => {
+              const other = hexToRgb(u);
+              return colorDistance(rgb, other) < 60;
+            });
+            if (!tooClose) unique.push(hex);
+          }
+
+          cleanup?.();
+          resolve(unique.length > 0 ? unique : ["#c8972e"]);
+        } catch {
+          cleanup?.();
+          resolve(["#c8972e"]);
+        }
+      };
+      img.onerror = () => {
+        cleanup?.();
+        reject(new Error("Falha ao carregar imagem"));
+      };
+      img.src = src;
+    };
+
+    loadViaBlob();
   });
 }
 
