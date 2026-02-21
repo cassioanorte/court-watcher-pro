@@ -86,7 +86,7 @@ const DashboardDeadlines = () => {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <CalendarClock className="w-5 h-5 text-accent" />
-          <h2 className="font-semibold text-foreground">Próximos Prazos</h2>
+          <h2 className="font-semibold text-foreground">Próximos Compromissos</h2>
           {overdueCount > 0 && (
             <Badge variant="destructive" className="text-xs gap-1">
               <AlertTriangle className="w-3 h-3" /> {overdueCount} atrasado{overdueCount > 1 ? "s" : ""}
@@ -102,7 +102,7 @@ const DashboardDeadlines = () => {
 
       {deadlines.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">
-          Nenhum prazo nos próximos 7 dias 🎉
+          Nenhum compromisso nos próximos 7 dias 🎉
         </p>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto">
