@@ -350,7 +350,7 @@ const Financeiro = () => {
             </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
             className={`bg-card rounded-lg p-5 shadow-card border ${"clickable" in kpi && kpi.clickable ? "cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" : ""}`}
