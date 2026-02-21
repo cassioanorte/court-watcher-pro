@@ -1,0 +1,1 @@
+ALTER TABLE public.appointments ADD COLUMN client_user_id uuid DEFAULT NULL;

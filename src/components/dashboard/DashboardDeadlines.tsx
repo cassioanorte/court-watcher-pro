@@ -70,7 +70,7 @@ const DashboardDeadlines = () => {
     const [aptsRes, tasksRes] = await Promise.all([
       supabase
         .from("appointments")
-        .select("id, title, description, start_at, end_at, case_id, lead_id")
+        .select("id, title, description, start_at, end_at, case_id, lead_id, client_user_id")
         .eq("tenant_id", tenantId)
         .gte("start_at", todayStart.toISOString())
         .lte("start_at", in7days.toISOString())
@@ -99,17 +99,21 @@ const DashboardDeadlines = () => {
       });
     }
 
-    // Fetch client names
-    const clientIds = Object.values(caseMap).map(c => c.client_user_id).filter(Boolean) as string[];
-    // Also get lead_ids from appointments for client lookup
-    const leadIds = (aptsRes.data || []).map(a => a.lead_id).filter(Boolean) as string[];
-    
+    // Collect all client IDs: from appointment.client_user_id and from case.client_user_id
+    const allClientIds = new Set<string>();
+    (aptsRes.data || []).forEach(a => {
+      if (a.client_user_id) allClientIds.add(a.client_user_id);
+    });
+    Object.values(caseMap).forEach(c => {
+      if (c.client_user_id) allClientIds.add(c.client_user_id);
+    });
+
     let clientNameMap: Record<string, string> = {};
-    if (clientIds.length > 0) {
+    if (allClientIds.size > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name")
-        .in("user_id", clientIds);
+        .in("user_id", Array.from(allClientIds));
       (profiles || []).forEach(p => {
         clientNameMap[p.user_id] = p.full_name;
       });
@@ -118,7 +122,8 @@ const DashboardDeadlines = () => {
     const items: Deadline[] = [];
     (aptsRes.data || []).forEach((a) => {
       const caseInfo = a.case_id ? caseMap[a.case_id] : null;
-      const clientUserId = caseInfo?.client_user_id || null;
+      // Appointment-level client takes priority over case-level
+      const clientUserId = a.client_user_id || caseInfo?.client_user_id || null;
       items.push({
         id: a.id,
         title: a.title,
@@ -229,21 +234,23 @@ const DashboardDeadlines = () => {
     if (!tenantId) return;
     const { data: apt } = await supabase
       .from("appointments")
-      .select("id, title, description, start_at, end_at, case_id, lead_id")
+      .select("id, title, description, start_at, end_at, case_id, lead_id, client_user_id")
       .eq("id", deadlineId)
       .single();
     if (!apt) return;
     let caseInfo: { client_user_id: string | null; process_number: string } | null = null;
     let clientName: string | null = null;
+    const effectiveClientId = apt.client_user_id || null;
     if (apt.case_id) {
       const { data: c } = await supabase.from("cases").select("id, client_user_id, process_number").eq("id", apt.case_id).single();
       if (c) {
         caseInfo = { client_user_id: c.client_user_id, process_number: c.process_number };
-        if (c.client_user_id) {
-          const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", c.client_user_id).single();
-          clientName = p?.full_name || null;
-        }
       }
+    }
+    const clientIdToResolve = effectiveClientId || caseInfo?.client_user_id || null;
+    if (clientIdToResolve) {
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", clientIdToResolve).single();
+      clientName = p?.full_name || null;
     }
     setSelectedDeadline({
       id: apt.id,
@@ -255,7 +262,7 @@ const DashboardDeadlines = () => {
       link: apt.case_id ? `/processos/${apt.case_id}` : "/agenda",
       overdue: new Date(apt.start_at) < new Date(),
       caseId: apt.case_id,
-      clientUserId: caseInfo?.client_user_id || null,
+      clientUserId: clientIdToResolve,
       clientName,
       processNumber: caseInfo?.process_number || null,
     });
@@ -278,20 +285,13 @@ const DashboardDeadlines = () => {
   const handleLinkClient = async () => {
     if (!selectedDeadline || !selectedClientId) return;
     setSaving(true);
-    if (selectedDeadline.caseId) {
-      const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.caseId);
-      if (error) {
-        toast({ title: "Erro ao vincular cliente", variant: "destructive" });
-      } else {
-        toast({ title: "Cliente vinculado!" });
-        setLinkingClient(false);
-        await refreshSelectedDeadline(selectedDeadline.id);
-      }
+    const { error } = await supabase.from("appointments").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.id);
+    if (error) {
+      toast({ title: "Erro ao vincular cliente", variant: "destructive" });
     } else {
-      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", selectedClientId).single();
-      setSelectedDeadline(prev => prev ? { ...prev, clientUserId: selectedClientId, clientName: profile?.full_name || "Cliente" } : prev);
       toast({ title: "Cliente vinculado!" });
       setLinkingClient(false);
+      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
@@ -325,9 +325,15 @@ const DashboardDeadlines = () => {
   const handleUnlinkClient = async () => {
     if (!selectedDeadline) return;
     if (!confirm("Desvincular o cliente deste compromisso?")) return;
-    // Only clear the client reference from the appointment view, NOT from the case record
-    setSelectedDeadline(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
-    toast({ title: "Cliente desvinculado do compromisso!" });
+    setSaving(true);
+    const { error } = await supabase.from("appointments").update({ client_user_id: null }).eq("id", selectedDeadline.id);
+    if (error) {
+      toast({ title: "Erro ao desvincular", variant: "destructive" });
+    } else {
+      await refreshSelectedDeadline(selectedDeadline.id);
+      toast({ title: "Cliente desvinculado do compromisso!" });
+    }
+    setSaving(false);
   };
 
   const overdueCount = deadlines.filter((d) => d.overdue).length;
