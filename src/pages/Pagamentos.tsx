@@ -348,10 +348,62 @@ const Pagamentos = () => {
   };
 
   const deleteOrder = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este RPV/Precatório?")) return;
     await supabase.from("payment_orders" as any).delete().eq("id", id);
     setOrders(prev => prev.filter(o => o.id !== id));
     setSelected(null);
     toast.success("Registro excluído");
+  };
+
+  const startEdit = (order: PaymentOrder) => {
+    setEditing(true);
+    setEditForm({ ...order });
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditForm({});
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.id) return;
+    const gross = parseFloat(String(editForm.gross_amount)) || 0;
+    const feeP = parseFloat(String(editForm.office_fees_percent)) || 0;
+    const costs = parseFloat(String(editForm.court_costs)) || 0;
+    const soc = parseFloat(String(editForm.social_security)) || 0;
+    const tax = parseFloat(String(editForm.income_tax)) || 0;
+    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+
+    const updates = {
+      type: editForm.type,
+      beneficiary_name: editForm.beneficiary_name || null,
+      beneficiary_cpf: editForm.beneficiary_cpf || null,
+      process_number: editForm.process_number || null,
+      court: editForm.court || null,
+      entity: editForm.entity || null,
+      gross_amount: gross,
+      office_fees_percent: feeP,
+      office_amount: officeCalc,
+      client_amount: clientCalc,
+      court_costs: costs,
+      social_security: soc,
+      income_tax: tax,
+      expected_payment_date: editForm.expected_payment_date || null,
+      reference_date: editForm.reference_date || null,
+      notes: editForm.notes || null,
+      case_id: editForm.case_id || null,
+    };
+
+    const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
+    if (error) { toast.error("Erro ao salvar"); return; }
+
+    const updated = { ...editForm, ...updates, office_amount: officeCalc, client_amount: clientCalc } as PaymentOrder;
+    setOrders(prev => prev.map(o => o.id === editForm.id ? { ...o, ...updated } : o));
+    setSelected(updated);
+    setEditing(false);
+    setEditForm({});
+    toast.success("Registro atualizado!");
   };
 
   const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
