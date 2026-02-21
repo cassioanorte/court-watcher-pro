@@ -42,7 +42,7 @@ interface TodayMovement {
 
 const Dashboard = () => {
   const { tenantId } = useAuth();
-  const [casesCount, setCasesCount] = useState(0);
+  const [agentsCount, setAgentsCount] = useState(0);
   const [clientsCount, setClientsCount] = useState(0);
   const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [todayPubs, setTodayPubs] = useState<Publication[]>([]);
