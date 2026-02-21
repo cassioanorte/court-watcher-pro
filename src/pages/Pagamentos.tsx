@@ -12,6 +12,50 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
+const DropZone = ({ uploading, extracting, formDocName, onClear, onFile }: {
+  uploading: boolean; extracting: boolean; formDocName: string;
+  onClear: () => void; onFile: (f: File) => void;
+}) => {
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    setDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f && (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"))) onFile(f);
+    else if (f) toast.error("Apenas arquivos PDF são aceitos");
+  };
+
+  return (
+    <div
+      className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${dragging ? "border-accent bg-accent/5" : "hover:border-accent/50"}`}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragging(true); }}
+      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
+      onDrop={handleDrop}
+    >
+      {formDocName ? (
+        <div className="flex items-center gap-2 justify-center">
+          <FileText className="w-5 h-5 text-accent" />
+          <span className="text-sm text-foreground">{formDocName}</span>
+          <button onClick={onClear} className="text-muted-foreground hover:text-destructive">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <label className="cursor-pointer block">
+          <input type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+          <Upload className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">
+            {uploading ? (extracting ? "Extraindo dados..." : "Enviando...") : "Arraste o PDF aqui ou clique para selecionar"}
+          </p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Os dados serão preenchidos automaticamente</p>
+        </label>
+      )}
+    </div>
+  );
+};
+
 interface PaymentOrder {
   id: string;
   tenant_id: string;
@@ -430,45 +474,13 @@ const Pagamentos = () => {
           </DialogHeader>
 
           {/* PDF Upload */}
-          <div
-            className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${uploading ? "" : "hover:border-accent/50"}`}
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("border-accent", "bg-accent/5"); }}
-            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-accent", "bg-accent/5"); }}
-            onDrop={(e) => {
-              e.preventDefault(); e.stopPropagation();
-              e.currentTarget.classList.remove("border-accent", "bg-accent/5");
-              const f = e.dataTransfer.files?.[0];
-              if (f && f.type === "application/pdf") handleFileUpload(f);
-              else if (f) toast.error("Apenas arquivos PDF são aceitos");
-            }}
-          >
-            {formDocName ? (
-              <div className="flex items-center gap-2 justify-center">
-                <FileText className="w-5 h-5 text-accent" />
-                <span className="text-sm text-foreground">{formDocName}</span>
-                <button onClick={() => { setFormDocUrl(""); setFormDocName(""); }} className="text-muted-foreground hover:text-destructive">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleFileUpload(f);
-                  }}
-                />
-                <Upload className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {uploading ? (extracting ? "Extraindo dados..." : "Enviando...") : "Arraste o PDF aqui ou clique para selecionar"}
-                </p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Os dados serão preenchidos automaticamente</p>
-              </label>
-            )}
-          </div>
+          <DropZone
+            uploading={uploading}
+            extracting={extracting}
+            formDocName={formDocName}
+            onClear={() => { setFormDocUrl(""); setFormDocName(""); }}
+            onFile={handleFileUpload}
+          />
 
           {formAiExtracted && (
             <Badge variant="secondary" className="text-xs gap-1">
