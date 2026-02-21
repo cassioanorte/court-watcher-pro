@@ -186,28 +186,31 @@ const ProcessDetail = () => {
   const handleSaveNextStep = async () => {
     if (!id) return;
     setSavingNextStep(true);
-    const { error } = await supabase.from("cases").update({ next_step: nextStep, next_step_responsible_id: nextStepResponsibleId || null } as any).eq("id", id);
-    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else {
-      setCaseData((prev: any) => ({ ...prev, next_step: nextStep, next_step_responsible_id: nextStepResponsibleId }));
-      setEditingNextStep(false);
-      toast({ title: "Próximo passo salvo!" });
-
+    if (!nextStep.trim()) {
+      toast({ title: "Preencha a descrição da tarefa", variant: "destructive" });
+      setSavingNextStep(false);
+      return;
+    }
+    try {
       // Create task assignment record
-      if (nextStepResponsibleId && tenantId) {
-        await supabase.from("task_assignments" as any).insert({
+      if (tenantId) {
+        const assignedTo = nextStepResponsibleId || user?.id;
+        const { data: newTask, error: taskError } = await supabase.from("task_assignments").insert({
           tenant_id: tenantId,
           case_id: id,
           assigned_by: user?.id,
-          assigned_to: nextStepResponsibleId,
-          task_description: nextStep,
+          assigned_to: assignedTo,
+          task_description: nextStep.trim(),
           process_number: caseData.process_number,
           parties: caseData.parties || null,
           due_date: nextStepDueDate || null,
-        });
+        } as any).select("*").single();
 
-        // Also send a notification popup
-        if (nextStepResponsibleId !== user?.id) {
+        if (taskError) throw taskError;
+        if (newTask) setCaseTasks(prev => [newTask, ...prev]);
+
+        // Send notification if assigned to someone else
+        if (nextStepResponsibleId && nextStepResponsibleId !== user?.id) {
           const dueDateText = nextStepDueDate ? ` | Prazo: ${new Date(nextStepDueDate + "T12:00:00").toLocaleDateString("pt-BR")}` : "";
           await supabase.from("notifications").insert({
             user_id: nextStepResponsibleId,
@@ -216,10 +219,20 @@ const ProcessDetail = () => {
             case_id: id,
           });
         }
+
+        // Also update the case's next_step field with the latest task
+        await supabase.from("cases").update({ next_step: nextStep.trim(), next_step_responsible_id: nextStepResponsibleId || null } as any).eq("id", id);
+        setCaseData((prev: any) => ({ ...prev, next_step: nextStep.trim(), next_step_responsible_id: nextStepResponsibleId }));
       }
+      setEditingNextStep(false);
+      setNextStep("");
+      setNextStepResponsibleId(null);
+      setNextStepDueDate("");
+      toast({ title: "Tarefa adicionada!" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
     setSavingNextStep(false);
-    setNextStepDueDate("");
   };
 
   const handleSendMessage = async () => {
