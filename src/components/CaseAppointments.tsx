@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil } from "lucide-react";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
