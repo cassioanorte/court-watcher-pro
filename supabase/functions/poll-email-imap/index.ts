@@ -19,9 +19,11 @@ Deno.serve(async (req) => {
     );
 
     let targetTenantId: string | null = null;
+    let isCron = false;
     try {
       const body = await req.json();
       targetTenantId = body.tenant_id || null;
+      isCron = body.mode === 'cron';
     } catch { /* no body */ }
 
     let query = serviceClient
