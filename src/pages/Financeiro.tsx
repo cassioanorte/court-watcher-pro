@@ -157,12 +157,17 @@ const Financeiro = () => {
   const totalRevenue = confirmed.filter((t) => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
   const totalExpense = confirmed.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const profit = totalRevenue - totalExpense;
-  const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
   // Payment orders totals
   const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
   const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
   const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
+
+  // IR a pagar — 10,9% sobre honorários do escritório (office_amount)
+  const TAX_RATE = 0.109;
+  const totalIrAPagar = activeOrders
+    .filter(o => o.status !== "sacado")
+    .reduce((s, o) => s + (Number(o.office_amount) || 0) * TAX_RATE, 0);
 
   // === RPV DASHBOARD DATA ===
   // Status breakdown
@@ -282,7 +287,7 @@ const Financeiro = () => {
     { label: "Receitas", value: fmt(totalRevenue), icon: TrendingUp, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
     { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10" },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
-    { label: "Margem de Lucro", value: `${profitMargin.toFixed(1)}%`, icon: Target, color: "text-accent", bgColor: "bg-accent/10" },
+    { label: "IR a Pagar", value: fmt(totalIrAPagar), icon: Target, color: "text-amber-500", bgColor: "bg-amber-500/10", subtitle: `10,9% sobre ${fmt(totalHonorariosPrevistos)} em honorários` },
     { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
   ];
 
