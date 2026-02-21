@@ -15,12 +15,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Check } from "lucide-react";
 
 interface Deadline {
   id: string;
@@ -424,16 +426,25 @@ const DashboardDeadlines = () => {
           {/* Link case form */}
           {selectedDeadline && linkingCase && (
             <div className="space-y-3">
-              <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um processo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {cases.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Command className="border rounded-md">
+                <CommandInput placeholder="Digite o número do processo..." />
+                <CommandList className="max-h-48">
+                  <CommandEmpty>Nenhum processo encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {cases.map((c) => (
+                      <CommandItem
+                        key={c.id}
+                        value={c.process_number}
+                        onSelect={() => setSelectedCaseId(c.id)}
+                        className="cursor-pointer"
+                      >
+                        <Check className={`w-3.5 h-3.5 mr-2 ${selectedCaseId === c.id ? "opacity-100" : "opacity-0"}`} />
+                        <span className="text-xs font-mono">{c.process_number}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => setLinkingCase(false)}>
                   <X className="w-3.5 h-3.5 mr-1" /> Cancelar
@@ -448,16 +459,25 @@ const DashboardDeadlines = () => {
           {/* Link client form */}
           {selectedDeadline && linkingClient && (
             <div className="space-y-3">
-              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => (
-                    <SelectItem key={c.user_id} value={c.user_id}>{c.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Command className="border rounded-md">
+                <CommandInput placeholder="Digite o nome do cliente..." />
+                <CommandList className="max-h-48">
+                  <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {contacts.map((c) => (
+                      <CommandItem
+                        key={c.user_id}
+                        value={c.full_name}
+                        onSelect={() => setSelectedClientId(c.user_id)}
+                        className="cursor-pointer"
+                      >
+                        <Check className={`w-3.5 h-3.5 mr-2 ${selectedClientId === c.user_id ? "opacity-100" : "opacity-0"}`} />
+                        {c.full_name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => setLinkingClient(false)}>
                   <X className="w-3.5 h-3.5 mr-1" /> Cancelar
