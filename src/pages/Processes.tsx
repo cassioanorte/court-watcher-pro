@@ -146,6 +146,7 @@ const Processes = () => {
         process_number: editForm.process_number,
         source: editForm.source,
         subject: editForm.subject || null,
+        parties: editForm.parties || null,
         case_summary: editForm.case_summary || null,
         client_user_id: editForm.client_user_id || null,
         responsible_user_id: editForm.responsible_user_id || null,
