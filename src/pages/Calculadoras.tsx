@@ -33,6 +33,15 @@ import BuscaApreensaoCalc from "@/components/calculadoras/BuscaApreensaoCalc";
 import RevisaoCcbCalc from "@/components/calculadoras/RevisaoCcbCalc";
 import CapitalGiroCalc from "@/components/calculadoras/CapitalGiroCalc";
 import CreditoRuralCalc from "@/components/calculadoras/CreditoRuralCalc";
+import InssRestituicaoCalc from "@/components/calculadoras/InssRestituicaoCalc";
+import RevisaoPasepCalc from "@/components/calculadoras/RevisaoPasepCalc";
+import ContribuicoesAtrasoCalc from "@/components/calculadoras/ContribuicoesAtrasoCalc";
+import RestabelecimentoCalc from "@/components/calculadoras/RestabelecimentoCalc";
+import ComplementacaoCalc from "@/components/calculadoras/ComplementacaoCalc";
+import BpcLoasCalc from "@/components/calculadoras/BpcLoasCalc";
+import RestituicaoTetoCalc from "@/components/calculadoras/RestituicaoTetoCalc";
+import RestituicaoIrDoencaCalc from "@/components/calculadoras/RestituicaoIrDoencaCalc";
+import FatorPrevidenciarioCalc from "@/components/calculadoras/FatorPrevidenciarioCalc";
 
 interface Calculadora {
   id: string;
