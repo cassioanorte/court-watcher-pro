@@ -1024,16 +1024,19 @@ export type Database = {
           document_url: string | null
           entity: string | null
           expected_payment_date: string | null
+          fee_type: string
           gross_amount: number | null
           id: string
           income_tax: number | null
           notes: string | null
           office_amount: number | null
           office_fees_percent: number | null
+          ownership_type: string
           process_number: string | null
           reference_date: string | null
           social_security: number | null
           status: string
+          tax_percent: number | null
           tenant_id: string
           type: string
           updated_at: string
@@ -1053,16 +1056,19 @@ export type Database = {
           document_url?: string | null
           entity?: string | null
           expected_payment_date?: string | null
+          fee_type?: string
           gross_amount?: number | null
           id?: string
           income_tax?: number | null
           notes?: string | null
           office_amount?: number | null
           office_fees_percent?: number | null
+          ownership_type?: string
           process_number?: string | null
           reference_date?: string | null
           social_security?: number | null
           status?: string
+          tax_percent?: number | null
           tenant_id: string
           type?: string
           updated_at?: string
@@ -1082,16 +1088,19 @@ export type Database = {
           document_url?: string | null
           entity?: string | null
           expected_payment_date?: string | null
+          fee_type?: string
           gross_amount?: number | null
           id?: string
           income_tax?: number | null
           notes?: string | null
           office_amount?: number | null
           office_fees_percent?: number | null
+          ownership_type?: string
           process_number?: string | null
           reference_date?: string | null
           social_security?: number | null
           status?: string
+          tax_percent?: number | null
           tenant_id?: string
           type?: string
           updated_at?: string

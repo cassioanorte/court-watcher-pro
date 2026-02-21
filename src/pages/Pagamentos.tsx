@@ -44,6 +44,9 @@ interface PaymentOrder {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  ownership_type: string;
+  fee_type: string;
+  tax_percent: number | null;
 }
 
 interface CaseOption {
@@ -93,6 +96,9 @@ const Pagamentos = () => {
   const [formDocName, setFormDocName] = useState("");
   const [formAiExtracted, setFormAiExtracted] = useState(false);
   const [formAiRaw, setFormAiRaw] = useState<any>(null);
+  const [formOwnership, setFormOwnership] = useState("cliente");
+  const [formFeeType, setFormFeeType] = useState("contratuais");
+  const [formTaxPercent, setFormTaxPercent] = useState("10.9");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchOrders = useCallback(async () => {
@@ -130,11 +136,20 @@ const Pagamentos = () => {
     const costs = parseFloat(formCourtCosts) || 0;
     const soc = parseFloat(formSocSec) || 0;
     const tax = parseFloat(formTax) || 0;
-    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
-    setFormOffice(officeCalc > 0 ? officeCalc.toString() : "");
-    setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
-  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax]);
+    const taxP = parseFloat(formTaxPercent) || 0;
+
+    if (formOwnership === "escritorio") {
+      // 100% do escritório, sem divisão com cliente
+      const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
+      setFormOffice(gross > 0 ? (gross - taxAmount).toString() : "");
+      setFormClient("0");
+    } else {
+      const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+      const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+      setFormOffice(officeCalc > 0 ? officeCalc.toString() : "");
+      setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
+    }
+  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax, formOwnership, formTaxPercent]);
 
   const applyRpvData = (d: Partial<RpvData>) => {
     if (d.type) setFormType(d.type);
@@ -236,6 +251,9 @@ const Pagamentos = () => {
       ai_extracted: formAiExtracted,
       ai_raw_data: formAiRaw,
       notes: formNotes || null,
+      ownership_type: formOwnership,
+      fee_type: formFeeType,
+      tax_percent: parseFloat(formTaxPercent) || 0,
     });
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
@@ -269,6 +287,9 @@ const Pagamentos = () => {
     setFormDocName("");
     setFormAiExtracted(false);
     setFormAiRaw(null);
+    setFormOwnership("cliente");
+    setFormFeeType("contratuais");
+    setFormTaxPercent("10.9");
     setShowNew(false);
   };
 
@@ -362,8 +383,20 @@ const Pagamentos = () => {
     const costs = parseFloat(String(editForm.court_costs)) || 0;
     const soc = parseFloat(String(editForm.social_security)) || 0;
     const tax = parseFloat(String(editForm.income_tax)) || 0;
-    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+    const taxP = parseFloat(String(editForm.tax_percent)) || 0;
+    const ownership = editForm.ownership_type || "cliente";
+
+    let officeCalc: number;
+    let clientCalc: number;
+
+    if (ownership === "escritorio") {
+      const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((gross - taxAmount) * 100) / 100;
+      clientCalc = 0;
+    } else {
+      officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+      clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+    }
 
     const updates = {
       type: editForm.type,
@@ -387,6 +420,9 @@ const Pagamentos = () => {
       document_name: editForm.document_name || null,
       ai_extracted: editForm.ai_extracted || false,
       ai_raw_data: editForm.ai_raw_data || null,
+      ownership_type: ownership,
+      fee_type: editForm.fee_type || "contratuais",
+      tax_percent: taxP,
     };
 
     const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
@@ -593,6 +629,36 @@ const Pagamentos = () => {
             </div>
 
             <hr className="border-border" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Classificação</p>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Titularidade</label>
+                <Select value={formOwnership} onValueChange={setFormOwnership}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cliente">Do Cliente</SelectItem>
+                    <SelectItem value="escritorio">Destacado (Escritório)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tipo Honorários</label>
+                <Select value={formFeeType} onValueChange={setFormFeeType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contratuais">Contratuais</SelectItem>
+                    <SelectItem value="sucumbenciais">Sucumbenciais</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Imposto (%)</label>
+                <Input type="number" step="0.1" value={formTaxPercent} onChange={e => setFormTaxPercent(e.target.value)} placeholder="10.9" />
+              </div>
+            </div>
+
+            <hr className="border-border" />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valores</p>
 
             <div className="grid grid-cols-2 gap-2">
@@ -600,26 +666,30 @@ const Pagamentos = () => {
                 <label className="text-xs text-muted-foreground mb-1 block">Valor Bruto (R$)</label>
                 <Input type="number" step="0.01" value={formGross} onChange={e => setFormGross(e.target.value)} placeholder="0,00" />
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
-                <Input type="number" step="0.1" value={formFeePercent} onChange={e => setFormFeePercent(e.target.value)} />
-              </div>
+              {formOwnership === "cliente" && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
+                  <Input type="number" step="0.1" value={formFeePercent} onChange={e => setFormFeePercent(e.target.value)} />
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
-                <Input type="number" step="0.01" value={formCourtCosts} onChange={e => setFormCourtCosts(e.target.value)} placeholder="0,00" />
+            {formOwnership === "cliente" && (
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
+                  <Input type="number" step="0.01" value={formCourtCosts} onChange={e => setFormCourtCosts(e.target.value)} placeholder="0,00" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
+                  <Input type="number" step="0.01" value={formSocSec} onChange={e => setFormSocSec(e.target.value)} placeholder="0,00" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
+                  <Input type="number" step="0.01" value={formTax} onChange={e => setFormTax(e.target.value)} placeholder="0,00" />
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
-                <Input type="number" step="0.01" value={formSocSec} onChange={e => setFormSocSec(e.target.value)} placeholder="0,00" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">IR</label>
-                <Input type="number" step="0.01" value={formTax} onChange={e => setFormTax(e.target.value)} placeholder="0,00" />
-              </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-3">
               <div>
@@ -687,13 +757,31 @@ const Pagamentos = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-accent/5 border border-accent/20 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Escritório ({selected.office_fees_percent}%)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selected.ownership_type === "escritorio" ? "Escritório (100% destacado)" : `Escritório (${selected.office_fees_percent}%)`}
+                  </p>
                   <p className="text-lg font-bold text-accent">{fmt(selected.office_amount)}</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Cliente</p>
-                  <p className="text-lg font-bold">{fmt(selected.client_amount)}</p>
-                </div>
+                {selected.ownership_type !== "escritorio" && (
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Cliente</p>
+                    <p className="text-lg font-bold">{fmt(selected.client_amount)}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {selected.ownership_type === "escritorio" ? "Destacado (Escritório)" : "Do Cliente"}
+                </Badge>
+                <Badge variant="outline" className="text-xs capitalize">
+                  {selected.fee_type || "contratuais"}
+                </Badge>
+                {selected.tax_percent != null && selected.tax_percent > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    Imposto: {selected.tax_percent}%
+                  </Badge>
+                )}
               </div>
 
               {(selected.court_costs > 0 || selected.social_security > 0 || selected.income_tax > 0) && (
@@ -804,31 +892,63 @@ const Pagamentos = () => {
                 </div>
               </div>
               <hr className="border-border" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Classificação</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Titularidade</label>
+                  <Select value={editForm.ownership_type || "cliente"} onValueChange={v => setEditForm(f => ({ ...f, ownership_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cliente">Do Cliente</SelectItem>
+                      <SelectItem value="escritorio">Destacado (Escritório)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Tipo Honorários</label>
+                  <Select value={editForm.fee_type || "contratuais"} onValueChange={v => setEditForm(f => ({ ...f, fee_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contratuais">Contratuais</SelectItem>
+                      <SelectItem value="sucumbenciais">Sucumbenciais</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Imposto (%)</label>
+                  <Input type="number" step="0.1" value={editForm.tax_percent ?? 10.9} onChange={e => setEditForm(f => ({ ...f, tax_percent: parseFloat(e.target.value) || 0 }))} />
+                </div>
+              </div>
+              <hr className="border-border" />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valores</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Valor Bruto (R$)</label>
                   <Input type="number" step="0.01" value={editForm.gross_amount ?? ""} onChange={e => setEditForm(f => ({ ...f, gross_amount: parseFloat(e.target.value) || 0 }))} />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
-                  <Input type="number" step="0.1" value={editForm.office_fees_percent ?? ""} onChange={e => setEditForm(f => ({ ...f, office_fees_percent: parseFloat(e.target.value) || 0 }))} />
-                </div>
+                {(editForm.ownership_type || "cliente") === "cliente" && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
+                    <Input type="number" step="0.1" value={editForm.office_fees_percent ?? ""} onChange={e => setEditForm(f => ({ ...f, office_fees_percent: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
-                  <Input type="number" step="0.01" value={editForm.court_costs ?? ""} onChange={e => setEditForm(f => ({ ...f, court_costs: parseFloat(e.target.value) || 0 }))} />
+              {(editForm.ownership_type || "cliente") === "cliente" && (
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
+                    <Input type="number" step="0.01" value={editForm.court_costs ?? ""} onChange={e => setEditForm(f => ({ ...f, court_costs: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
+                    <Input type="number" step="0.01" value={editForm.social_security ?? ""} onChange={e => setEditForm(f => ({ ...f, social_security: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">IR</label>
+                    <Input type="number" step="0.01" value={editForm.income_tax ?? ""} onChange={e => setEditForm(f => ({ ...f, income_tax: parseFloat(e.target.value) || 0 }))} />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
-                  <Input type="number" step="0.01" value={editForm.social_security ?? ""} onChange={e => setEditForm(f => ({ ...f, social_security: parseFloat(e.target.value) || 0 }))} />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
-                  <Input type="number" step="0.01" value={editForm.income_tax ?? ""} onChange={e => setEditForm(f => ({ ...f, income_tax: parseFloat(e.target.value) || 0 }))} />
-                </div>
-              </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Data Base Cálculo</label>
