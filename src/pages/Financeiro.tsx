@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   DollarSign, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, X, Save,
-  ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar
+  ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar, Banknote
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Pagamentos from "@/pages/Pagamentos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
