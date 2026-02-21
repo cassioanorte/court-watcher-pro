@@ -53,13 +53,17 @@ const DEFAULT_SECTIONS = [
   { id: "contact", label: "Contato", visible: true },
 ];
 
-// Ensure quiz section exists in sections array
+// Ensure quiz section exists and is positioned right after services
 const ensureQuizSection = (sections: typeof DEFAULT_SECTIONS, quizEnabled?: boolean) => {
-  const hasQuiz = sections.some(s => s.id === "quiz");
-  if (!hasQuiz) {
-    return [...sections, { id: "quiz", label: "Quiz", visible: quizEnabled || false }];
-  }
-  return sections;
+  // Remove any existing quiz entry
+  const withoutQuiz = sections.filter(s => s.id !== "quiz");
+  const quizVisible = quizEnabled || sections.find(s => s.id === "quiz")?.visible || false;
+  // Insert quiz right after services
+  const servicesIdx = withoutQuiz.findIndex(s => s.id === "services");
+  const insertAt = servicesIdx >= 0 ? servicesIdx + 1 : withoutQuiz.length;
+  const result = [...withoutQuiz];
+  result.splice(insertAt, 0, { id: "quiz", label: "Quiz", visible: quizVisible });
+  return result;
 };
 
 // Helper to lighten a hex color
