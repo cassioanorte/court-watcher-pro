@@ -742,6 +742,17 @@ const ProcessDetail = () => {
           </div>
         </div>
       )}
+      {activeTab === "substabelecimento" && isLawyer && (
+        <SubstabelecimentoSection
+          caseId={id!}
+          responsibleUserId={caseData.responsible_user_id}
+          onResponsibleChanged={(newId) => setCaseData((prev: any) => ({ ...prev, responsible_user_id: newId }))}
+        />
+      )}
+
+      {activeTab === "historico" && isLawyer && (
+        <CaseActivityLog caseId={id!} />
+      )}
     </div>
   );
 };
