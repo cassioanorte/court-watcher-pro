@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { CalendarClock, AlertTriangle, ArrowRight, Clock, FileText, Video, Users, Phone, Pencil, Trash2, Save, X } from "lucide-react";
+import { CalendarClock, AlertTriangle, ArrowRight, Clock, FileText, Video, Users, Phone, Pencil, Trash2, Save, X, ExternalLink, LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Deadline {
   id: string;
@@ -25,6 +32,9 @@ interface Deadline {
   link: string;
   overdue: boolean;
   caseId: string | null;
+  clientUserId: string | null;
+  clientName: string | null;
+  processNumber: string | null;
 }
 
 const typeIcons: Record<string, typeof Video> = {
@@ -42,6 +52,12 @@ const DashboardDeadlines = () => {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", date: "", startTime: "", endTime: "" });
   const [saving, setSaving] = useState(false);
+  const [linkingCase, setLinkingCase] = useState(false);
+  const [linkingClient, setLinkingClient] = useState(false);
+  const [cases, setCases] = useState<{ id: string; process_number: string; client_user_id: string | null }[]>([]);
+  const [contacts, setContacts] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
 
   const load = async () => {
     if (!tenantId) return;
@@ -54,7 +70,7 @@ const DashboardDeadlines = () => {
     const [aptsRes, tasksRes] = await Promise.all([
       supabase
         .from("appointments")
-        .select("id, title, description, start_at, end_at, case_id")
+        .select("id, title, description, start_at, end_at, case_id, lead_id")
         .eq("tenant_id", tenantId)
         .gte("start_at", todayStart.toISOString())
         .lte("start_at", in7days.toISOString())
@@ -70,8 +86,39 @@ const DashboardDeadlines = () => {
         .limit(5),
     ]);
 
+    // Fetch case details for appointments that have case_id
+    const caseIds = (aptsRes.data || []).map(a => a.case_id).filter(Boolean) as string[];
+    let caseMap: Record<string, { client_user_id: string | null; process_number: string }> = {};
+    if (caseIds.length > 0) {
+      const { data: casesData } = await supabase
+        .from("cases")
+        .select("id, client_user_id, process_number")
+        .in("id", caseIds);
+      (casesData || []).forEach(c => {
+        caseMap[c.id] = { client_user_id: c.client_user_id, process_number: c.process_number };
+      });
+    }
+
+    // Fetch client names
+    const clientIds = Object.values(caseMap).map(c => c.client_user_id).filter(Boolean) as string[];
+    // Also get lead_ids from appointments for client lookup
+    const leadIds = (aptsRes.data || []).map(a => a.lead_id).filter(Boolean) as string[];
+    
+    let clientNameMap: Record<string, string> = {};
+    if (clientIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", clientIds);
+      (profiles || []).forEach(p => {
+        clientNameMap[p.user_id] = p.full_name;
+      });
+    }
+
     const items: Deadline[] = [];
-    (aptsRes.data || []).forEach((a) =>
+    (aptsRes.data || []).forEach((a) => {
+      const caseInfo = a.case_id ? caseMap[a.case_id] : null;
+      const clientUserId = caseInfo?.client_user_id || null;
       items.push({
         id: a.id,
         title: a.title,
@@ -82,8 +129,11 @@ const DashboardDeadlines = () => {
         link: a.case_id ? `/processos/${a.case_id}` : "/agenda",
         overdue: new Date(a.start_at) < now,
         caseId: a.case_id,
-      })
-    );
+        clientUserId,
+        clientName: clientUserId ? (clientNameMap[clientUserId] || null) : null,
+        processNumber: caseInfo?.process_number || null,
+      });
+    });
     (tasksRes.data || []).forEach((t) =>
       items.push({
         id: t.id,
@@ -95,6 +145,9 @@ const DashboardDeadlines = () => {
         link: "/crm",
         overdue: new Date(t.due_date) < new Date(now.toISOString().split("T")[0]),
         caseId: null,
+        clientUserId: null,
+        clientName: null,
+        processNumber: null,
       })
     );
 
@@ -106,9 +159,21 @@ const DashboardDeadlines = () => {
     load();
   }, [tenantId]);
 
+  const loadCasesAndContacts = async () => {
+    if (!tenantId) return;
+    const [casesRes, contactsRes] = await Promise.all([
+      supabase.from("cases").select("id, process_number, client_user_id").eq("tenant_id", tenantId).eq("archived", false).order("process_number").limit(100),
+      supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId).order("full_name").limit(200),
+    ]);
+    setCases(casesRes.data || []);
+    setContacts(contactsRes.data || []);
+  };
+
   const openDetail = (d: Deadline) => {
     setSelectedDeadline(d);
     setEditing(false);
+    setLinkingCase(false);
+    setLinkingClient(false);
     if (d.type === "appointment") {
       const startDate = new Date(d.due);
       const endDate = d.endAt ? new Date(d.endAt) : startDate;
@@ -156,6 +221,48 @@ const DashboardDeadlines = () => {
         load();
       }
     }
+  };
+
+  const handleLinkCase = async () => {
+    if (!selectedDeadline || !selectedCaseId) return;
+    setSaving(true);
+    const { error } = await supabase.from("appointments").update({ case_id: selectedCaseId }).eq("id", selectedDeadline.id);
+    if (error) {
+      toast({ title: "Erro ao vincular processo", variant: "destructive" });
+    } else {
+      toast({ title: "Processo vinculado!" });
+      setLinkingCase(false);
+      setSelectedDeadline(null);
+      load();
+    }
+    setSaving(false);
+  };
+
+  const handleLinkClient = async () => {
+    if (!selectedDeadline || !selectedDeadline.caseId || !selectedClientId) return;
+    setSaving(true);
+    const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.caseId);
+    if (error) {
+      toast({ title: "Erro ao vincular cliente", variant: "destructive" });
+    } else {
+      toast({ title: "Cliente vinculado!" });
+      setLinkingClient(false);
+      setSelectedDeadline(null);
+      load();
+    }
+    setSaving(false);
+  };
+
+  const startLinkCase = () => {
+    loadCasesAndContacts();
+    setSelectedCaseId("");
+    setLinkingCase(true);
+  };
+
+  const startLinkClient = () => {
+    loadCasesAndContacts();
+    setSelectedClientId("");
+    setLinkingClient(true);
   };
 
   const overdueCount = deadlines.filter((d) => d.overdue).length;
@@ -236,14 +343,63 @@ const DashboardDeadlines = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className="w-5 h-5 text-accent" />
-              {editing ? "Editar Compromisso" : "Detalhes do Compromisso"}
+              {editing ? "Editar Compromisso" : linkingCase ? "Vincular Processo" : linkingClient ? "Vincular Cliente" : "Detalhes do Compromisso"}
             </DialogTitle>
             <DialogDescription>
-              {editing ? "Edite as informações abaixo" : "Visualize ou edite este compromisso"}
+              {editing ? "Edite as informações abaixo" : linkingCase ? "Selecione um processo" : linkingClient ? "Selecione um cliente" : "Visualize ou edite este compromisso"}
             </DialogDescription>
           </DialogHeader>
 
-          {selectedDeadline && !editing && (
+          {/* Link case form */}
+          {selectedDeadline && linkingCase && (
+            <div className="space-y-3">
+              <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um processo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {cases.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => setLinkingCase(false)}>
+                  <X className="w-3.5 h-3.5 mr-1" /> Cancelar
+                </Button>
+                <Button size="sm" className="flex-1" onClick={handleLinkCase} disabled={!selectedCaseId || saving}>
+                  <LinkIcon className="w-3.5 h-3.5 mr-1" /> {saving ? "Vinculando..." : "Vincular"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Link client form */}
+          {selectedDeadline && linkingClient && (
+            <div className="space-y-3">
+              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((c) => (
+                    <SelectItem key={c.user_id} value={c.user_id}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => setLinkingClient(false)}>
+                  <X className="w-3.5 h-3.5 mr-1" /> Cancelar
+                </Button>
+                <Button size="sm" className="flex-1" onClick={handleLinkClient} disabled={!selectedClientId || saving}>
+                  <LinkIcon className="w-3.5 h-3.5 mr-1" /> {saving ? "Vinculando..." : "Vincular"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* View mode */}
+          {selectedDeadline && !editing && !linkingCase && !linkingClient && (
             <div className="space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Tipo</p>
@@ -273,14 +429,39 @@ const DashboardDeadlines = () => {
                   </p>
                 </div>
               </div>
-              {selectedDeadline.caseId && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo vinculado</p>
-                  <Link to={`/processos/${selectedDeadline.caseId}`} className="text-sm text-accent hover:underline mt-0.5 inline-block">
-                    Ver processo →
+
+              {/* Process link or link option */}
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo</p>
+                {selectedDeadline.caseId ? (
+                  <Link to={`/processos/${selectedDeadline.caseId}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {selectedDeadline.processNumber || "Ver processo"} →
                   </Link>
-                </div>
-              )}
+                ) : (
+                  <Button size="sm" variant="outline" className="mt-1 gap-1.5 text-xs h-7" onClick={startLinkCase}>
+                    <LinkIcon className="w-3 h-3" /> Vincular processo
+                  </Button>
+                )}
+              </div>
+
+              {/* Client link or link option */}
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Cliente</p>
+                {selectedDeadline.clientUserId ? (
+                  <Link to={`/contatos/${selectedDeadline.clientUserId}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {selectedDeadline.clientName || "Ver cliente"} →
+                  </Link>
+                ) : selectedDeadline.caseId ? (
+                  <Button size="sm" variant="outline" className="mt-1 gap-1.5 text-xs h-7" onClick={startLinkClient}>
+                    <LinkIcon className="w-3 h-3" /> Vincular cliente
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-0.5">Vincule um processo primeiro</p>
+                )}
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => setEditing(true)}>
                   <Pencil className="w-3.5 h-3.5" /> Editar
@@ -292,6 +473,7 @@ const DashboardDeadlines = () => {
             </div>
           )}
 
+          {/* Edit mode */}
           {selectedDeadline && editing && (
             <div className="space-y-3">
               <div>
