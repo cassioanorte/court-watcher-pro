@@ -64,6 +64,7 @@ export type Database = {
       appointments: {
         Row: {
           case_id: string | null
+          client_user_id: string | null
           color: string | null
           created_at: string
           description: string | null
@@ -78,6 +79,7 @@ export type Database = {
         }
         Insert: {
           case_id?: string | null
+          client_user_id?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
@@ -92,6 +94,7 @@ export type Database = {
         }
         Update: {
           case_id?: string | null
+          client_user_id?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
