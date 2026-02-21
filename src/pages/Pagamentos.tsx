@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
