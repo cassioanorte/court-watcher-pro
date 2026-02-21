@@ -807,10 +807,22 @@ const ContatoDetail = () => {
                   compact
                   className="flex-1"
                 />
-                <button onClick={() => extractFileRef.current?.click()} disabled={extractingExternal}
-                  className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-accent/40 p-3 text-sm font-medium text-accent hover:bg-accent/5 transition-colors disabled:opacity-50">
-                  {extractingExternal ? <><Loader2 className="w-4 h-4 animate-spin" /> Extraindo...</> : <><Sparkles className="w-4 h-4" /> Extrair dados de arquivo</>}
-                </button>
+                <FileDropZone
+                  onFile={(f) => {
+                    const dt = new DataTransfer();
+                    dt.items.add(f);
+                    if (extractFileRef.current) {
+                      extractFileRef.current.files = dt.files;
+                      extractFileRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                  }}
+                  accept=".pdf,image/*"
+                  loading={extractingExternal}
+                  loadingText="Extraindo..."
+                  label="Arraste ou clique para extrair dados"
+                  compact
+                  className="flex-1"
+                />
               </div>
 
               <div className="flex gap-2 items-end">
