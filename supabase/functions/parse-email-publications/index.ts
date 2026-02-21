@@ -79,17 +79,20 @@ Deno.serve(async (req) => {
         pub.case_id = caseMap[procClean] || null;
       }
 
-      // Try to match OAB from content
+      // OAB is now set per-section during parsing (pub.oab_number)
+      // Only fallback if still empty: try matching OAB in the section content
       if (!pub.oab_number && profiles && profiles.length > 0) {
+        const sectionContent = pub.content || '';
         for (const p of profiles) {
-          if (p.oab_number && fullContent.includes(p.oab_number.replace(/[^0-9]/g, ''))) {
-            pub.oab_number = p.oab_number;
-            break;
+          if (p.oab_number) {
+            const oabDigits = p.oab_number.replace(/[^0-9]/g, '');
+            if (oabDigits && sectionContent.includes(oabDigits)) {
+              pub.oab_number = p.oab_number;
+              break;
+            }
           }
         }
-        if (!pub.oab_number && profiles[0]?.oab_number) {
-          pub.oab_number = profiles[0].oab_number;
-        }
+        // DO NOT fallback to first profile's OAB - this caused cross-contamination
       }
 
       const { error } = await serviceClient
@@ -291,17 +294,23 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     // Extract clean teor (substance) from the section
     const cleanContent = extractTeor(trimmed);
 
+    // Extract OAB numbers found in THIS specific section only
+    const sectionOabs = extractOabsFromSection(trimmed);
+
     for (const proc of procsInSection) {
       const procClean = proc.replace(/[^0-9]/g, '');
       const hashKey = `${procClean}_${pubDate}_${pubType}`;
       if (seenProcs.has(hashKey)) continue;
       seenProcs.add(hashKey);
 
+      // Use section-specific OAB if found, otherwise leave empty for enrichment
+      const sectionOab = sectionOabs.length > 0 ? sectionOabs.join(', ') : '';
+
       const hash = `email_${source.toLowerCase()}_${procClean}_${pubDate}_${pubType.toLowerCase().replace(/\s+/g, '_')}`;
 
       publications.push({
         tenant_id: tenantId,
-        oab_number: '',
+        oab_number: sectionOab,
         source,
         publication_date: pubDate,
         title: `${pubType} - ${proc}`.substring(0, 300),
@@ -354,27 +363,40 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
 }
 
 /**
+ * Extract OAB numbers from a specific section of text.
+ * Returns only unique OAB digit strings found in the section.
+ */
+function extractOabsFromSection(sectionText: string): string[] {
+  const oabRegex = /OAB\s*\/?\s*([A-Z]{2})\s*[.\s]*(\d[\d.]+)/gi;
+  const found: string[] = [];
+  let match;
+  while ((match = oabRegex.exec(sectionText)) !== null) {
+    const digits = match[2].replace(/[^0-9]/g, '');
+    if (digits && !found.includes(digits)) {
+      found.push(digits);
+    }
+  }
+  return found;
+}
+
+/**
  * Detect if a section is an OAB index/header section
  * (lists lawyers and process numbers but no actual content)
  */
 function isOabIndexSection(text: string): boolean {
-  // Check for explicit OAB index markers
   if (/NESTE\s+E-?MAIL\s+\d+\s+PROCESSOS?\b/i.test(text) && text.length < 1000) return true;
   if (/PROCESSOS?\s+EST[ÃA]O?\s+LISTADOS?/i.test(text) && text.length < 1000) return true;
   if (/ESTE\s+E-?MAIL\s+CONT[ÉE]M\s+AS\s+INTIMA[ÇC][ÕO]ES/i.test(text) && text.length < 1000) return true;
   
-  // Check if section is mostly OAB references (index listing)
   const oabMatches = text.match(/OAB\s*\/?\s*[A-Z]{2}\s*\d+/gi);
   const procMatches = text.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g);
   
-  // If many OAB references relative to text length, it's an index
   if (oabMatches && oabMatches.length >= 2 && text.length < 1500) return true;
   
-  // If it has process numbers but mostly just lists them (short text per process)
   if (procMatches && procMatches.length > 3) {
     const textWithoutProcs = text.replace(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g, '').trim();
     const avgCharsPerProc = textWithoutProcs.length / procMatches.length;
-    if (avgCharsPerProc < 100) return true; // Very little content per process = index
+    if (avgCharsPerProc < 100) return true;
   }
 
   return false;
