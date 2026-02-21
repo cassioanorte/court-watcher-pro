@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { toast } from "sonner";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2 } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2, Pencil, X, Save } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +48,10 @@ const DashboardCalendar = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ title: "", description: "", date: "", startTime: "", endTime: "" });
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     title: "Reunião presencial",
@@ -56,6 +60,52 @@ const DashboardCalendar = () => {
     end_time: "10:00",
     case_id: "",
   });
+
+  const openDetail = (appt: Appointment) => {
+    setSelectedAppt(appt);
+    setEditing(false);
+    setEditForm({
+      title: appt.title,
+      description: appt.description || "",
+      date: format(new Date(appt.start_at), "yyyy-MM-dd"),
+      startTime: format(new Date(appt.start_at), "HH:mm"),
+      endTime: format(new Date(appt.end_at), "HH:mm"),
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedAppt) return;
+    setSaving(true);
+    const start_at = `${editForm.date}T${editForm.startTime}:00`;
+    const end_at = `${editForm.date}T${editForm.endTime}:00`;
+    const { error } = await supabase.from("appointments").update({
+      title: editForm.title,
+      description: editForm.description || null,
+      start_at,
+      end_at,
+    }).eq("id", selectedAppt.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar");
+      return;
+    }
+    setAppointments((prev) => prev.map((a) => a.id === selectedAppt.id ? { ...a, title: editForm.title, description: editForm.description || null, start_at, end_at } : a));
+    setSelectedAppt({ ...selectedAppt, title: editForm.title, description: editForm.description || null, start_at, end_at });
+    setEditing(false);
+    toast.success("Compromisso atualizado!");
+  };
+
+  const handleDeleteFromModal = async () => {
+    if (!selectedAppt) return;
+    const { error } = await supabase.from("appointments").delete().eq("id", selectedAppt.id);
+    if (error) {
+      toast.error("Erro ao excluir");
+      return;
+    }
+    setAppointments((prev) => prev.filter((a) => a.id !== selectedAppt.id));
+    setSelectedAppt(null);
+    toast.success("Compromisso removido");
+  };
 
   useEffect(() => {
     if (!tenantId) return;
@@ -199,7 +249,8 @@ const DashboardCalendar = () => {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="rounded-md bg-muted/50 group"
+                    className="rounded-md bg-muted/50 group cursor-pointer hover:bg-muted/80 transition-colors"
+                    onClick={() => openDetail(appt)}
                   >
                     <div className="flex items-start gap-3 p-3">
                       <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
@@ -213,15 +264,9 @@ const DashboardCalendar = () => {
                           <p className="text-xs text-muted-foreground mt-1 truncate">{descWithoutLink}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleDelete(appt.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                     {videoLink && (
-                      <div className="border-t border-border/50 px-3 py-2.5 space-y-2">
+                      <div className="border-t border-border/50 px-3 py-2.5 space-y-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 bg-background/50 rounded-md px-2.5 py-1.5">
                           <LinkIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <span className="text-xs text-foreground font-mono truncate flex-1">{videoLink}</span>
@@ -371,6 +416,141 @@ const DashboardCalendar = () => {
             <Button variant="outline" onClick={() => setShowNewModal(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.title}>Salvar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Appointment Detail Dialog */}
+      <Dialog open={!!selectedAppt} onOpenChange={(open) => { if (!open) { setSelectedAppt(null); setEditing(false); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {(() => { const Icon = getTypeIcon(selectedAppt?.title || ""); return <Icon className="w-5 h-5 text-accent" />; })()}
+              {editing ? "Editar Compromisso" : "Detalhes do Compromisso"}
+            </DialogTitle>
+            <DialogDescription>
+              {editing ? "Edite as informações abaixo" : "Visualize ou edite este compromisso"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAppt && !editing && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Tipo</p>
+                <p className="text-sm text-foreground font-medium mt-0.5">{selectedAppt.title}</p>
+              </div>
+              {selectedAppt.description && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Descrição</p>
+                  <p className="text-sm text-foreground mt-0.5 whitespace-pre-wrap">{selectedAppt.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Data</p>
+                  <p className="text-sm text-foreground mt-0.5">
+                    {new Date(selectedAppt.start_at).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Horário</p>
+                  <p className="text-sm text-foreground mt-0.5 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-accent" />
+                    {format(new Date(selectedAppt.start_at), "HH:mm")} — {format(new Date(selectedAppt.end_at), "HH:mm")}
+                  </p>
+                </div>
+              </div>
+              {selectedAppt.case_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo vinculado</p>
+                  <p className="text-sm text-accent mt-0.5">
+                    {cases.find((c) => c.id === selectedAppt.case_id)?.process_number || "Ver processo"}
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => setEditing(true)}>
+                  <Pencil className="w-3.5 h-3.5" /> Editar
+                </Button>
+                <Button size="sm" variant="destructive" className="gap-1.5" onClick={handleDeleteFromModal}>
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {selectedAppt && editing && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Tipo</label>
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {typeOptions.map((opt) => {
+                    const Icon = opt.icon;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, title: opt.value })}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                          editForm.title === opt.value
+                            ? "bg-accent text-accent-foreground border-accent"
+                            : "bg-background text-foreground border-border hover:bg-muted"
+                        )}
+                      >
+                        <Icon className="w-3.5 h-3.5" /> {opt.value}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Descrição</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={2}
+                  className="w-full mt-1 rounded-md border bg-background px-3 py-2 text-sm resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Data</label>
+                  <input
+                    type="date"
+                    value={editForm.date}
+                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                    className="w-full mt-1 h-9 rounded-md border bg-background px-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Início</label>
+                  <input
+                    type="time"
+                    value={editForm.startTime}
+                    onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
+                    className="w-full mt-1 h-9 rounded-md border bg-background px-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Fim</label>
+                  <input
+                    type="time"
+                    value={editForm.endTime}
+                    onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                    className="w-full mt-1 h-9 rounded-md border bg-background px-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => setEditing(false)}>
+                  <X className="w-3.5 h-3.5" /> Cancelar
+                </Button>
+                <Button size="sm" className="flex-1 gap-1.5" onClick={handleSaveEdit} disabled={saving}>
+                  <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
