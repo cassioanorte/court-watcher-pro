@@ -5,6 +5,18 @@ import { Phone, Mail, MapPin, Scale } from "lucide-react";
 import QuizSection from "@/components/landing/QuizSection";
 import type { QuizConfig } from "@/components/landing/QuizSection";
 
+interface LPBranding {
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  textColor?: string;
+  logoHue?: number;
+  logoBrightness?: number;
+  logoSaturate?: number;
+  logoInvert?: number;
+}
+
 interface LPContent {
   heroTitle: string;
   heroSubtitle: string;
@@ -22,6 +34,7 @@ interface LPContent {
   footerText: string;
   sections?: { id: string; label: string; visible: boolean }[];
   quiz?: QuizConfig;
+  branding?: LPBranding;
 }
 
 interface LPData {
@@ -49,23 +62,44 @@ const ensureQuizSection = (sections: typeof DEFAULT_SECTIONS, quizEnabled?: bool
   return sections;
 };
 
+// Helper to lighten a hex color
+function lightenHex(hex: string, amount: number): string {
+  const c = hex.replace("#", "");
+  const r = Math.min(255, parseInt(c.substring(0, 2), 16) + amount);
+  const g = Math.min(255, parseInt(c.substring(2, 4), 16) + amount);
+  const b = Math.min(255, parseInt(c.substring(4, 6), 16) + amount);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 // ── Section renderers per template ──
 
 const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
-  hero: ({ content }) => (
-    <section className="bg-gradient-to-br from-slate-900 to-slate-700 text-white py-24 px-6">
-      <div className="max-w-4xl mx-auto text-center">
-        <Scale className="w-12 h-12 mx-auto mb-6 text-amber-400" />
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">{content.heroTitle}</h1>
-        <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto">{content.heroSubtitle}</p>
-        {content.heroCtaText && (
-          <a href={content.heroCtaLink || "#contato"} className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors">
-            {content.heroCtaText}
-          </a>
-        )}
-      </div>
-    </section>
-  ),
+  hero: ({ content }) => {
+    const b = content.branding;
+    const bgStyle = b?.primaryColor ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 30)})` } : undefined;
+    const textStyle = b?.textColor ? { color: b.textColor } : undefined;
+    const subStyle = b?.textColor ? { color: `${b.textColor}99` } : undefined;
+    const btnStyle = b?.accentColor ? { backgroundColor: b.accentColor, color: b.textColor || '#fff' } : undefined;
+    const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
+    return (
+      <section className="bg-gradient-to-br from-slate-900 to-slate-700 text-white py-24 px-6" style={bgStyle}>
+        <div className="max-w-4xl mx-auto text-center">
+          {b?.logoUrl ? (
+            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
+          ) : (
+            <Scale className="w-12 h-12 mx-auto mb-6 text-amber-400" style={b?.accentColor ? { color: b.accentColor } : undefined} />
+          )}
+          <h1 className="text-4xl md:text-5xl font-bold mb-4" style={textStyle}>{content.heroTitle}</h1>
+          <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
+          {content.heroCtaText && (
+            <a href={content.heroCtaLink || "#contato"} className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors" style={btnStyle}>
+              {content.heroCtaText}
+            </a>
+          )}
+        </div>
+      </section>
+    );
+  },
   about: ({ content }) => content.aboutText ? (
     <section className="py-16 px-6">
       <div className="max-w-4xl mx-auto">
@@ -75,7 +109,7 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
     </section>
   ) : null,
   services: ({ content }) => content.services.length > 0 ? (
-    <section className="py-16 px-6 bg-slate-50">
+    <section className="py-16 px-6" style={content.branding?.secondaryColor ? { backgroundColor: content.branding.secondaryColor } : { backgroundColor: '#f8fafc' }}>
       <div className="max-w-5xl mx-auto">
         <h2 className="text-3xl font-bold mb-10 text-center">Áreas de Atuação</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -95,7 +129,7 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
         <h2 className="text-3xl font-bold mb-10 text-center">Depoimentos</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {content.testimonials.map((t, i) => (
-            <div key={i} className="bg-slate-50 p-6 rounded-xl border-l-4 border-amber-500">
+            <div key={i} className="bg-slate-50 p-6 rounded-xl border-l-4" style={{ borderColor: content.branding?.accentColor || '#f59e0b' }}>
               <p className="text-gray-600 italic mb-3">"{t.text}"</p>
               <p className="font-semibold text-sm">{t.name}</p>
             </div>
@@ -104,18 +138,22 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
       </div>
     </section>
   ) : null,
-  contact: ({ content }) => (
-    <section id="contato" className="py-16 px-6 bg-slate-900 text-white">
-      <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-8">{content.contactTitle}</h2>
-        <div className="flex flex-wrap justify-center gap-8">
-          {content.contactPhone && <a href={`tel:${content.contactPhone}`} className="flex items-center gap-2 text-slate-300 hover:text-amber-400 transition-colors"><Phone className="w-5 h-5" /> {content.contactPhone}</a>}
-          {content.contactEmail && <a href={`mailto:${content.contactEmail}`} className="flex items-center gap-2 text-slate-300 hover:text-amber-400 transition-colors"><Mail className="w-5 h-5" /> {content.contactEmail}</a>}
-          {content.contactAddress && <span className="flex items-center gap-2 text-slate-300"><MapPin className="w-5 h-5" /> {content.contactAddress}</span>}
+  contact: ({ content }) => {
+    const b = content.branding;
+    const bgStyle = b?.primaryColor ? { backgroundColor: b.primaryColor, color: b.textColor || '#fff' } : undefined;
+    return (
+      <section id="contato" className="py-16 px-6 bg-slate-900 text-white" style={bgStyle}>
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-8">{content.contactTitle}</h2>
+          <div className="flex flex-wrap justify-center gap-8">
+            {content.contactPhone && <a href={`tel:${content.contactPhone}`} className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity"><Phone className="w-5 h-5" /> {content.contactPhone}</a>}
+            {content.contactEmail && <a href={`mailto:${content.contactEmail}`} className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity"><Mail className="w-5 h-5" /> {content.contactEmail}</a>}
+            {content.contactAddress && <span className="flex items-center gap-2 opacity-80"><MapPin className="w-5 h-5" /> {content.contactAddress}</span>}
+          </div>
         </div>
-      </div>
-    </section>
-  ),
+      </section>
+    );
+  },
 };
 
 const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
