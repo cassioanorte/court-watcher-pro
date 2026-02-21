@@ -31,16 +31,26 @@ interface CaseOption {
   subject: string | null;
 }
 
+const typeOptions = [
+  { value: "Reunião presencial", icon: Users },
+  { value: "Videochamada", icon: Video },
+  { value: "Ligação", icon: Phone },
+  { value: "Audiência", icon: CalendarIcon },
+  { value: "Consulta", icon: FileText },
+];
+
 const DashboardCalendar = () => {
   const { tenantId, user } = useAuth();
+  const { isConnected: googleConnected, connect: connectGoogle, createMeetEvent, loading: googleLoading } = useGoogleCalendar();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
 
   const [form, setForm] = useState({
-    title: "",
+    title: "Reunião presencial",
     description: "",
     start_time: "09:00",
     end_time: "10:00",
