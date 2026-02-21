@@ -285,20 +285,13 @@ const DashboardDeadlines = () => {
   const handleLinkClient = async () => {
     if (!selectedDeadline || !selectedClientId) return;
     setSaving(true);
-    if (selectedDeadline.caseId) {
-      const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.caseId);
-      if (error) {
-        toast({ title: "Erro ao vincular cliente", variant: "destructive" });
-      } else {
-        toast({ title: "Cliente vinculado!" });
-        setLinkingClient(false);
-        await refreshSelectedDeadline(selectedDeadline.id);
-      }
+    const { error } = await supabase.from("appointments").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.id);
+    if (error) {
+      toast({ title: "Erro ao vincular cliente", variant: "destructive" });
     } else {
-      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", selectedClientId).single();
-      setSelectedDeadline(prev => prev ? { ...prev, clientUserId: selectedClientId, clientName: profile?.full_name || "Cliente" } : prev);
       toast({ title: "Cliente vinculado!" });
       setLinkingClient(false);
+      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
@@ -332,9 +325,15 @@ const DashboardDeadlines = () => {
   const handleUnlinkClient = async () => {
     if (!selectedDeadline) return;
     if (!confirm("Desvincular o cliente deste compromisso?")) return;
-    // Only clear the client reference from the appointment view, NOT from the case record
-    setSelectedDeadline(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
-    toast({ title: "Cliente desvinculado do compromisso!" });
+    setSaving(true);
+    const { error } = await supabase.from("appointments").update({ client_user_id: null }).eq("id", selectedDeadline.id);
+    if (error) {
+      toast({ title: "Erro ao desvincular", variant: "destructive" });
+    } else {
+      await refreshSelectedDeadline(selectedDeadline.id);
+      toast({ title: "Cliente desvinculado do compromisso!" });
+    }
+    setSaving(false);
   };
 
   const overdueCount = deadlines.filter((d) => d.overdue).length;
