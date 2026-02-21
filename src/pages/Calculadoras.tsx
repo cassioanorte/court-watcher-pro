@@ -23,6 +23,9 @@ import PrescricaoPenalCalc from "@/components/calculadoras/PrescricaoPenalCalc";
 import ProgressaoRegimeCalc from "@/components/calculadoras/ProgressaoRegimeCalc";
 import PensaoAlimenticiaCalc from "@/components/calculadoras/PensaoAlimenticiaCalc";
 import PartilhaBensCalc from "@/components/calculadoras/PartilhaBensCalc";
+import DivorcioCalc from "@/components/calculadoras/DivorcioCalc";
+import HerancaCalc from "@/components/calculadoras/HerancaCalc";
+import SucessorCalc from "@/components/calculadoras/SucessorCalc";
 import DistratoImovelCalc from "@/components/calculadoras/DistratoImovelCalc";
 import DanoMoralCalc from "@/components/calculadoras/DanoMoralCalc";
 import CobrancaIndevidaCalc from "@/components/calculadoras/CobrancaIndevidaCalc";
@@ -123,7 +126,10 @@ const categorias: Categoria[] = [
   {
     id: "familiar", label: "Familiar", icon: Heart,
     calculadoras: [
-      { id: "pensao_alimenticia", name: "Pensão Alimentícia", description: "Simule valores de pensão com base na renda e necessidades.", icon: Calculator },
+      { id: "divorcio", name: "Divórcio", description: "Simule a divisão de bens e gere um formal de partilha claro e objetivo.", icon: Heart },
+      { id: "pensao_alimenticia", name: "Pensão Alimentícia", description: "Encontre o valor devido de alimentos com relatório detalhado de despesas e três abordagens de design.", icon: Calculator },
+      { id: "heranca", name: "Herança", description: "Calcular a linha de sucessão e a divisão de bens para cada herdeiro com base no regime de bens e grau de parentesco.", icon: Home },
+      { id: "sucessor", name: "Sucessor", description: "Compare custos de inventário judicial, extrajudicial, doação com usufruto e holding familiar.", icon: Briefcase },
       { id: "partilha_bens", name: "Partilha de Bens", description: "Calcule a divisão patrimonial conforme o regime de bens.", icon: Home },
     ],
   },
@@ -160,6 +166,9 @@ const calcComponents: Record<string, React.FC> = {
   progressao_regime: ProgressaoRegimeCalc,
   pensao_alimenticia: PensaoAlimenticiaCalc,
   partilha_bens: PartilhaBensCalc,
+  divorcio: DivorcioCalc,
+  heranca: HerancaCalc,
+  sucessor: SucessorCalc,
   distrato_imovel: DistratoImovelCalc,
   dano_moral: DanoMoralCalc,
   cobranca_indevida: CobrancaIndevidaCalc,
