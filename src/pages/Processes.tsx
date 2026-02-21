@@ -126,6 +126,7 @@ const Processes = () => {
       process_number: p.process_number,
       source: p.source,
       subject: p.subject || "",
+      parties: (p as any).parties || "",
       case_summary: p.case_summary || "",
       client_user_id: p.client_user_id || "",
       responsible_user_id: p.responsible_user_id || "",
