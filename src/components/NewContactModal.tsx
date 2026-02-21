@@ -265,8 +265,21 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
           <div className="divide-y">
             <SectionTitle>Dados Pessoais</SectionTitle>
             <div>
-              {/* Avatar upload */}
-              <div className="flex items-center py-3 border-b">
+              <div
+                className="flex items-center py-3 border-b transition-colors"
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("bg-accent/10"); }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) e.currentTarget.classList.remove("bg-accent/10"); }}
+                onDrop={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  e.currentTarget.classList.remove("bg-accent/10");
+                  const f = e.dataTransfer.files?.[0];
+                  if (f && f.type.startsWith("image/")) {
+                    setAvatarFile(f);
+                    setAvatarPreview(URL.createObjectURL(f));
+                  }
+                }}
+              >
                 <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
                   Foto
                 </span>
@@ -286,15 +299,6 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                   />
                   <div
                     onClick={() => avatarInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                    onDrop={(e) => {
-                      e.preventDefault(); e.stopPropagation();
-                      const f = e.dataTransfer.files?.[0];
-                      if (f && f.type.startsWith("image/")) {
-                        setAvatarFile(f);
-                        setAvatarPreview(URL.createObjectURL(f));
-                      }
-                    }}
                     className="w-14 h-14 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden"
                     title="Clique ou arraste uma imagem"
                   >
