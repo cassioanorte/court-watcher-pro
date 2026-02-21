@@ -252,7 +252,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
               <button
                 onClick={handleQualifiedContact}
                 disabled={!contactForm.name.trim() || !contactForm.phone.trim()}
-                className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2 disabled:opacity-50`}
+                className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2 disabled:opacity-50`} style={brandingBtnStyle}
               >
                 <Phone className="w-4 h-4" /> Falar com Advogado pelo WhatsApp
               </button>
