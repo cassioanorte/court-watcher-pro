@@ -276,15 +276,22 @@ const DashboardDeadlines = () => {
   };
 
   const handleLinkClient = async () => {
-    if (!selectedDeadline || !selectedDeadline.caseId || !selectedClientId) return;
+    if (!selectedDeadline || !selectedClientId) return;
     setSaving(true);
-    const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.caseId);
-    if (error) {
-      toast({ title: "Erro ao vincular cliente", variant: "destructive" });
+    if (selectedDeadline.caseId) {
+      const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", selectedDeadline.caseId);
+      if (error) {
+        toast({ title: "Erro ao vincular cliente", variant: "destructive" });
+      } else {
+        toast({ title: "Cliente vinculado!" });
+        setLinkingClient(false);
+        await refreshSelectedDeadline(selectedDeadline.id);
+      }
     } else {
+      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", selectedClientId).single();
+      setSelectedDeadline(prev => prev ? { ...prev, clientUserId: selectedClientId, clientName: profile?.full_name || "Cliente" } : prev);
       toast({ title: "Cliente vinculado!" });
       setLinkingClient(false);
-      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
@@ -543,12 +550,10 @@ const DashboardDeadlines = () => {
                       <X className="w-3 h-3 mr-1" /> Desvincular
                     </Button>
                   </div>
-                ) : selectedDeadline.caseId ? (
+                ) : (
                   <Button size="sm" variant="outline" className="mt-1 gap-1.5 text-xs h-7" onClick={startLinkClient}>
                     <LinkIcon className="w-3 h-3" /> Vincular cliente
                   </Button>
-                ) : (
-                  <p className="text-xs text-muted-foreground mt-0.5">Vincule um processo primeiro</p>
                 )}
               </div>
 
