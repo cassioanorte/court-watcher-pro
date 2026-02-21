@@ -79,17 +79,20 @@ Deno.serve(async (req) => {
         pub.case_id = caseMap[procClean] || null;
       }
 
-      // Try to match OAB from content
+      // OAB is now set per-section during parsing (pub.oab_number)
+      // Only fallback if still empty: try matching OAB in the section content
       if (!pub.oab_number && profiles && profiles.length > 0) {
+        const sectionContent = pub.content || '';
         for (const p of profiles) {
-          if (p.oab_number && fullContent.includes(p.oab_number.replace(/[^0-9]/g, ''))) {
-            pub.oab_number = p.oab_number;
-            break;
+          if (p.oab_number) {
+            const oabDigits = p.oab_number.replace(/[^0-9]/g, '');
+            if (oabDigits && sectionContent.includes(oabDigits)) {
+              pub.oab_number = p.oab_number;
+              break;
+            }
           }
         }
-        if (!pub.oab_number && profiles[0]?.oab_number) {
-          pub.oab_number = profiles[0].oab_number;
-        }
+        // DO NOT fallback to first profile's OAB - this caused cross-contamination
       }
 
       const { error } = await serviceClient
