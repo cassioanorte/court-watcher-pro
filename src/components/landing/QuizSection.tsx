@@ -185,9 +185,9 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
         {/* Intro */}
         {isIntro && (
           <div className={`${s.card} p-8 text-center rounded-xl`}>
-            <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${s.accent}`}>{quiz.title}</h2>
+            <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${s.accent}`} style={brandingAccentStyle}>{quiz.title}</h2>
             <p className="text-gray-600 mb-6">{quiz.subtitle}</p>
-            <button onClick={() => setCurrentStep(1)} className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2`}>
+            <button onClick={() => setCurrentStep(1)} className={`${s.button} px-8 py-3 rounded-lg font-semibold transition-all inline-flex items-center gap-2`} style={brandingBtnStyle}>
               Começar <ArrowRight className="w-4 h-4" />
             </button>
           </div>
