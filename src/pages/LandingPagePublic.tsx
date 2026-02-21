@@ -83,12 +83,15 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
     const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
     return (
       <section className="bg-gradient-to-br from-slate-900 to-slate-700 text-white py-24 px-6" style={bgStyle}>
-        <div className="max-w-4xl mx-auto text-center">
-          {b?.logoUrl ? (
-            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
-          ) : (
-            <Scale className="w-12 h-12 mx-auto mb-6 text-amber-400" style={b?.accentColor ? { color: b.accentColor } : undefined} />
-          )}
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            {b?.logoUrl ? (
+              <img src={b.logoUrl} alt="Logo" className="h-20 md:h-24 object-contain" style={{ filter: logoFilter }} />
+            ) : (
+              <Scale className="w-12 h-12 text-amber-400" style={b?.accentColor ? { color: b.accentColor } : undefined} />
+            )}
+          </div>
+          <div className="text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4" style={textStyle}>{content.heroTitle}</h1>
           <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
           {content.heroCtaText && (
