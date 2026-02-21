@@ -316,6 +316,20 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                   <span className="text-xs text-muted-foreground">
                     {avatarPreview ? "Clique ou arraste para trocar" : "Clique ou arraste para adicionar"}
                   </span>
+                  {avatarPreview && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAvatarFile(null);
+                        setAvatarPreview(null);
+                      }}
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Remover foto"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
               <Field label="Nome Completo" value={form.full_name} onChange={set("full_name")} required />
