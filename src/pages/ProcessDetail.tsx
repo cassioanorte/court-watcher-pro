@@ -295,6 +295,7 @@ const ProcessDetail = () => {
     { key: "documentos" as const, label: "Documentos", icon: FileText },
     { key: "mensagens" as const, label: "Mensagens", icon: MessageSquare },
     ...(isLawyer ? [
+      { key: "atendimentos" as const, label: "Atendimentos", icon: Calendar },
       { key: "substabelecimento" as const, label: "Substabelecimento", icon: UserCheck },
       { key: "historico" as const, label: "Histórico", icon: History },
     ] : []),
