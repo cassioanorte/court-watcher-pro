@@ -165,10 +165,15 @@ const Financeiro = () => {
   const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
   const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
 
-  // IR a pagar — usa o valor de income_tax já calculado em cada order
+  // IR a pagar — calcula usando tax_percent sobre honorários brutos
   const totalIrAPagar = activeOrders
     .filter(o => o.status !== "sacado")
-    .reduce((s, o) => s + (Number(o.income_tax) || 0), 0);
+    .reduce((s, o) => {
+      const officeGross = (o as any).ownership_type === "escritorio"
+        ? (Number(o.gross_amount) || 0)
+        : Math.round((Number(o.gross_amount) || 0) * (Number((o as any).office_fees_percent) || 0) / 100 * 100) / 100;
+      return s + Math.round(officeGross * (Number(o.tax_percent) || 0) / 100 * 100) / 100;
+    }, 0);
 
   // === RPV DASHBOARD DATA ===
   // Status breakdown
