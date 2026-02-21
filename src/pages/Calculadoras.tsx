@@ -14,6 +14,8 @@ import RmiCalc from "@/components/calculadoras/RmiCalc";
 import SimuladorAposentadoriaCalc from "@/components/calculadoras/SimuladorAposentadoriaCalc";
 import VerbasRescisoriasCalc from "@/components/calculadoras/VerbasRescisoriasCalc";
 import HorasExtrasCalc from "@/components/calculadoras/HorasExtrasCalc";
+import TrabalhistaCalc from "@/components/calculadoras/TrabalhistaCalc";
+import CorrecaoFgtsCalc from "@/components/calculadoras/CorrecaoFgtsCalc";
 import AtualizacaoDividaCalc from "@/components/calculadoras/AtualizacaoDividaCalc";
 import JurosCompostosCalc from "@/components/calculadoras/JurosCompostosCalc";
 import DosimetriaPenaCalc from "@/components/calculadoras/DosimetriaPenaCalc";
@@ -89,6 +91,8 @@ const categorias: Categoria[] = [
     calculadoras: [
       { id: "verbas_rescisorias", name: "Verbas Rescisórias", description: "Calcule saldo de salário, aviso prévio, férias, 13º e multa FGTS.", icon: Calculator },
       { id: "horas_extras", name: "Horas Extras", description: "Calcule horas extras com adicional de 50%, 100% e intrajornada.", icon: Clock },
+      { id: "trabalhista_geral", name: "Trabalhista", description: "Uma calculadora trabalhista simplifica cálculos essenciais relacionados a questões salariais e legais.", icon: Briefcase },
+      { id: "correcao_fgts", name: "Correção do FGTS", description: "Verificação e correção de depósitos, garantindo valores justos aos trabalhadores.", icon: Percent },
     ],
   },
   {
@@ -147,6 +151,8 @@ const calcComponents: Record<string, React.FC> = {
   simulador_aposentadoria: SimuladorAposentadoriaCalc,
   verbas_rescisorias: VerbasRescisoriasCalc,
   horas_extras: HorasExtrasCalc,
+  trabalhista_geral: TrabalhistaCalc,
+  correcao_fgts: CorrecaoFgtsCalc,
   atualizacao_divida: AtualizacaoDividaCalc,
   juros_simples_compostos: JurosCompostosCalc,
   dosimetria_pena: DosimetriaPenaCalc,
