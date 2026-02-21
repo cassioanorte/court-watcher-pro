@@ -39,7 +39,7 @@ const normalizeWhatsapp = (raw: string) => {
   return digits.startsWith("55") ? digits : `55${digits}`;
 };
 
-const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic" }: QuizSectionProps) => {
+const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", branding }: QuizSectionProps) => {
   const [currentStep, setCurrentStep] = useState(0); // 0 = intro, 1..n = questions, n+1 = result
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [result, setResult] = useState<"qualified" | "unqualified" | null>(null);
