@@ -76,7 +76,7 @@ interface FeeDistribution {
 
 const REVENUE_CATEGORIES = ["Honorários", "Consultoria", "Acordo", "Êxito", "Outros"];
 const EXPENSE_CATEGORIES = [
-  "Aluguel", "Salários", "Encargos Trabalhistas", "Pró-labore", "Impostos", "INSS", "ISS", "IRPJ/CSLL",
+  "Aluguel", "Salários", "Encargos Trabalhistas", "Pró-labore", "Impostos", "INSS", "ISS", "IRPJ/CSLL", "IR sobre Honorários",
   "Custas Processuais", "Despesas Processuais", "Taxas Judiciais", "Certidões e Diligências",
   "Honorários Periciais", "Correios e Intimações",
   "Material de Escritório", "Tecnologia e Software", "Telefone e Internet",
