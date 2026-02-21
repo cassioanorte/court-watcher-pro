@@ -23,6 +23,7 @@ interface Appointment {
   start_at: string;
   end_at: string;
   case_id: string | null;
+  lead_id: string | null;
   color: string | null;
 }
 
