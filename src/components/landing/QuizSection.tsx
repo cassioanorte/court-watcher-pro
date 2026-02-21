@@ -162,7 +162,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
 
   // Dynamic branding overrides
   const brandingBgStyle = branding?.secondaryColor ? { backgroundColor: branding.secondaryColor } : undefined;
-  const brandingBtnStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor, color: branding.textColor || '#fff' } : undefined;
+  const brandingBtnStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor, backgroundImage: 'none', color: branding.textColor || '#fff' } : undefined;
   const brandingAccentStyle = branding?.primaryColor ? { color: branding.primaryColor } : undefined;
   const brandingProgressStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor } : undefined;
 
