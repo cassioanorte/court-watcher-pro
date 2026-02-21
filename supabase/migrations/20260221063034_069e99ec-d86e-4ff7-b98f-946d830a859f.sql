@@ -1,0 +1,1 @@
+ALTER TABLE public.cases ADD COLUMN next_step_responsible_id uuid DEFAULT NULL;
