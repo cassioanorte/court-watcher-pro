@@ -450,6 +450,13 @@ const Financeiro = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rpv-precatorio">
+          <Pagamentos />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
