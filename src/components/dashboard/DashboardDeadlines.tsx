@@ -472,7 +472,17 @@ const DashboardDeadlines = () => {
               {selectedDeadline.description && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Descrição</p>
-                  <p className="text-sm text-foreground mt-0.5">{selectedDeadline.description}</p>
+                  <p className="text-sm text-foreground mt-0.5 whitespace-pre-wrap break-all">
+                    {selectedDeadline.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                      /^https?:\/\//.test(part) ? (
+                        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-flex items-center gap-0.5">
+                          <Video className="w-3.5 h-3.5 shrink-0" />{part.length > 50 ? part.slice(0, 50) + "…" : part}
+                        </a>
+                      ) : (
+                        <span key={i}>{part}</span>
+                      )
+                    )}
+                  </p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
