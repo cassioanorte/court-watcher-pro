@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent } from "lucide-react";
+import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent, Landmark, Car, Wheat } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,16 @@ import PartilhaBensCalc from "@/components/calculadoras/PartilhaBensCalc";
 import DistratoImovelCalc from "@/components/calculadoras/DistratoImovelCalc";
 import DanoMoralCalc from "@/components/calculadoras/DanoMoralCalc";
 import CobrancaIndevidaCalc from "@/components/calculadoras/CobrancaIndevidaCalc";
+import RevisaoBancariaCalc from "@/components/calculadoras/RevisaoBancariaCalc";
+import SuperendividamentoCalc from "@/components/calculadoras/SuperendividamentoCalc";
+import RmcRccCalc from "@/components/calculadoras/RmcRccCalc";
+import AmortizacaoComparativaCalc from "@/components/calculadoras/AmortizacaoComparativaCalc";
+import FinanciamentoCalc from "@/components/calculadoras/FinanciamentoCalc";
+import TaxaMediaBacenCalc from "@/components/calculadoras/TaxaMediaBacenCalc";
+import BuscaApreensaoCalc from "@/components/calculadoras/BuscaApreensaoCalc";
+import RevisaoCcbCalc from "@/components/calculadoras/RevisaoCcbCalc";
+import CapitalGiroCalc from "@/components/calculadoras/CapitalGiroCalc";
+import CreditoRuralCalc from "@/components/calculadoras/CreditoRuralCalc";
 
 interface Calculadora {
   id: string;
@@ -65,8 +75,18 @@ const categorias: Categoria[] = [
   {
     id: "bancario", label: "Bancário", icon: Building2,
     calculadoras: [
+      { id: "revisao_bancaria", name: "Revisão", description: "Recalcular contratos bancários com taxa BACEN e gerar documentos.", icon: Landmark },
+      { id: "superendividamento", name: "Superendividamento", description: "Crie um plano de pagamento das dívidas que considere a renda e o mínimo existencial do cliente.", icon: FileText },
+      { id: "rmc_rcc", name: "RMC e RCC INSS", description: "Rever os empréstimos de cartão de crédito sobre as reservas de margem consignável RMC e RCC.", icon: Building2 },
+      { id: "juros_simples_compostos", name: "Juros Simples e Compostos", description: "Descubra o valor futuro para juros simples ou compostos e converta a taxas para períodos diferentes.", icon: Percent },
+      { id: "amortizacao_comparativa", name: "Amortização Comparativa", description: "Compare parcelas, juros e total financiado em Price, SAC, SACRE e MEJS/MAJS.", icon: Calculator },
+      { id: "financiamento", name: "Financiamento e Empréstimos", description: "Descubra o valor da parcela, juros e total financiado em diferentes métodos de amortização.", icon: Briefcase },
+      { id: "taxa_media_bacen", name: "Taxa Média BACEN", description: "Consulte a taxa média de juros do BACEN e descubra se é mais vantajoso para o consumidor.", icon: Percent },
+      { id: "busca_apreensao", name: "Busca e Apreensão", description: "Defesa em ação de busca e apreensão: purga da mora, revisional e restituição (DL 911/69).", icon: Car },
+      { id: "revisao_ccb", name: "Revisão de CCB", description: "Rever Cédulas de Crédito Bancário: CET efetiva, anatocismo, comissão de permanência (Lei 10.931/2004).", icon: FileText },
+      { id: "capital_giro", name: "Capital de Giro / Fomento", description: "Calcule custos de capital de giro, factoring e desconto de duplicatas com CET.", icon: Building2 },
+      { id: "credito_rural", name: "Revisão de Crédito Rural", description: "Revise contratos de crédito rural conforme limites do PRONAF, PRONAMP e demais modalidades.", icon: Wheat },
       { id: "atualizacao_divida", name: "Atualização de Dívida", description: "Recálculo de contratos bancários com taxas abusivas.", icon: Percent },
-      { id: "juros_compostos", name: "Juros Compostos", description: "Calcule juros capitalizados sobre empréstimos e financiamentos.", icon: Calculator },
     ],
   },
   {
@@ -108,7 +128,7 @@ const calcComponents: Record<string, React.FC> = {
   verbas_rescisorias: VerbasRescisoriasCalc,
   horas_extras: HorasExtrasCalc,
   atualizacao_divida: AtualizacaoDividaCalc,
-  juros_compostos: JurosCompostosCalc,
+  juros_simples_compostos: JurosCompostosCalc,
   dosimetria_pena: DosimetriaPenaCalc,
   prescricao: PrescricaoPenalCalc,
   pensao_alimenticia: PensaoAlimenticiaCalc,
@@ -116,6 +136,16 @@ const calcComponents: Record<string, React.FC> = {
   distrato_imovel: DistratoImovelCalc,
   dano_moral: DanoMoralCalc,
   cobranca_indevida: CobrancaIndevidaCalc,
+  revisao_bancaria: RevisaoBancariaCalc,
+  superendividamento: SuperendividamentoCalc,
+  rmc_rcc: RmcRccCalc,
+  amortizacao_comparativa: AmortizacaoComparativaCalc,
+  financiamento: FinanciamentoCalc,
+  taxa_media_bacen: TaxaMediaBacenCalc,
+  busca_apreensao: BuscaApreensaoCalc,
+  revisao_ccb: RevisaoCcbCalc,
+  capital_giro: CapitalGiroCalc,
+  credito_rural: CreditoRuralCalc,
 };
 
 export default function Calculadoras() {
