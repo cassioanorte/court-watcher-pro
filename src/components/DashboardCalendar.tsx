@@ -148,6 +148,11 @@ const DashboardCalendar = () => {
     toast.success("Compromisso removido");
   };
 
+  const getTypeIcon = (title: string) => {
+    const found = typeOptions.find((t) => t.value === title);
+    return found ? found.icon : CalendarIcon;
+  };
+
   return (
     <div className="bg-card rounded-lg shadow-card border">
       <div className="flex items-center justify-between px-5 py-4 border-b">
