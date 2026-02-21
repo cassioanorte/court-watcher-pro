@@ -5,10 +5,11 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   DollarSign, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, X, Save,
-  ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar, Banknote
+  ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar, Banknote, Clock
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Pagamentos from "@/pages/Pagamentos";
+import PaymentOrdersTracker from "@/components/PaymentOrdersTracker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -205,6 +206,9 @@ const Financeiro = () => {
           <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
           <TabsTrigger value="rpv-precatorio" className="gap-1.5">
             <Banknote className="w-4 h-4" /> RPV / Precatório
+          </TabsTrigger>
+          <TabsTrigger value="aguardando-pagamento" className="gap-1.5">
+            <Clock className="w-4 h-4" /> Aguardando Pagamento
           </TabsTrigger>
         </TabsList>
 
@@ -455,6 +459,10 @@ const Financeiro = () => {
 
         <TabsContent value="rpv-precatorio">
           <Pagamentos />
+        </TabsContent>
+
+        <TabsContent value="aguardando-pagamento">
+          <PaymentOrdersTracker />
         </TabsContent>
       </Tabs>
     </div>
