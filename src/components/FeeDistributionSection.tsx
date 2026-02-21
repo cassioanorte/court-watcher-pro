@@ -194,6 +194,20 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
     } else {
+      // Register expense as financial transaction if any
+      if (expensesAmount > 0 && selectedOrder) {
+        await supabase.from("financial_transactions").insert({
+          tenant_id: tenantId,
+          type: "despesa",
+          category: "Despesas Processuais",
+          amount: expensesAmount,
+          description: `Despesa descontada do rateio — ${selectedOrder.type.toUpperCase()} ${selectedOrder.process_number || selectedOrder.beneficiary_name || ""}${formExpensesDesc ? `: ${formExpensesDesc}` : ""}`,
+          case_id: (selectedOrder as any).case_id || null,
+          created_by: userId,
+          date: formPaidAt || new Date().toISOString().split("T")[0],
+          status: "confirmed",
+        });
+      }
       toast.success(`${validSplits.length} distribuição(ões) registrada(s)!`);
       setShowNew(false);
       resetForm();
