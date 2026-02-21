@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import NewProcessModal from "@/components/NewProcessModal";
+import ProcessAccessControl from "@/components/ProcessAccessControl";
 import ImportReview from "@/components/ImportReview";
 import type { Tables, Database } from "@/integrations/supabase/types";
 
@@ -47,8 +48,11 @@ const Processes = () => {
   const [deleteAllConfirm, setDeleteAllConfirm] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"ativos" | "arquivados">("ativos");
-  const { tenantId } = useAuth();
+  const [accessControlCase, setAccessControlCase] = useState<{ id: string; process_number: string } | null>(null);
+  const { tenantId, role } = useAuth();
   const { toast } = useToast();
+
+  const isOwner = role === "owner" || role === "superadmin";
 
   const fetchProcesses = async () => {
     if (!tenantId) return;
@@ -392,6 +396,15 @@ const Processes = () => {
                     <td className="px-4 py-3 text-right text-xs text-muted-foreground">{formatDate(p.updated_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {isOwner && (
+                          <button
+                            onClick={() => setAccessControlCase({ id: p.id, process_number: p.process_number })}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+                            title="Controle de acesso"
+                          >
+                            <Shield className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleArchiveToggle(p)}
                           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -539,6 +552,14 @@ const Processes = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {accessControlCase && (
+        <ProcessAccessControl
+          caseId={accessControlCase.id}
+          processNumber={accessControlCase.process_number}
+          onClose={() => setAccessControlCase(null)}
+        />
       )}
 
       <NewProcessModal open={showNew} onClose={() => setShowNew(false)} onSuccess={fetchProcesses} />
