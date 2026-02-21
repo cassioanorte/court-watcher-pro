@@ -30,6 +30,7 @@ import DistratoImovelCalc from "@/components/calculadoras/DistratoImovelCalc";
 import EspacoLocaticioCalc from "@/components/calculadoras/EspacoLocaticioCalc";
 import DanoMoralCalc from "@/components/calculadoras/DanoMoralCalc";
 import CobrancaIndevidaCalc from "@/components/calculadoras/CobrancaIndevidaCalc";
+import RevisaoPlanoSaudeCalc from "@/components/calculadoras/RevisaoPlanoSaudeCalc";
 import RevisaoBancariaCalc from "@/components/calculadoras/RevisaoBancariaCalc";
 import SuperendividamentoCalc from "@/components/calculadoras/SuperendividamentoCalc";
 import RmcRccCalc from "@/components/calculadoras/RmcRccCalc";
@@ -146,6 +147,9 @@ const categorias: Categoria[] = [
     calculadoras: [
       { id: "dano_moral", name: "Estimativa de Dano Moral", description: "Simule valores com base em precedentes jurisprudenciais.", icon: Scale },
       { id: "cobranca_indevida", name: "Cobrança Indevida", description: "Calcule a devolução em dobro (Art. 42 CDC) com correção.", icon: Percent },
+      { id: "revisao_plano_saude", name: "Revisão de Plano de Saúde", description: "Analisar 5 teses: teto ANS, coparticipação, faixa etária (RN 63/Tema 1016), cancelamento (RN 593) e sinistralidade/VCMH.", icon: ShoppingCart },
+      { id: "superendividamento_consumidor", name: "Superendividamento", description: "Crie um plano de pagamento das dívidas que considere a renda e o mínimo existencial do cliente.", icon: ShoppingCart },
+      { id: "revisao_pasep_consumidor", name: "Revisão do PASEP", description: "Recálculo do saldo do PASEP aplicando os juros, revisões e atualizações previstas na lei.", icon: ShoppingCart },
     ],
   },
 ];
@@ -175,6 +179,9 @@ const calcComponents: Record<string, React.FC> = {
   espaco_locaticio: EspacoLocaticioCalc,
   dano_moral: DanoMoralCalc,
   cobranca_indevida: CobrancaIndevidaCalc,
+  revisao_plano_saude: RevisaoPlanoSaudeCalc,
+  superendividamento_consumidor: SuperendividamentoCalc,
+  revisao_pasep_consumidor: RevisaoPasepCalc,
   revisao_bancaria: RevisaoBancariaCalc,
   superendividamento: SuperendividamentoCalc,
   rmc_rcc: RmcRccCalc,
