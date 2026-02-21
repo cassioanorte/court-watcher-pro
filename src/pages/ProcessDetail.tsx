@@ -145,6 +145,7 @@ const ProcessDetail = () => {
     setSavingParties(false);
   };
 
+  const handleSaveSummary = async () => {
     if (!id) return;
     setSavingSummary(true);
     const { error } = await supabase.from("cases").update({ case_summary: caseSummary }).eq("id", id);
