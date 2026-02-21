@@ -60,7 +60,6 @@ serve(async (req) => {
     }
 
     const smtpHost = getSmtpHost(creds.imap_host);
-    const smtpPort = 587;
 
     // Get tenant name for email branding
     const { data: tenant } = await supabase
