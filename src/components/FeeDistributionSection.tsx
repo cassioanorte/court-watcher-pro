@@ -48,6 +48,8 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
   const [formAmount, setFormAmount] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formPaidAt, setFormPaidAt] = useState("");
+  const [formMode, setFormMode] = useState<"valor" | "percentual">("valor");
+  const [formPercent, setFormPercent] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchDistributions = useCallback(async () => {
@@ -108,6 +110,8 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       setFormOrderId("");
       setFormLawyerId("");
       setFormAmount("");
+      setFormPercent("");
+      setFormMode("valor");
       setFormDescription("");
       setFormPaidAt("");
       fetchDistributions();
@@ -246,9 +250,31 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
               </Select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Valor (R$) *</label>
-              <Input type="number" step="0.01" placeholder="0,00" value={formAmount} onChange={e => setFormAmount(e.target.value)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Modo de entrada *</label>
+              <div className="flex gap-2">
+                <Button type="button" variant={formMode === "valor" ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setFormMode("valor")}>Valor (R$)</Button>
+                <Button type="button" variant={formMode === "percentual" ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setFormMode("percentual")}>Percentual (%)</Button>
+              </div>
             </div>
+            {formMode === "percentual" ? (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Percentual (%) *</label>
+                <Input type="number" step="0.1" placeholder="Ex: 50" value={formPercent} onChange={e => {
+                  setFormPercent(e.target.value);
+                  const selectedOrder = activeOrders.find(o => o.id === formOrderId);
+                  if (selectedOrder) {
+                    const calc = Math.round(selectedOrder.office_amount * (parseFloat(e.target.value) || 0) / 100 * 100) / 100;
+                    setFormAmount(calc > 0 ? calc.toString() : "");
+                  }
+                }} />
+                {formAmount && <p className="text-xs text-muted-foreground mt-1">= {fmt(parseFloat(formAmount) || 0)}</p>}
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Valor (R$) *</label>
+                <Input type="number" step="0.01" placeholder="0,00" value={formAmount} onChange={e => setFormAmount(e.target.value)} />
+              </div>
+            )}
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Data do Pagamento</label>
               <Input type="date" value={formPaidAt} onChange={e => setFormPaidAt(e.target.value)} />
