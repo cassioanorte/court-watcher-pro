@@ -243,13 +243,42 @@ const Pagamentos = () => {
         return;
       }
 
-      const { data: aiResult, error: aiError } = await supabase.functions.invoke("extract-payment-data", {
-        body: { text: pdfText.slice(0, 8000), file_name: file.name },
-      });
+      let aiResult: any = null;
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-payment-data`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ text: pdfText.slice(0, 8000), file_name: file.name }),
+          }
+        );
+        const body = await response.json();
+        if (!response.ok) {
+          const msg = body?.error || `Erro ${response.status}`;
+          if (response.status === 402) {
+            toast.error("Créditos de IA esgotados. Preencha os campos manualmente ou adicione créditos.");
+          } else if (response.status === 429) {
+            toast.error("Limite de requisições excedido. Tente novamente em alguns minutos.");
+          } else {
+            toast.error(msg);
+          }
+          setExtracting(false);
+          setUploading(false);
+          return;
+        }
+        aiResult = body;
+      } catch (fetchErr: any) {
+        toast.error("Erro de conexão ao extrair dados: " + (fetchErr.message || "Erro desconhecido"));
+        setExtracting(false);
+        setUploading(false);
+        return;
+      }
 
-      if (aiError) {
-        toast.error("Erro na extração: " + (aiError.message || "Erro desconhecido"));
-      } else if (aiResult?.error) {
+      if (aiResult?.error) {
         toast.error(aiResult.error);
       } else if (aiResult?.data) {
         const d = aiResult.data;
