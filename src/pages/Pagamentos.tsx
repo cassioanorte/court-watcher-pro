@@ -67,6 +67,8 @@ const Pagamentos = () => {
   const [selected, setSelected] = useState<PaymentOrder | null>(null);
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<PaymentOrder>>({});
 
   // Form state
   const [formType, setFormType] = useState("rpv");
