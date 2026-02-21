@@ -105,7 +105,7 @@ const Dashboard = () => {
         supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
       ]);
 
-      setCasesCount(casesRes.count || 0);
+      setAgentsCount(agentsRes.count || 0);
       setAppointmentsCount(appointmentsRes.count || 0);
       setTodayPubs((pubsRes.data || []) as Publication[]);
 
