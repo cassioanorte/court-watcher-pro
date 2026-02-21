@@ -55,6 +55,8 @@ interface PaymentOrderFull {
   gross_amount: number;
   office_amount: number;
   client_amount: number;
+  income_tax: number;
+  tax_percent: number;
   process_number: string | null;
   beneficiary_name: string | null;
   expected_payment_date: string | null;
@@ -108,7 +110,7 @@ const Financeiro = () => {
         supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
-        supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, process_number, beneficiary_name, expected_payment_date, ownership_type, fee_type").eq("tenant_id", tenantId),
+        supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, process_number, beneficiary_name, expected_payment_date, ownership_type, fee_type").eq("tenant_id", tenantId),
         supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_user_id, lawyer_name, amount").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
@@ -163,11 +165,10 @@ const Financeiro = () => {
   const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
   const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
 
-  // IR a pagar — 10,9% sobre honorários do escritório (office_amount)
-  const TAX_RATE = 0.109;
+  // IR a pagar — usa o valor de income_tax já calculado em cada order
   const totalIrAPagar = activeOrders
     .filter(o => o.status !== "sacado")
-    .reduce((s, o) => s + (Number(o.office_amount) || 0) * TAX_RATE, 0);
+    .reduce((s, o) => s + (Number(o.income_tax) || 0), 0);
 
   // === RPV DASHBOARD DATA ===
   // Status breakdown
