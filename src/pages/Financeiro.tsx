@@ -460,6 +460,10 @@ const Financeiro = () => {
         <TabsContent value="rpv-precatorio">
           <Pagamentos />
         </TabsContent>
+
+        <TabsContent value="aguardando-pagamento">
+          <PaymentOrdersTracker />
+        </TabsContent>
       </Tabs>
     </div>
   );
