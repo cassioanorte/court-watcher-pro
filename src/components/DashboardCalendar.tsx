@@ -11,7 +11,8 @@ import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { toast } from "sonner";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2, Pencil, X, Save } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2, Pencil, X, Save, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
