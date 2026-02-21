@@ -451,6 +451,48 @@ const LandingPageEditor = () => {
                 </div>
               </div>
 
+              {/* Extract colors from logo button */}
+              {content.branding?.logoUrl && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  disabled={extractingColors}
+                  onClick={async () => {
+                    if (!content.branding?.logoUrl) return;
+                    setExtractingColors(true);
+                    try {
+                      const colors = await extractColorsFromImage(content.branding.logoUrl, 4);
+                      const primary = colors[0] || "#1e293b";
+                      const accent = colors[1] || colors[0] || "#f59e0b";
+                      // Derive secondary as a very light version of primary
+                      const hexToRgb = (hex: string) => {
+                        const c = hex.replace("#", "");
+                        return [parseInt(c.substring(0, 2), 16), parseInt(c.substring(2, 4), 16), parseInt(c.substring(4, 6), 16)];
+                      };
+                      const [pr, pg, pb] = hexToRgb(primary);
+                      const secondary = `#${Math.min(255, pr + 200).toString(16).padStart(2, "0")}${Math.min(255, pg + 200).toString(16).padStart(2, "0")}${Math.min(255, pb + 200).toString(16).padStart(2, "0")}`;
+                      // Text color based on luminance of primary
+                      const lum = 0.299 * pr + 0.587 * pg + 0.114 * pb;
+                      const textColor = lum < 128 ? "#ffffff" : "#1e293b";
+                      updateContent("branding", {
+                        ...content.branding,
+                        primaryColor: primary,
+                        secondaryColor: secondary,
+                        accentColor: accent,
+                        textColor,
+                      });
+                      toast({ title: "Cores extraídas do logotipo!", description: "As cores foram aplicadas. Você pode ajustá-las manualmente se preferir." });
+                    } catch {
+                      toast({ title: "Não foi possível extrair cores", description: "Tente enviar a imagem novamente.", variant: "destructive" });
+                    }
+                    setExtractingColors(false);
+                  }}
+                >
+                  {extractingColors ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                  Usar cores do logotipo na página
+                </Button>
+              )}
+
               {/* Logo color adjustments */}
               {content.branding?.logoUrl && (
                 <div className="space-y-4 border rounded-lg p-4">
