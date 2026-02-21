@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ContatoDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState((location.state as any)?.scrollToProcesses ? "processos" : "cadastro");
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [contact, setContact] = useState<any>(null);
@@ -459,7 +461,7 @@ const ContatoDetail = () => {
       </motion.div>
 
       {/* Tabs */}
-      <Tabs defaultValue="cadastro" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-auto p-0 gap-0">
           {[
             { value: "cadastro", label: "Cadastro" },
