@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -465,17 +466,23 @@ const ClientProcessDetail = () => {
                   accept=".pdf,.jpg,.jpeg,.png,.webp"
                   onChange={handleExtractFromFile}
                 />
-                <button
-                  onClick={() => extractFileRef.current?.click()}
-                  disabled={extractingExternal}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold disabled:opacity-50"
-                >
-                  {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  {extractingExternal ? "Extraindo dados..." : "Upload e extrair dados"}
-                </button>
+                <FileDropZone
+                  onFile={(f) => {
+                    const dt = new DataTransfer();
+                    dt.items.add(f);
+                    if (extractFileRef.current) {
+                      extractFileRef.current.files = dt.files;
+                      extractFileRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                  }}
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  loading={extractingExternal}
+                  loadingText="Extraindo dados..."
+                  label="Arraste o arquivo aqui ou clique para extrair dados"
+                  compact
+                />
               </div>
 
-              {/* Upload button */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -483,17 +490,20 @@ const ClientProcessDetail = () => {
                 onChange={handleFileUpload}
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt"
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full flex items-center justify-center gap-2 bg-card rounded-xl border border-dashed border-accent/40 p-4 text-sm font-medium text-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
-              >
-                {uploading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</>
-                ) : (
-                  <><Upload className="w-4 h-4" /> Enviar documento</>
-                )}
-              </button>
+              <FileDropZone
+                onFile={(f) => {
+                  const dt = new DataTransfer();
+                  dt.items.add(f);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.files = dt.files;
+                    fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                }}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt"
+                loading={uploading}
+                loadingText="Enviando..."
+                label="Arraste ou clique para enviar documento"
+              />
 
               {documents.length === 0 && !uploading ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento disponível.</p>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar, UserCircle } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -866,14 +867,21 @@ const ProcessDetail = () => {
                 accept={extractUseAi ? ".pdf,.jpg,.jpeg,.png,.webp" : ".pdf"}
                 onChange={handleExtractFromFile}
               />
-              <button
-                onClick={() => extractFileRef.current?.click()}
-                disabled={extractingExternal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {extractingExternal ? "Extraindo..." : extractUseAi ? "Upload e extrair (IA)" : "Upload e extrair (Regex)"}
-              </button>
+              <FileDropZone
+                onFile={(f) => {
+                  const dt = new DataTransfer();
+                  dt.items.add(f);
+                  if (extractFileRef.current) {
+                    extractFileRef.current.files = dt.files;
+                    extractFileRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                }}
+                accept={extractUseAi ? ".pdf,.jpg,.jpeg,.png,.webp" : ".pdf"}
+                loading={extractingExternal}
+                loadingText="Extraindo..."
+                label={extractUseAi ? "Arraste o arquivo aqui ou clique (IA)" : "Arraste o PDF aqui ou clique (Regex)"}
+                compact
+              />
             </div>
           )}
           {documents.length === 0 && !isLawyer && (
@@ -930,10 +938,8 @@ const ProcessDetail = () => {
             </div>
           ))}
           {isLawyer && (
-            <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-3">
-              <Upload className="w-8 h-8 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">Arraste ou selecione arquivos para anexar</p>
-              <div className="flex items-center justify-center gap-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 mb-2">
                 <select value={docCategory} onChange={(e) => setDocCategory(e.target.value)} className="h-9 px-3 rounded-lg bg-background border text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
                   <option value="">Sem categoria</option>
                   <option value="Petição">Petição</option>
@@ -944,43 +950,38 @@ const ProcessDetail = () => {
                   <option value="Laudo">Laudo</option>
                   <option value="Outro">Outro</option>
                 </select>
-                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50">
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  {uploading ? "Enviando..." : "Selecionar arquivo"}
-                  <input
-                    type="file"
-                    className="hidden"
-                    disabled={uploading}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file || !id || !user) return;
-                      setUploading(true);
-                      try {
-                        const ext = file.name.split(".").pop();
-                        const path = `${id}/${Date.now()}.${ext}`;
-                        const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
-                        if (uploadError) throw uploadError;
-                        const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
-                        const { data: docData, error: insertError } = await supabase.from("documents").insert({
-                          case_id: id,
-                          name: file.name,
-                          file_url: urlData.publicUrl,
-                          category: docCategory || null,
-                          uploaded_by: user.id,
-                        }).select("*").single();
-                        if (insertError) throw insertError;
-                        if (docData) setDocuments((prev) => [docData, ...prev]);
-                        toast({ title: "Documento anexado!" });
-                      } catch (err: any) {
-                        toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
-                      } finally {
-                        setUploading(false);
-                        e.target.value = "";
-                      }
-                    }}
-                  />
-                </label>
               </div>
+              <FileDropZone
+                onFile={async (file) => {
+                  if (!id || !user) return;
+                  setUploading(true);
+                  try {
+                    const ext = file.name.split(".").pop();
+                    const path = `${id}/${Date.now()}.${ext}`;
+                    const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
+                    if (uploadError) throw uploadError;
+                    const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+                    const { data: docData, error: insertError } = await supabase.from("documents").insert({
+                      case_id: id,
+                      name: file.name,
+                      file_url: urlData.publicUrl,
+                      category: docCategory || null,
+                      uploaded_by: user.id,
+                    }).select("*").single();
+                    if (insertError) throw insertError;
+                    if (docData) setDocuments((prev) => [docData, ...prev]);
+                    toast({ title: "Documento anexado!" });
+                  } catch (err: any) {
+                    toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                loading={uploading}
+                loadingText="Enviando..."
+                label="Arraste o arquivo aqui ou clique para selecionar"
+                sublabel="Selecione a categoria acima antes de enviar"
+              />
             </div>
           )}
           {documents.length === 0 && isLawyer && (
