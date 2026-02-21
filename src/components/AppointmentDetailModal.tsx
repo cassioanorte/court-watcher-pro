@@ -365,12 +365,10 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
                     <X className="w-3 h-3 mr-1" /> Desvincular
                   </Button>
                 </div>
-              ) : data.caseId ? (
+              ) : (
                 <Button size="sm" variant="outline" className="mt-1 gap-1.5 text-xs h-7" onClick={startLinkClient}>
                   <LinkIcon className="w-3 h-3" /> Vincular cliente
                 </Button>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-0.5">Vincule um processo primeiro</p>
               )}
             </div>
 
