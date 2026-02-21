@@ -56,6 +56,7 @@ const Financeiro = () => {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [paymentOrders, setPaymentOrders] = useState<{ office_amount: number; client_amount: number; gross_amount: number; status: string }[]>([]);
   const [form, setForm] = useState({
     type: "revenue" as "revenue" | "expense",
     category: "",
