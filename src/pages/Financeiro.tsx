@@ -74,7 +74,16 @@ interface FeeDistribution {
 }
 
 const REVENUE_CATEGORIES = ["Honorários", "Consultoria", "Acordo", "Êxito", "Outros"];
-const EXPENSE_CATEGORIES = ["Aluguel", "Salários", "Impostos", "Material", "Tecnologia", "Marketing", "Custas Processuais", "Despesas Processuais", "Outros"];
+const EXPENSE_CATEGORIES = [
+  "Aluguel", "Salários", "Encargos Trabalhistas", "Pró-labore", "Impostos", "INSS", "ISS", "IRPJ/CSLL",
+  "Custas Processuais", "Despesas Processuais", "Taxas Judiciais", "Certidões e Diligências",
+  "Honorários Periciais", "Correios e Intimações",
+  "Material de Escritório", "Tecnologia e Software", "Telefone e Internet",
+  "Marketing e Publicidade", "Energia Elétrica", "Água", "Condomínio", "IPTU",
+  "Seguros", "Manutenção e Limpeza", "Contabilidade", "Transporte e Combustível",
+  "Estacionamento", "Viagens e Deslocamentos", "Alimentação", "Assinaturas e Publicações",
+  "Capacitação e Cursos", "OAB - Anuidade", "Despesas Bancárias", "Outros"
+];
 const PIE_COLORS = ["hsl(var(--accent))", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6b7280"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
@@ -290,9 +299,14 @@ const Financeiro = () => {
   const fmt = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const openExpenseModal = () => {
+    setForm({ ...form, type: "expense", category: "" });
+    setShowModal(true);
+  };
+
   const kpis = [
     { label: "Receitas", value: fmt(totalRevenue), icon: TrendingUp, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
-    { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10" },
+    { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10", clickable: true, onClick: openExpenseModal },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
     { label: "IR a Pagar", value: fmt(totalIrAPagar), icon: Target, color: "text-amber-500", bgColor: "bg-amber-500/10", subtitle: `sobre RPVs/Precatórios pendentes` },
     { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
@@ -330,13 +344,17 @@ const Financeiro = () => {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className="bg-card rounded-lg p-5 shadow-card border">
+            className={`bg-card rounded-lg p-5 shadow-card border ${"clickable" in kpi && kpi.clickable ? "cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" : ""}`}
+            onClick={"onClick" in kpi && kpi.onClick ? kpi.onClick as () => void : undefined}>
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
                 <p className="text-xl font-bold text-foreground mt-1 font-display">{kpi.value}</p>
                 {"subtitle" in kpi && kpi.subtitle && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.subtitle}</p>
+                )}
+                {"clickable" in kpi && kpi.clickable && (
+                  <p className="text-[10px] text-primary mt-1 flex items-center gap-0.5"><Plus className="w-3 h-3" /> Lançar despesa</p>
                 )}
               </div>
               <div className={`w-10 h-10 rounded-lg ${kpi.bgColor} flex items-center justify-center`}>
