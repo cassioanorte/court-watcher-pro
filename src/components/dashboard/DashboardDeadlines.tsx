@@ -265,6 +265,36 @@ const DashboardDeadlines = () => {
     setLinkingClient(true);
   };
 
+  const handleUnlinkCase = async () => {
+    if (!selectedDeadline) return;
+    if (!confirm("Desvincular o processo deste compromisso?")) return;
+    setSaving(true);
+    const { error } = await supabase.from("appointments").update({ case_id: null }).eq("id", selectedDeadline.id);
+    if (error) {
+      toast({ title: "Erro ao desvincular", variant: "destructive" });
+    } else {
+      toast({ title: "Processo desvinculado!" });
+      setSelectedDeadline(null);
+      load();
+    }
+    setSaving(false);
+  };
+
+  const handleUnlinkClient = async () => {
+    if (!selectedDeadline || !selectedDeadline.caseId) return;
+    if (!confirm("Desvincular o cliente deste processo?")) return;
+    setSaving(true);
+    const { error } = await supabase.from("cases").update({ client_user_id: null }).eq("id", selectedDeadline.caseId);
+    if (error) {
+      toast({ title: "Erro ao desvincular", variant: "destructive" });
+    } else {
+      toast({ title: "Cliente desvinculado!" });
+      setSelectedDeadline(null);
+      load();
+    }
+    setSaving(false);
+  };
+
   const overdueCount = deadlines.filter((d) => d.overdue).length;
   const Icon = selectedDeadline ? (typeIcons[selectedDeadline.title] || CalendarClock) : CalendarClock;
 
@@ -434,10 +464,18 @@ const DashboardDeadlines = () => {
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo</p>
                 {selectedDeadline.caseId ? (
-                  <Link to={`/processos/${selectedDeadline.caseId}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {selectedDeadline.processNumber || "Ver processo"} →
-                  </Link>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <Link to={`/processos/${selectedDeadline.caseId}`} className="text-sm text-accent hover:underline inline-flex items-center gap-1">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      {selectedDeadline.processNumber || "Ver processo"} →
+                    </Link>
+                    <Button size="sm" variant="ghost" className="text-xs h-6 px-2 text-muted-foreground" onClick={startLinkCase}>
+                      <Pencil className="w-3 h-3 mr-1" /> Alterar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs h-6 px-2 text-destructive hover:text-destructive" onClick={handleUnlinkCase}>
+                      <X className="w-3 h-3 mr-1" /> Desvincular
+                    </Button>
+                  </div>
                 ) : (
                   <Button size="sm" variant="outline" className="mt-1 gap-1.5 text-xs h-7" onClick={startLinkCase}>
                     <LinkIcon className="w-3 h-3" /> Vincular processo
@@ -449,10 +487,18 @@ const DashboardDeadlines = () => {
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Cliente</p>
                 {selectedDeadline.clientUserId ? (
-                  <Link to={`/contatos/${selectedDeadline.clientUserId}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {selectedDeadline.clientName || "Ver cliente"} →
-                  </Link>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <Link to={`/contatos/${selectedDeadline.clientUserId}`} className="text-sm text-accent hover:underline inline-flex items-center gap-1">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      {selectedDeadline.clientName || "Ver cliente"} →
+                    </Link>
+                    <Button size="sm" variant="ghost" className="text-xs h-6 px-2 text-muted-foreground" onClick={startLinkClient}>
+                      <Pencil className="w-3 h-3 mr-1" /> Alterar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs h-6 px-2 text-destructive hover:text-destructive" onClick={handleUnlinkClient}>
+                      <X className="w-3 h-3 mr-1" /> Desvincular
+                    </Button>
+                  </div>
                 ) : selectedDeadline.caseId ? (
                   <Button size="sm" variant="outline" className="mt-1 gap-1.5 text-xs h-7" onClick={startLinkClient}>
                     <LinkIcon className="w-3 h-3" /> Vincular cliente
