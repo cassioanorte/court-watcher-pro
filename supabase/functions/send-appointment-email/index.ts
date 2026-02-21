@@ -96,11 +96,14 @@ serve(async (req) => {
     `;
 
     // Send email via SMTP
+    const useImplicitTLS = smtpHost.includes("gmail") || smtpHost.includes("zoho");
+    const smtpPort = useImplicitTLS ? 465 : 587;
+
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
         port: smtpPort,
-        tls: true,
+        tls: useImplicitTLS,
         auth: {
           username: creds.imap_user,
           password: creds.imap_password,
