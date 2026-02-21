@@ -19,7 +19,7 @@ const ProcessDetail = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"timeline" | "documentos" | "mensagens">("timeline");
+  const [activeTab, setActiveTab] = useState<"timeline" | "documentos" | "mensagens" | "substabelecimento" | "historico">("timeline");
 
   // Editable fields
   const [editingSummary, setEditingSummary] = useState(false);
