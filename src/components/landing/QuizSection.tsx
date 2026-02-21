@@ -130,8 +130,8 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
     handleWhatsappRedirect();
   };
 
-  // Styles per variant
-  const styles = {
+  // Styles per variant (fallback)
+  const fallbackStyles = {
     classic: {
       bg: "bg-amber-50",
       card: "bg-white border shadow-sm",
@@ -158,7 +158,13 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
     },
   };
 
-  const s = styles[variant];
+  const s = fallbackStyles[variant];
+
+  // Dynamic branding overrides
+  const brandingBgStyle = branding?.secondaryColor ? { backgroundColor: branding.secondaryColor } : undefined;
+  const brandingBtnStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor, color: branding.textColor || '#fff' } : undefined;
+  const brandingAccentStyle = branding?.primaryColor ? { color: branding.primaryColor } : undefined;
+  const brandingProgressStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor } : undefined;
 
   return (
     <section className={`py-16 px-6 ${s.bg}`}>
