@@ -128,7 +128,7 @@ const calcComponents: Record<string, React.FC> = {
   verbas_rescisorias: VerbasRescisoriasCalc,
   horas_extras: HorasExtrasCalc,
   atualizacao_divida: AtualizacaoDividaCalc,
-  juros_compostos: JurosCompostosCalc,
+  juros_simples_compostos: JurosCompostosCalc,
   dosimetria_pena: DosimetriaPenaCalc,
   prescricao: PrescricaoPenalCalc,
   pensao_alimenticia: PensaoAlimenticiaCalc,
@@ -136,6 +136,16 @@ const calcComponents: Record<string, React.FC> = {
   distrato_imovel: DistratoImovelCalc,
   dano_moral: DanoMoralCalc,
   cobranca_indevida: CobrancaIndevidaCalc,
+  revisao_bancaria: RevisaoBancariaCalc,
+  superendividamento: SuperendividamentoCalc,
+  rmc_rcc: RmcRccCalc,
+  amortizacao_comparativa: AmortizacaoComparativaCalc,
+  financiamento: FinanciamentoCalc,
+  taxa_media_bacen: TaxaMediaBacenCalc,
+  busca_apreensao: BuscaApreensaoCalc,
+  revisao_ccb: RevisaoCcbCalc,
+  capital_giro: CapitalGiroCalc,
+  credito_rural: CreditoRuralCalc,
 };
 
 export default function Calculadoras() {
