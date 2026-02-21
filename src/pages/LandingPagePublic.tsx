@@ -160,7 +160,7 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
   hero: ({ content }) => {
     const b = content.branding;
     const bgStyle = b?.primaryColor
-      ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 40)}, ${b.accentColor || lightenHex(b.primaryColor, 80)})` }
+      ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 30)}, ${lightenHex(b.primaryColor, 60)})` }
       : undefined;
     const textStyle = b?.textColor ? { color: b.textColor } : undefined;
     const subStyle = b?.textColor ? { color: `${b.textColor}cc` } : undefined;
