@@ -169,9 +169,8 @@ const ContatoDetail = () => {
     else setClientDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !id || !tenantId) return;
+  const uploadAvatarFile = async (file: File) => {
+    if (!id || !tenantId) return;
     setUploadingAvatar(true);
     try {
       const filePath = `avatars/${id}/${Date.now()}_${file.name}`;
@@ -188,6 +187,11 @@ const ContatoDetail = () => {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadAvatarFile(file);
   };
 
   const handleExtractFromDoc = async (docId: string, fileUrl: string, useAi = false) => {
@@ -556,7 +560,18 @@ const ContatoDetail = () => {
 
           <div className="bg-card border rounded-lg divide-y">
             {/* Photo section */}
-            <div className="flex items-center py-4 px-4">
+            <div
+              className="flex items-center py-4 px-4 transition-colors hover:bg-muted/30"
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("bg-accent/10"); }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) e.currentTarget.classList.remove("bg-accent/10"); }}
+              onDrop={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                e.currentTarget.classList.remove("bg-accent/10");
+                const f = e.dataTransfer.files?.[0];
+                if (f && f.type.startsWith("image/")) uploadAvatarFile(f);
+              }}
+            >
               <span className="w-48 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-6 shrink-0">
                 FOTO DO PERFIL
               </span>
@@ -569,19 +584,8 @@ const ContatoDetail = () => {
               />
               <div
                 onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  const f = e.dataTransfer.files?.[0];
-                  if (f && f.type.startsWith("image/") && avatarInputRef.current) {
-                    const dt = new DataTransfer();
-                    dt.items.add(f);
-                    avatarInputRef.current.files = dt.files;
-                    avatarInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-                  }
-                }}
                 className={`w-16 h-16 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden ${uploadingAvatar ? 'opacity-50' : ''}`}
-                title="Clique ou arraste uma imagem"
+                title="Clique ou arraste uma imagem aqui"
               >
                 {contact.avatar_url ? (
                   <>
@@ -596,6 +600,7 @@ const ContatoDetail = () => {
                   <Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
                 )}
               </div>
+              <span className="text-xs text-muted-foreground ml-3">Clique ou arraste uma imagem</span>
             </div>
 
             {/* Contact info */}
