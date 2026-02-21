@@ -39,8 +39,15 @@ function parseDate(dateStr: string): string | null {
 }
 
 function extractCpf(text: string): string | null {
+  // CPF after label
   const match = text.match(/CPF[:\s]*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})/i);
-  return match ? match[1] : null;
+  if (match) return match[1];
+  // CPF after dash (e.g. "NOME - 123.456.789-00")
+  const dashMatch = text.match(/[-–]\s*(\d{3}\.\d{3}\.\d{3}-\d{2})/);
+  if (dashMatch) return dashMatch[1];
+  // Standalone CPF pattern
+  const standalone = text.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})/);
+  return standalone ? standalone[1] : null;
 }
 
 function extractProcessNumber(text: string): string | null {
@@ -79,19 +86,22 @@ export function parseRpvText(text: string): RpvData {
   // Beneficiary name
   let beneficiary_name: string | null = null;
   const benefPatterns = [
-    /(?:benefici[aá]rio|autor|requerente|credor|exequente)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]+?)(?:\s*[-–,;]|\s*CPF|\s*\d|$)/i,
+    // "Requerente: NOME" or "Autor: NOME" etc, stop at dash+CPF, comma, or newline
+    /(?:benefici[aá]rio|autor|requerente|credor|exequente|interessado)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]+?)(?:\s*[-–]\s*\d{3}[\.\d]*|\s*CPF|\s*[,;]|\s*\d{3}\.\d{3}|$)/i,
+    // "NOME - CPF" pattern (name before dash+CPF)
+    /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]{3,50}?)\s*[-–]\s*\d{3}\.\d{3}\.\d{3}-\d{2}/i,
     /(?:nome)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]{3,50})/i,
   ];
   for (const pat of benefPatterns) {
-    const m = text.match(pat);
+    const m = t.match(pat);
     if (m) { beneficiary_name = m[1].trim(); break; }
   }
 
   // CPF
-  const beneficiary_cpf = extractCpf(text);
+  const beneficiary_cpf = extractCpf(t);
 
   // Process number
-  const process_number = extractProcessNumber(text);
+  const process_number = extractProcessNumber(t);
 
   // Court
   let court: string | null = null;
@@ -100,7 +110,7 @@ export function parseRpvText(text: string): RpvData {
     /(\d+[ªaº]?\s*(?:vara|turma)[^\n,;]{0,40})/i,
   ];
   for (const pat of courtPatterns) {
-    const m = text.match(pat);
+    const m = t.match(pat);
     if (m) { court = m[1].trim(); break; }
   }
 
@@ -111,48 +121,50 @@ export function parseRpvText(text: string): RpvData {
     /(?:contra|em face de)[:\s]+([^\n,;]{3,60})/i,
   ];
   for (const pat of entityPatterns) {
-    const m = text.match(pat);
+    const m = t.match(pat);
     if (m) { entity = m[1].trim(); break; }
   }
   // Common entity detection
   if (!entity) {
-    if (/INSS/i.test(text)) entity = "INSS";
-    else if (/União Federal/i.test(text)) entity = "União Federal";
-    else if (/Fazenda Nacional/i.test(text)) entity = "Fazenda Nacional";
+    if (/INSS/i.test(t)) entity = "INSS";
+    else if (/União Federal/i.test(t)) entity = "União Federal";
+    else if (/Fazenda Nacional/i.test(t)) entity = "Fazenda Nacional";
   }
 
   // Money values - try multiple patterns
-  const gross_amount = extractMoneyValue(text,
+  const gross_amount = extractMoneyValue(t,
+    /(?:valor\s+total\s+devido)[^)]*\)\s*([\d.,]+)/i,
+    /(?:valor\s+total\s+devido)[^\d]*([\d.,]+)/i,
     /(?:valor\s+(?:bruto|total|principal|líquido da requisição|da requisição|requisitado))[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:total\s+(?:bruto|geral|da\s+requisição))[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:montante|quantia)[:\s]*R?\$?\s*([\d.,]+)/i,
   );
 
-  const court_costs = extractMoneyValue(text,
+  const court_costs = extractMoneyValue(t,
     /(?:custas?\s+(?:judiciais?|processuais?))[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:custas)[:\s]*R?\$?\s*([\d.,]+)/i,
   );
 
-  const social_security = extractMoneyValue(text,
+  const social_security = extractMoneyValue(t,
     /(?:contribui[çc][ãa]o\s+previdenci[áa]ria|INSS\s+retido|previdência)[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:PSS|contrib\.?\s*prev\.?)[:\s]*R?\$?\s*([\d.,]+)/i,
   );
 
-  const income_tax = extractMoneyValue(text,
+  const income_tax = extractMoneyValue(t,
     /(?:imposto\s+de\s+renda|IR(?:RF)?|IRPF)[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:IR\s+retido|imposto\s+retido)[:\s]*R?\$?\s*([\d.,]+)/i,
   );
 
   let office_fees_percent: number | null = null;
-  const feeMatch = text.match(/(?:honor[áa]rios?)[:\s]*(\d+(?:[.,]\d+)?)\s*%/i);
+  const feeMatch = t.match(/(?:honor[áa]rios?)[:\s]*(\d+(?:[.,]\d+)?)\s*%/i);
   if (feeMatch) office_fees_percent = parseFloat(feeMatch[1].replace(",", "."));
 
-  let office_amount = extractMoneyValue(text,
+  let office_amount = extractMoneyValue(t,
     /(?:honor[áa]rios?\s+(?:advocat[íi]cios?|contratuais?|sucumbenciais?))[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:honor[áa]rios?)[:\s]*R?\$?\s*([\d.,]+)/i,
   );
 
-  let client_amount = extractMoneyValue(text,
+  let client_amount = extractMoneyValue(t,
     /(?:valor\s+(?:líquido|l[ií]quido)\s+(?:do\s+)?(?:cliente|autor|beneficiário))[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:l[ií]quido\s+(?:do\s+)?(?:autor|benefici[áa]rio))[:\s]*R?\$?\s*([\d.,]+)/i,
   );
@@ -168,12 +180,17 @@ export function parseRpvText(text: string): RpvData {
 
   // Dates
   let reference_date: string | null = null;
-  const refDateMatch = text.match(/(?:data\s+(?:base|do\s+cálculo|de\s+refer[êe]ncia))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
+  const refDateMatch = t.match(/(?:data\s+(?:base|do\s+cálculo|de\s+refer[êe]ncia))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
   if (refDateMatch) reference_date = parseDate(refDateMatch[1]);
 
   let expected_payment_date: string | null = null;
-  const expDateMatch = text.match(/(?:previs[ãa]o\s+(?:de\s+)?pagamento|data\s+(?:de\s+)?pagamento|pagamento\s+(?:em|previsto))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
+  const expDateMatch = t.match(/(?:previs[ãa]o\s+(?:de\s+)?pagamento|data\s+(?:de\s+)?pagamento|pagamento\s+(?:em|previsto))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
   if (expDateMatch) expected_payment_date = parseDate(expDateMatch[1]);
+  // Try "pagamento em MM/YYYY" format
+  if (!expected_payment_date) {
+    const mmYyyy = t.match(/pagamento\s+em\s+(\d{2})\/(\d{4})/i);
+    if (mmYyyy) expected_payment_date = `${mmYyyy[2]}-${mmYyyy[1]}-01`;
+  }
 
   return {
     type,
