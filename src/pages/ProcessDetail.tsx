@@ -30,8 +30,10 @@ const ProcessDetail = () => {
   const [editingNextStep, setEditingNextStep] = useState(false);
   const [caseSummary, setCaseSummary] = useState("");
   const [nextStep, setNextStep] = useState("");
+  const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
   const [savingSummary, setSavingSummary] = useState(false);
   const [savingNextStep, setSavingNextStep] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   // New message
   const [newMessage, setNewMessage] = useState("");
