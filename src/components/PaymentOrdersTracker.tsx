@@ -12,6 +12,7 @@ import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
+import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
 
 interface PaymentOrder {
   id: string;
