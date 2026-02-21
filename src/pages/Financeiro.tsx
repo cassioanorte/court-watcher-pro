@@ -74,7 +74,7 @@ interface FeeDistribution {
 }
 
 const REVENUE_CATEGORIES = ["Honorários", "Consultoria", "Acordo", "Êxito", "Outros"];
-const EXPENSE_CATEGORIES = ["Aluguel", "Salários", "Impostos", "Material", "Tecnologia", "Marketing", "Custas Processuais", "Outros"];
+const EXPENSE_CATEGORIES = ["Aluguel", "Salários", "Impostos", "Material", "Tecnologia", "Marketing", "Custas Processuais", "Despesas Processuais", "Outros"];
 const PIE_COLORS = ["hsl(var(--accent))", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6b7280"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
