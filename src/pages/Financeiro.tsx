@@ -56,6 +56,7 @@ const Financeiro = () => {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [paymentOrders, setPaymentOrders] = useState<{ office_amount: number; client_amount: number; gross_amount: number; status: string }[]>([]);
   const [form, setForm] = useState({
     type: "revenue" as "revenue" | "expense",
     category: "",
@@ -70,13 +71,15 @@ const Financeiro = () => {
   useEffect(() => {
     if (!tenantId) return;
     const load = async () => {
-      const [txRes, casesRes, profilesRes] = await Promise.all([
+      const [txRes, casesRes, profilesRes, poRes] = await Promise.all([
         supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
+        supabase.from("payment_orders" as any).select("office_amount, client_amount, gross_amount, status").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
       setCases(casesRes.data || []);
+      setPaymentOrders((poRes.data || []) as any[]);
       // Filter only clients by checking user_roles
       const allProfiles = profilesRes.data || [];
       const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", allProfiles.map(p => p.user_id));
@@ -121,6 +124,12 @@ const Financeiro = () => {
   const totalExpense = confirmed.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const profit = totalRevenue - totalExpense;
   const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+  // Payment orders (RPV/Precatório) totals
+  const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
+  const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
+  const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
+  const totalClienteRpv = activeOrders.reduce((s, o) => s + (Number(o.client_amount) || 0), 0);
 
   // Monthly data for last 6 months
   const monthlyData = useMemo(() => {
@@ -190,6 +199,7 @@ const Financeiro = () => {
     { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10" },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
     { label: "Margem de Lucro", value: `${profitMargin.toFixed(1)}%`, icon: Target, color: "text-accent", bgColor: "bg-accent/10" },
+    { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
   ];
 
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
@@ -221,7 +231,7 @@ const Financeiro = () => {
             </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
             className="bg-card rounded-lg p-5 shadow-card border">
@@ -229,6 +239,9 @@ const Financeiro = () => {
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
                 <p className="text-xl font-bold text-foreground mt-1 font-display">{kpi.value}</p>
+                {"subtitle" in kpi && kpi.subtitle && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.subtitle}</p>
+                )}
               </div>
               <div className={`w-10 h-10 rounded-lg ${kpi.bgColor} flex items-center justify-center`}>
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
