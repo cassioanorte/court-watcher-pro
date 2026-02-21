@@ -567,26 +567,34 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                 {clientInfo.phone && normalizePhone(clientInfo.phone) && (
                   <button
                     onClick={handleWhatsApp}
-                    className="w-full h-10 rounded-lg bg-[#25D366] text-white text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                    disabled={whatsappSent}
+                    className={`w-full h-10 rounded-lg text-white text-sm font-semibold transition-opacity inline-flex items-center justify-center gap-2 ${
+                      whatsappSent ? "bg-green-600 opacity-80" : "bg-[#25D366] hover:opacity-90"
+                    }`}
                   >
-                    <MessageCircle className="w-4 h-4" /> Enviar via WhatsApp
+                    {whatsappSent ? <Check className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
+                    {whatsappSent ? "WhatsApp enviado ✓" : "Enviar via WhatsApp"}
                   </button>
                 )}
                 {clientInfo.email && (
                   <button
                     onClick={handleSendEmail}
-                    disabled={sendingEmail}
-                    className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                    disabled={sendingEmail || emailSent}
+                    className={`w-full h-10 rounded-lg text-sm font-semibold transition-opacity inline-flex items-center justify-center gap-2 ${
+                      emailSent
+                        ? "bg-green-600 text-white opacity-80"
+                        : "gradient-accent text-accent-foreground hover:opacity-90 disabled:opacity-50"
+                    }`}
                   >
-                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                    {sendingEmail ? "Enviando..." : "Enviar por E-mail"}
+                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : emailSent ? <Check className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                    {sendingEmail ? "Enviando..." : emailSent ? "E-mail enviado ✓" : "Enviar por E-mail"}
                   </button>
                 )}
                 <button
-                  onClick={() => { setShowNotifyDialog(false); setEditingId(null); }}
+                  onClick={() => { setShowNotifyDialog(false); setEditingId(null); setEmailSent(false); setWhatsappSent(false); }}
                   className="w-full h-9 rounded-lg border text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Não notificar
+                  {emailSent || whatsappSent ? "Fechar" : "Não notificar"}
                 </button>
               </div>
             </div>
