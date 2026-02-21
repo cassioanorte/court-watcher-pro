@@ -71,13 +71,15 @@ const Financeiro = () => {
   useEffect(() => {
     if (!tenantId) return;
     const load = async () => {
-      const [txRes, casesRes, profilesRes] = await Promise.all([
+      const [txRes, casesRes, profilesRes, poRes] = await Promise.all([
         supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
+        supabase.from("payment_orders" as any).select("office_amount, client_amount, gross_amount, status").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
       setCases(casesRes.data || []);
+      setPaymentOrders((poRes.data || []) as any[]);
       // Filter only clients by checking user_roles
       const allProfiles = profilesRes.data || [];
       const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", allProfiles.map(p => p.user_id));
