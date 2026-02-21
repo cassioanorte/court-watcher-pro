@@ -167,7 +167,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
   const brandingProgressStyle = branding?.primaryColor ? { backgroundColor: branding.primaryColor } : undefined;
 
   return (
-    <section className={`py-16 px-6 ${s.bg}`}>
+    <section className={`py-16 px-6 ${s.bg}`} style={brandingBgStyle}>
       <div className="max-w-2xl mx-auto">
         {/* Progress bar */}
         {!isIntro && !isResult && (
