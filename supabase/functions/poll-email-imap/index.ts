@@ -19,9 +19,11 @@ Deno.serve(async (req) => {
     );
 
     let targetTenantId: string | null = null;
+    let isCron = false;
     try {
       const body = await req.json();
       targetTenantId = body.tenant_id || null;
+      isCron = body.mode === 'cron';
     } catch { /* no body */ }
 
     let query = serviceClient
@@ -41,11 +43,20 @@ Deno.serve(async (req) => {
     }
 
     const results: any[] = [];
+    const startTime = Date.now();
+    const MAX_RUNTIME_MS = 140_000; // 140s safety margin (limit is 150s)
 
     for (const cred of credentials) {
+      // Check if we're running out of time
+      if (Date.now() - startTime > MAX_RUNTIME_MS) {
+        console.log('⏱️ Approaching time limit, stopping early');
+        break;
+      }
+
       try {
         console.log(`Processing mailbox for tenant ${cred.tenant_id}: ${cred.imap_user}@${cred.imap_host}`);
-        const result = await processMailbox(serviceClient, cred);
+        const lookbackDays = isCron ? 3 : 30;
+        const result = await processMailbox(serviceClient, cred, lookbackDays, startTime, MAX_RUNTIME_MS);
         results.push({ tenant_id: cred.tenant_id, ...result });
 
         await serviceClient
@@ -114,7 +125,7 @@ function htmlToCleanText(html: string): string {
   return text.trim();
 }
 
-async function processMailbox(serviceClient: any, cred: any) {
+async function processMailbox(serviceClient: any, cred: any, lookbackDays: number, startTime: number, maxRuntimeMs: number) {
   const client = new ImapFlow({
     host: cred.imap_host,
     port: cred.imap_port,
@@ -132,16 +143,17 @@ async function processMailbox(serviceClient: any, cred: any) {
   let totalInserted = 0;
   let emailsScanned = 0;
   let errors = 0;
+  let timedOut = false;
 
   try {
     await client.connect();
-    console.log('IMAP connected successfully');
+    console.log(`IMAP connected (lookback: ${lookbackDays} days)`);
 
     const senders: string[] = cred.senders || [];
     
-    // Search for emails from last 30 days
+    // Search for emails from lookback period
     const since = new Date();
-    since.setDate(since.getDate() - 30);
+    since.setDate(since.getDate() - lookbackDays);
 
     // Try each folder
     for (const folder of FOLDERS_TO_CHECK) {
@@ -170,6 +182,12 @@ async function processMailbox(serviceClient: any, cred: any) {
             });
 
             for await (const msg of messages) {
+              // Time guard
+              if (Date.now() - startTime > maxRuntimeMs) {
+                console.log('⏱️ Time limit reached during email processing');
+                timedOut = true;
+                break;
+              }
               emailsScanned++;
               
               try {
@@ -222,17 +240,19 @@ async function processMailbox(serviceClient: any, cred: any) {
             console.error(`Error fetching from sender ${sender} in ${folder}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
             errors++;
           }
+          if (timedOut) break;
         }
       } finally {
         lock.release();
       }
+      if (timedOut) break;
     }
   } finally {
     await client.logout().catch(() => {});
   }
 
-  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}, errors ${errors}`);
-  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned, errors };
+  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}, errors ${errors}${timedOut ? ' (timed out)' : ''}`);
+  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned, errors, timed_out: timedOut };
 }
 
 async function generateApiKey(tenantId: string): Promise<string> {
