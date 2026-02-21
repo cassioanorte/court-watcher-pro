@@ -136,6 +136,28 @@ const Pagamentos = () => {
     setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
   }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax]);
 
+  const applyRpvData = (d: Partial<RpvData>) => {
+    if (d.type) setFormType(d.type);
+    if (d.gross_amount) setFormGross(d.gross_amount.toString());
+    if (d.office_fees_percent) setFormFeePercent(d.office_fees_percent.toString());
+    if (d.court_costs) setFormCourtCosts(d.court_costs.toString());
+    if (d.social_security) setFormSocSec(d.social_security.toString());
+    if (d.income_tax) setFormTax(d.income_tax.toString());
+    if (d.beneficiary_name) setFormBeneficiary(d.beneficiary_name);
+    if (d.beneficiary_cpf) setFormCpf(d.beneficiary_cpf);
+    if (d.process_number) setFormProcessNumber(d.process_number);
+    if (d.court) setFormCourt(d.court);
+    if (d.entity) setFormEntity(d.entity);
+    if (d.reference_date) setFormRefDate(d.reference_date);
+    if (d.expected_payment_date) setFormExpDate(d.expected_payment_date);
+    // Try to auto-match case
+    if (d.process_number && cases.length > 0) {
+      const cleanNum = d.process_number.replace(/\D/g, "");
+      const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
+      if (matchedCase) setFormCaseId(matchedCase.id);
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
     if (!tenantId || !user?.id) return;
     setUploading(true);
@@ -155,123 +177,32 @@ const Pagamentos = () => {
     setFormDocName(file.name);
     toast.success("PDF enviado!");
 
-    // Extract text from PDF for AI analysis
+    // Extract text using pdfjs-dist and parse locally
     setExtracting(true);
     try {
-      // Read the file as text - for PDFs we send the raw bytes and let AI handle it
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      
-      // Try to extract text from PDF (basic extraction)
-      let pdfText = "";
-      const textDecoder = new TextDecoder("latin1");
-      const rawStr = textDecoder.decode(bytes);
-      
-      // Extract text between stream/endstream blocks
-      const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-      let match;
-      while ((match = streamRegex.exec(rawStr)) !== null) {
-        const content = match[1];
-        // Extract readable text
-        const textParts = content.match(/\(([^)]*)\)/g);
-        if (textParts) {
-          pdfText += textParts.map(p => p.slice(1, -1)).join(" ") + "\n";
-        }
-        const tjParts = content.match(/\[(.*?)\]\s*TJ/g);
-        if (tjParts) {
-          tjParts.forEach(tj => {
-            const parts = tj.match(/\(([^)]*)\)/g);
-            if (parts) {
-              pdfText += parts.map(p => p.slice(1, -1)).join("") + " ";
-            }
-          });
-          pdfText += "\n";
-        }
-      }
+      const pdfText = await extractTextFromPdf(file);
 
-      // Also try to extract readable ASCII from the entire file
-      const asciiLines = rawStr.split("\n").filter(line => {
-        const readable = line.replace(/[^\x20-\x7E\xC0-\xFF]/g, "").trim();
-        return readable.length > 10 && !line.includes("stream") && !line.includes("endobj");
-      });
-      if (asciiLines.length > 0) {
-        pdfText += "\n" + asciiLines.join("\n");
-      }
-
-      if (pdfText.trim().length < 30) {
+      if (pdfText.trim().length < 20) {
         toast.info("Não foi possível extrair texto do PDF. Preencha os campos manualmente.");
         setExtracting(false);
         setUploading(false);
         return;
       }
 
-      let aiResult: any = null;
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-payment-data`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ text: pdfText.slice(0, 8000), file_name: file.name }),
-          }
-        );
-        const body = await response.json();
-        if (!response.ok) {
-          const msg = body?.error || `Erro ${response.status}`;
-          if (response.status === 402) {
-            toast.error("Créditos de IA esgotados. Preencha os campos manualmente ou adicione créditos.");
-          } else if (response.status === 429) {
-            toast.error("Limite de requisições excedido. Tente novamente em alguns minutos.");
-          } else {
-            toast.error(msg);
-          }
-          setExtracting(false);
-          setUploading(false);
-          return;
-        }
-        aiResult = body;
-      } catch (fetchErr: any) {
-        toast.error("Erro de conexão ao extrair dados: " + (fetchErr.message || "Erro desconhecido"));
-        setExtracting(false);
-        setUploading(false);
-        return;
-      }
+      const parsed = parseRpvText(pdfText);
+      const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
 
-      if (aiResult?.error) {
-        toast.error(aiResult.error);
-      } else if (aiResult?.data) {
-        const d = aiResult.data;
-        if (d.type) setFormType(d.type);
-        if (d.gross_amount) setFormGross(d.gross_amount.toString());
-        if (d.office_fees_percent) setFormFeePercent(d.office_fees_percent.toString());
-        if (d.court_costs) setFormCourtCosts(d.court_costs.toString());
-        if (d.social_security) setFormSocSec(d.social_security.toString());
-        if (d.income_tax) setFormTax(d.income_tax.toString());
-        if (d.beneficiary_name) setFormBeneficiary(d.beneficiary_name);
-        if (d.beneficiary_cpf) setFormCpf(d.beneficiary_cpf);
-        if (d.process_number) setFormProcessNumber(d.process_number);
-        if (d.court) setFormCourt(d.court);
-        if (d.entity) setFormEntity(d.entity);
-        if (d.reference_date) setFormRefDate(d.reference_date);
-        if (d.expected_payment_date) setFormExpDate(d.expected_payment_date);
-        setFormAiExtracted(true);
-        setFormAiRaw(d);
-
-        // Try to auto-match case
-        if (d.process_number && cases.length > 0) {
-          const cleanNum = d.process_number.replace(/\D/g, "");
-          const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
-          if (matchedCase) setFormCaseId(matchedCase.id);
-        }
-
-        toast.success("Dados extraídos automaticamente!");
+      if (hasData) {
+        applyRpvData(parsed);
+        setFormAiExtracted(false);
+        setFormAiRaw(null);
+        toast.success("Dados extraídos automaticamente do PDF!");
+      } else {
+        toast.info("Poucos dados encontrados no PDF. Preencha manualmente.");
       }
     } catch (err) {
-      console.error("Extraction error:", err);
-      toast.info("Não foi possível extrair dados automaticamente. Preencha manualmente.");
+      console.error("PDF extraction error:", err);
+      toast.info("Não foi possível ler o PDF. Preencha manualmente.");
     }
     setExtracting(false);
     setUploading(false);
@@ -386,60 +317,40 @@ const Pagamentos = () => {
 
     setExtracting(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let pdfText = "";
-      const textDecoder = new TextDecoder("latin1");
-      const rawStr = textDecoder.decode(bytes);
-      const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-      let match;
-      while ((match = streamRegex.exec(rawStr)) !== null) {
-        const content = match[1];
-        const textParts = content.match(/\(([^)]*)\)/g);
-        if (textParts) pdfText += textParts.map(p => p.slice(1, -1)).join(" ") + "\n";
-        const tjParts = content.match(/\[(.*?)\]\s*TJ/g);
-        if (tjParts) { tjParts.forEach(tj => { const parts = tj.match(/\(([^)]*)\)/g); if (parts) pdfText += parts.map(p => p.slice(1, -1)).join("") + " "; }); pdfText += "\n"; }
-      }
-      const asciiLines = rawStr.split("\n").filter(line => { const readable = line.replace(/[^\x20-\x7E\xC0-\xFF]/g, "").trim(); return readable.length > 10 && !line.includes("stream") && !line.includes("endobj"); });
-      if (asciiLines.length > 0) pdfText += "\n" + asciiLines.join("\n");
+      const pdfText = await extractTextFromPdf(file);
+      if (pdfText.trim().length < 20) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
 
-      if (pdfText.trim().length < 30) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
+      const parsed = parseRpvText(pdfText);
+      const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-payment-data`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ text: pdfText.slice(0, 8000), file_name: file.name }),
-      });
-      const body = await response.json();
-      if (!response.ok) { toast.error(body?.error || `Erro ${response.status}`); setExtracting(false); setUploading(false); return; }
-
-      if (body?.data) {
-        const d = body.data;
+      if (hasData) {
         setEditForm(f => ({
           ...f,
-          ...(d.type && { type: d.type }),
-          ...(d.gross_amount && { gross_amount: d.gross_amount }),
-          ...(d.office_fees_percent && { office_fees_percent: d.office_fees_percent }),
-          ...(d.court_costs && { court_costs: d.court_costs }),
-          ...(d.social_security && { social_security: d.social_security }),
-          ...(d.income_tax && { income_tax: d.income_tax }),
-          ...(d.beneficiary_name && { beneficiary_name: d.beneficiary_name }),
-          ...(d.beneficiary_cpf && { beneficiary_cpf: d.beneficiary_cpf }),
-          ...(d.process_number && { process_number: d.process_number }),
-          ...(d.court && { court: d.court }),
-          ...(d.entity && { entity: d.entity }),
-          ...(d.reference_date && { reference_date: d.reference_date }),
-          ...(d.expected_payment_date && { expected_payment_date: d.expected_payment_date }),
-          ai_extracted: true,
-          ai_raw_data: d,
+          ...(parsed.type && { type: parsed.type }),
+          ...(parsed.gross_amount && { gross_amount: parsed.gross_amount }),
+          ...(parsed.office_fees_percent && { office_fees_percent: parsed.office_fees_percent }),
+          ...(parsed.court_costs && { court_costs: parsed.court_costs }),
+          ...(parsed.social_security && { social_security: parsed.social_security }),
+          ...(parsed.income_tax && { income_tax: parsed.income_tax }),
+          ...(parsed.beneficiary_name && { beneficiary_name: parsed.beneficiary_name }),
+          ...(parsed.beneficiary_cpf && { beneficiary_cpf: parsed.beneficiary_cpf }),
+          ...(parsed.process_number && { process_number: parsed.process_number }),
+          ...(parsed.court && { court: parsed.court }),
+          ...(parsed.entity && { entity: parsed.entity }),
+          ...(parsed.reference_date && { reference_date: parsed.reference_date }),
+          ...(parsed.expected_payment_date && { expected_payment_date: parsed.expected_payment_date }),
+          ai_extracted: false,
         }));
-        if (d.process_number && cases.length > 0) {
-          const cleanNum = d.process_number.replace(/\D/g, "");
+        if (parsed.process_number && cases.length > 0) {
+          const cleanNum = parsed.process_number.replace(/\D/g, "");
           const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
           if (matchedCase) setEditForm(f => ({ ...f, case_id: matchedCase.id }));
         }
         toast.success("Dados extraídos e atualizados!");
+      } else {
+        toast.info("Poucos dados encontrados. Edite manualmente.");
       }
-    } catch (err) { toast.info("Não foi possível extrair dados. Edite manualmente."); }
+    } catch (err) { toast.info("Não foi possível ler o PDF. Edite manualmente."); }
     setExtracting(false);
     setUploading(false);
   };
