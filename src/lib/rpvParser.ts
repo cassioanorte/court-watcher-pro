@@ -98,10 +98,10 @@ export function parseRpvText(text: string): RpvData {
   }
 
   // CPF
-  const beneficiary_cpf = extractCpf(text);
+  const beneficiary_cpf = extractCpf(t);
 
   // Process number
-  const process_number = extractProcessNumber(text);
+  const process_number = extractProcessNumber(t);
 
   // Court
   let court: string | null = null;
@@ -110,7 +110,7 @@ export function parseRpvText(text: string): RpvData {
     /(\d+[ªaº]?\s*(?:vara|turma)[^\n,;]{0,40})/i,
   ];
   for (const pat of courtPatterns) {
-    const m = text.match(pat);
+    const m = t.match(pat);
     if (m) { court = m[1].trim(); break; }
   }
 
@@ -121,14 +121,14 @@ export function parseRpvText(text: string): RpvData {
     /(?:contra|em face de)[:\s]+([^\n,;]{3,60})/i,
   ];
   for (const pat of entityPatterns) {
-    const m = text.match(pat);
+    const m = t.match(pat);
     if (m) { entity = m[1].trim(); break; }
   }
   // Common entity detection
   if (!entity) {
-    if (/INSS/i.test(text)) entity = "INSS";
-    else if (/União Federal/i.test(text)) entity = "União Federal";
-    else if (/Fazenda Nacional/i.test(text)) entity = "Fazenda Nacional";
+    if (/INSS/i.test(t)) entity = "INSS";
+    else if (/União Federal/i.test(t)) entity = "União Federal";
+    else if (/Fazenda Nacional/i.test(t)) entity = "Fazenda Nacional";
   }
 
   // Money values - try multiple patterns
@@ -156,7 +156,7 @@ export function parseRpvText(text: string): RpvData {
   );
 
   let office_fees_percent: number | null = null;
-  const feeMatch = text.match(/(?:honor[áa]rios?)[:\s]*(\d+(?:[.,]\d+)?)\s*%/i);
+  const feeMatch = t.match(/(?:honor[áa]rios?)[:\s]*(\d+(?:[.,]\d+)?)\s*%/i);
   if (feeMatch) office_fees_percent = parseFloat(feeMatch[1].replace(",", "."));
 
   let office_amount = extractMoneyValue(t,
