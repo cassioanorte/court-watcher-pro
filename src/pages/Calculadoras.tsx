@@ -18,6 +18,7 @@ import AtualizacaoDividaCalc from "@/components/calculadoras/AtualizacaoDividaCa
 import JurosCompostosCalc from "@/components/calculadoras/JurosCompostosCalc";
 import DosimetriaPenaCalc from "@/components/calculadoras/DosimetriaPenaCalc";
 import PrescricaoPenalCalc from "@/components/calculadoras/PrescricaoPenalCalc";
+import ProgressaoRegimeCalc from "@/components/calculadoras/ProgressaoRegimeCalc";
 import PensaoAlimenticiaCalc from "@/components/calculadoras/PensaoAlimenticiaCalc";
 import PartilhaBensCalc from "@/components/calculadoras/PartilhaBensCalc";
 import DistratoImovelCalc from "@/components/calculadoras/DistratoImovelCalc";
@@ -112,6 +113,7 @@ const categorias: Categoria[] = [
     calculadoras: [
       { id: "dosimetria_pena", name: "Dosimetria da Pena", description: "Cálculo trifásico para fixação da pena (base, agravantes, causas de aumento).", icon: Scale },
       { id: "prescricao", name: "Prescrição Penal", description: "Verifique os prazos prescricionais com base na pena aplicada.", icon: Clock },
+      { id: "progressao_regime", name: "Progressão de Regime", description: "Acompanhe a execução penal incluindo remição, detração, interrupção e faltas graves.", icon: Gavel },
     ],
   },
   {
@@ -149,6 +151,7 @@ const calcComponents: Record<string, React.FC> = {
   juros_simples_compostos: JurosCompostosCalc,
   dosimetria_pena: DosimetriaPenaCalc,
   prescricao: PrescricaoPenalCalc,
+  progressao_regime: ProgressaoRegimeCalc,
   pensao_alimenticia: PensaoAlimenticiaCalc,
   partilha_bens: PartilhaBensCalc,
   distrato_imovel: DistratoImovelCalc,
