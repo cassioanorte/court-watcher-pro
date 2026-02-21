@@ -38,6 +38,7 @@ import LeadCapture from "./pages/LeadCapture";
 import LandingPages from "./pages/LandingPages";
 import LandingPageEditor from "./pages/LandingPageEditor";
 import LandingPagePublic from "./pages/LandingPagePublic";
+import Pagamentos from "./pages/Pagamentos";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
