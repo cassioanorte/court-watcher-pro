@@ -268,7 +268,7 @@ const minimalSections: Record<string, React.FC<{ content: LPContent }>> = {
       <section className="py-32 px-6 border-b">
         <div className="max-w-3xl mx-auto">
           {b?.logoUrl && (
-            <img src={b.logoUrl} alt="Logo" className="h-12 mb-8 object-contain" style={{ filter: logoFilter }} />
+            <img src={b.logoUrl} alt="Logo" className="h-20 md:h-24 mb-8 object-contain" style={{ filter: logoFilter }} />
           )}
           <h1 className="text-5xl md:text-6xl font-light mb-6 leading-tight">{content.heroTitle}</h1>
           <p className="text-xl text-gray-500 mb-10">{content.heroSubtitle}</p>
