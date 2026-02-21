@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Users, ArrowDownRight } from "lucide-react";
+import { Plus, Trash2, Users, ArrowDownRight, UserPlus, MinusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 interface PaymentOrder {
@@ -32,6 +33,13 @@ interface StaffProfile {
   full_name: string;
 }
 
+interface LawyerSplit {
+  lawyerId: string;
+  mode: "valor" | "percentual";
+  percent: string;
+  amount: string;
+}
+
 interface Props {
   orders: PaymentOrder[];
   tenantId: string | null;
@@ -44,12 +52,11 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
   const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [formOrderId, setFormOrderId] = useState("");
-  const [formLawyerId, setFormLawyerId] = useState("");
-  const [formAmount, setFormAmount] = useState("");
+  const [formExpenses, setFormExpenses] = useState("");
+  const [formExpensesDesc, setFormExpensesDesc] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formPaidAt, setFormPaidAt] = useState("");
-  const [formMode, setFormMode] = useState<"valor" | "percentual">("valor");
-  const [formPercent, setFormPercent] = useState("");
+  const [splits, setSplits] = useState<LawyerSplit[]>([{ lawyerId: "", mode: "percentual", percent: "", amount: "" }]);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchDistributions = useCallback(async () => {
@@ -68,7 +75,6 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       .from("profiles")
       .select("user_id, full_name")
       .eq("tenant_id", tenantId);
-    // Filter to only staff/owner by checking user_roles
     const { data: roles } = await supabase
       .from("user_roles" as any)
       .select("user_id, role");
@@ -85,40 +91,112 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
     fetchStaff();
   }, [fetchDistributions, fetchStaff]);
 
-  const handleSubmit = async () => {
-    if (!tenantId || !userId || !formOrderId || !formLawyerId) {
-      toast.error("Preencha todos os campos obrigatórios");
-      return;
-    }
-    const parsedAmount = parseFloat(formAmount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error("Informe um valor válido maior que zero");
-      return;
-    }
-    const selectedStaff = staff.find(s => s.user_id === formLawyerId);
-    setSubmitting(true);
-    const { error } = await supabase.from("fee_distributions" as any).insert({
-      tenant_id: tenantId,
-      payment_order_id: formOrderId,
-      lawyer_user_id: formLawyerId,
-      lawyer_name: selectedStaff?.full_name || "—",
-      amount: parsedAmount,
-      description: formDescription || null,
-      paid_at: formPaidAt || null,
-      created_by: userId,
+  const selectedOrder = orders.find(o => o.id === formOrderId);
+  const expensesAmount = parseFloat(formExpenses) || 0;
+  const baseAmount = selectedOrder ? selectedOrder.office_amount : 0;
+  const netAmount = Math.max(baseAmount - expensesAmount, 0);
+
+  const updateSplit = (index: number, field: keyof LawyerSplit, value: string) => {
+    setSplits(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+
+      // Auto-calculate amount when percent changes
+      if (field === "percent" && updated[index].mode === "percentual") {
+        const calc = Math.round(netAmount * (parseFloat(value) || 0) / 100 * 100) / 100;
+        updated[index].amount = calc > 0 ? calc.toString() : "";
+      }
+      // Auto-calculate percent when amount changes in valor mode
+      if (field === "amount" && updated[index].mode === "valor" && netAmount > 0) {
+        const calc = Math.round((parseFloat(value) || 0) / netAmount * 100 * 100) / 100;
+        updated[index].percent = calc > 0 ? calc.toString() : "";
+      }
+
+      return updated;
     });
+  };
+
+  const toggleSplitMode = (index: number, mode: "valor" | "percentual") => {
+    setSplits(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], mode };
+      return updated;
+    });
+  };
+
+  const addSplit = () => {
+    setSplits(prev => [...prev, { lawyerId: "", mode: "percentual", percent: "", amount: "" }]);
+  };
+
+  const removeSplit = (index: number) => {
+    setSplits(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const totalSplitAmount = splits.reduce((s, sp) => s + (parseFloat(sp.amount) || 0), 0);
+  const totalSplitPercent = splits.reduce((s, sp) => s + (parseFloat(sp.percent) || 0), 0);
+  const remaining = netAmount - totalSplitAmount;
+
+  const resetForm = () => {
+    setFormOrderId("");
+    setFormExpenses("");
+    setFormExpensesDesc("");
+    setFormDescription("");
+    setFormPaidAt("");
+    setSplits([{ lawyerId: "", mode: "percentual", percent: "", amount: "" }]);
+  };
+
+  const handleSubmit = async () => {
+    if (!tenantId || !userId || !formOrderId) {
+      toast.error("Selecione um RPV/Precatório");
+      return;
+    }
+
+    const validSplits = splits.filter(sp => sp.lawyerId && (parseFloat(sp.amount) || 0) > 0);
+    if (validSplits.length === 0) {
+      toast.error("Adicione pelo menos um advogado com valor válido");
+      return;
+    }
+
+    // Check for duplicate lawyers
+    const lawyerIds = validSplits.map(sp => sp.lawyerId);
+    if (new Set(lawyerIds).size !== lawyerIds.length) {
+      toast.error("Não é possível adicionar o mesmo advogado mais de uma vez");
+      return;
+    }
+
+    if (totalSplitAmount > netAmount + 0.01) {
+      toast.error("O total distribuído excede o valor líquido disponível");
+      return;
+    }
+
+    setSubmitting(true);
+    const inserts = validSplits.map(sp => {
+      const staffMember = staff.find(s => s.user_id === sp.lawyerId);
+      const desc = [
+        formDescription,
+        expensesAmount > 0 ? `Despesas descontadas: ${fmt(expensesAmount)}${formExpensesDesc ? ` (${formExpensesDesc})` : ""}` : "",
+        sp.percent ? `${sp.percent}% do líquido` : "",
+      ].filter(Boolean).join(" | ");
+
+      return {
+        tenant_id: tenantId,
+        payment_order_id: formOrderId,
+        lawyer_user_id: sp.lawyerId,
+        lawyer_name: staffMember?.full_name || "—",
+        amount: parseFloat(sp.amount) || 0,
+        description: desc || null,
+        paid_at: formPaidAt || null,
+        created_by: userId,
+      };
+    });
+
+    const { error } = await supabase.from("fee_distributions" as any).insert(inserts);
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
     } else {
-      toast.success("Distribuição registrada!");
+      toast.success(`${validSplits.length} distribuição(ões) registrada(s)!`);
       setShowNew(false);
-      setFormOrderId("");
-      setFormLawyerId("");
-      setFormAmount("");
-      setFormPercent("");
-      setFormMode("valor");
-      setFormDescription("");
-      setFormPaidAt("");
+      resetForm();
       fetchDistributions();
     }
     setSubmitting(false);
@@ -134,7 +212,6 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
   const activeOrders = orders.filter(o => (o as any).status !== "cancelado" && o.office_amount > 0);
   const totalDistributed = distributions.reduce((s, d) => s + (d.amount || 0), 0);
 
-  // Group by lawyer
   const byLawyer = distributions.reduce<Record<string, { name: string; total: number; count: number }>>((acc, d) => {
     if (!acc[d.lawyer_user_id]) acc[d.lawyer_user_id] = { name: d.lawyer_name, total: 0, count: 0 };
     acc[d.lawyer_user_id].total += d.amount || 0;
@@ -199,7 +276,7 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
                       <td className="p-3 text-muted-foreground text-xs">
                         {d.paid_at ? new Date(d.paid_at + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
                       </td>
-                      <td className="p-3 text-muted-foreground text-xs">{d.description || "—"}</td>
+                      <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{d.description || "—"}</td>
                       <td className="p-3 text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(d.id)}>
                           <Trash2 className="w-3.5 h-3.5" />
@@ -224,15 +301,28 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       )}
 
       {/* New Distribution Dialog */}
-      <Dialog open={showNew} onOpenChange={setShowNew}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showNew} onOpenChange={(open) => { setShowNew(open); if (!open) resetForm(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Lançar Saída de Honorários</DialogTitle>
+            <DialogTitle>Lançar Rateio de Honorários</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Order selection */}
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">RPV/Precatório *</label>
-              <Select value={formOrderId} onValueChange={setFormOrderId}>
+              <Select value={formOrderId} onValueChange={(v) => {
+                setFormOrderId(v);
+                // Recalculate splits when order changes
+                setSplits(prev => prev.map(sp => {
+                  if (sp.mode === "percentual" && sp.percent) {
+                    const order = orders.find(o => o.id === v);
+                    const net = order ? Math.max(order.office_amount - expensesAmount, 0) : 0;
+                    const calc = Math.round(net * (parseFloat(sp.percent) || 0) / 100 * 100) / 100;
+                    return { ...sp, amount: calc > 0 ? calc.toString() : "" };
+                  }
+                  return sp;
+                }));
+              }}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   {activeOrders.map(o => (
@@ -243,53 +333,156 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Advogado *</label>
-              <Select value={formLawyerId} onValueChange={setFormLawyerId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {staff.map(s => (
-                    <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Modo de entrada *</label>
-              <div className="flex gap-2">
-                <Button type="button" variant={formMode === "valor" ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setFormMode("valor")}>Valor (R$)</Button>
-                <Button type="button" variant={formMode === "percentual" ? "default" : "outline"} size="sm" className="flex-1" onClick={() => setFormMode("percentual")}>Percentual (%)</Button>
-              </div>
-            </div>
-            {formMode === "percentual" ? (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Percentual (%) *</label>
-                <Input type="number" step="0.1" placeholder="Ex: 50" value={formPercent} onChange={e => {
-                  setFormPercent(e.target.value);
-                  const selectedOrder = activeOrders.find(o => o.id === formOrderId);
-                  if (selectedOrder) {
-                    const calc = Math.round(selectedOrder.office_amount * (parseFloat(e.target.value) || 0) / 100 * 100) / 100;
-                    setFormAmount(calc > 0 ? calc.toString() : "");
-                  }
-                }} />
-                {formAmount && <p className="text-xs text-muted-foreground mt-1">= {fmt(parseFloat(formAmount) || 0)}</p>}
-              </div>
-            ) : (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Valor (R$) *</label>
-                <Input type="number" step="0.01" placeholder="0,00" value={formAmount} onChange={e => setFormAmount(e.target.value)} />
+
+            {/* Expenses deduction */}
+            {formOrderId && (
+              <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                <label className="text-xs font-medium text-foreground block">Despesas a Descontar (antes do rateio)</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Valor (R$)"
+                    value={formExpenses}
+                    className="w-32"
+                    onChange={e => {
+                      setFormExpenses(e.target.value);
+                      const exp = parseFloat(e.target.value) || 0;
+                      const net = Math.max(baseAmount - exp, 0);
+                      setSplits(prev => prev.map(sp => {
+                        if (sp.mode === "percentual" && sp.percent) {
+                          const calc = Math.round(net * (parseFloat(sp.percent) || 0) / 100 * 100) / 100;
+                          return { ...sp, amount: calc > 0 ? calc.toString() : "" };
+                        }
+                        return sp;
+                      }));
+                    }}
+                  />
+                  <Input
+                    placeholder="Descrição da despesa"
+                    value={formExpensesDesc}
+                    className="flex-1"
+                    onChange={e => setFormExpensesDesc(e.target.value)}
+                  />
+                </div>
+                {baseAmount > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Honorários: {fmt(baseAmount)}</span>
+                    {expensesAmount > 0 && <span>− Despesas: {fmt(expensesAmount)}</span>}
+                    <span className="font-semibold text-foreground">Líquido p/ rateio: {fmt(netAmount)}</span>
+                  </div>
+                )}
               </div>
             )}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Data do Pagamento</label>
-              <Input type="date" value={formPaidAt} onChange={e => setFormPaidAt(e.target.value)} />
+
+            {/* Lawyer splits */}
+            {formOrderId && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-foreground">Advogados no Rateio</label>
+                    <Button type="button" variant="ghost" size="sm" onClick={addSplit} className="gap-1 text-xs h-7">
+                      <UserPlus className="w-3.5 h-3.5" /> Adicionar
+                    </Button>
+                  </div>
+
+                  {splits.map((sp, idx) => (
+                    <div key={idx} className="bg-card border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <Select value={sp.lawyerId} onValueChange={v => updateSplit(idx, "lawyerId", v)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione o advogado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {staff.map(s => (
+                                <SelectItem key={s.user_id} value={s.user_id}>{s.full_name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {splits.length > 1 && (
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSplit(idx)}>
+                            <MinusCircle className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex gap-2 items-end">
+                        <div className="flex gap-1">
+                          <Button type="button" variant={sp.mode === "percentual" ? "default" : "outline"} size="sm" className="h-7 text-xs px-2" onClick={() => toggleSplitMode(idx, "percentual")}>%</Button>
+                          <Button type="button" variant={sp.mode === "valor" ? "default" : "outline"} size="sm" className="h-7 text-xs px-2" onClick={() => toggleSplitMode(idx, "valor")}>R$</Button>
+                        </div>
+                        {sp.mode === "percentual" ? (
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="Ex: 25"
+                              className="h-8 text-sm"
+                              value={sp.percent}
+                              onChange={e => updateSplit(idx, "percent", e.target.value)}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0,00"
+                              className="h-8 text-sm"
+                              value={sp.amount}
+                              onChange={e => updateSplit(idx, "amount", e.target.value)}
+                            />
+                          </div>
+                        )}
+                        <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[80px] text-right">
+                          {sp.amount ? fmt(parseFloat(sp.amount) || 0) : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Summary */}
+                  {netAmount > 0 && (
+                    <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Líquido p/ rateio</span>
+                        <span className="text-foreground">{fmt(netAmount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total distribuído ({totalSplitPercent.toFixed(1)}%)</span>
+                        <span className={`font-medium ${totalSplitAmount > netAmount + 0.01 ? "text-destructive" : "text-foreground"}`}>
+                          {fmt(totalSplitAmount)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-semibold">
+                        <span className="text-muted-foreground">Saldo restante</span>
+                        <span className={remaining < -0.01 ? "text-destructive" : "text-foreground"}>
+                          {fmt(remaining)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Common fields */}
+            <Separator />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Data do Pagamento</label>
+                <Input type="date" value={formPaidAt} onChange={e => setFormPaidAt(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Descrição</label>
+                <Input placeholder="Ex: Rateio honorários" value={formDescription} onChange={e => setFormDescription(e.target.value)} className="h-8 text-sm" />
+              </div>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Descrição</label>
-              <Input placeholder="Ex: Quota-parte honorários contratuais" value={formDescription} onChange={e => setFormDescription(e.target.value)} />
-            </div>
+
             <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Salvando..." : "Registrar Distribuição"}
+              {submitting ? "Salvando..." : `Registrar ${splits.filter(sp => sp.lawyerId && (parseFloat(sp.amount) || 0) > 0).length} Distribuição(ões)`}
             </Button>
           </div>
         </DialogContent>
