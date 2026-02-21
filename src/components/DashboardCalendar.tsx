@@ -77,6 +77,11 @@ const DashboardCalendar = () => {
 
   const daysWithAppointments = appointments.map((a) => startOfDay(new Date(a.start_at)));
 
+  const generateJitsiLink = (appointmentId: string): string => {
+    const roomName = `atendimento-${appointmentId.slice(0, 8)}`;
+    return `https://meet.jit.si/${roomName}`;
+  };
+
   const handleCreate = async () => {
     if (!form.title || !tenantId || !user?.id) return;
 
@@ -99,8 +104,36 @@ const DashboardCalendar = () => {
       return;
     }
 
+    // Generate video link if Videochamada
+    let videoLink: string | null = null;
+    if (form.title === "Videochamada" && data?.id) {
+      if (videoPlatform === "google_meet" && googleConnected) {
+        try {
+          const result = await createMeetEvent({
+            title: form.title,
+            description: form.description,
+            start_at,
+            end_at,
+          });
+          videoLink = result?.meet_link || null;
+        } catch {
+          videoLink = generateJitsiLink(data.id);
+          toast.error("Falha no Google Meet, usando Jitsi");
+        }
+      } else {
+        videoLink = generateJitsiLink(data.id);
+      }
+
+      // Update description with video link
+      if (videoLink) {
+        const updatedDesc = `${form.description || ""}\n\n🔗 Link da videochamada: ${videoLink}`.trim();
+        await supabase.from("appointments").update({ description: updatedDesc }).eq("id", data.id);
+        data.description = updatedDesc;
+      }
+    }
+
     setAppointments((prev) => [...prev, data]);
-    setForm({ title: "", description: "", start_time: "09:00", end_time: "10:00", case_id: "" });
+    setForm({ title: "Reunião presencial", description: "", start_time: "09:00", end_time: "10:00", case_id: "" });
     setShowNewModal(false);
     toast.success("Compromisso adicionado!");
   };
