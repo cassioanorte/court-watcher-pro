@@ -422,6 +422,7 @@ const LandingPagePublic = () => {
                 whatsappNumber={whatsappNumber}
                 tenantId={data.tenant_id}
                 variant={templateKey as any}
+                branding={data.content.branding}
               />
             );
           }
