@@ -252,19 +252,27 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
 };
 
 const minimalSections: Record<string, React.FC<{ content: LPContent }>> = {
-  hero: ({ content }) => (
-    <section className="py-32 px-6 border-b">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-5xl md:text-6xl font-light mb-6 leading-tight">{content.heroTitle}</h1>
-        <p className="text-xl text-gray-500 mb-10">{content.heroSubtitle}</p>
-        {content.heroCtaText && (
-          <a href={content.heroCtaLink || "#contato"} className="inline-block border-2 border-gray-900 text-gray-900 font-medium px-8 py-3 hover:bg-gray-900 hover:text-white transition-colors">
-            {content.heroCtaText}
-          </a>
-        )}
-      </div>
-    </section>
-  ),
+  hero: ({ content }) => {
+    const b = content.branding;
+    const borderStyle = b?.primaryColor ? { borderColor: b.primaryColor, color: b.primaryColor } : undefined;
+    const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
+    return (
+      <section className="py-32 px-6 border-b">
+        <div className="max-w-3xl mx-auto">
+          {b?.logoUrl && (
+            <img src={b.logoUrl} alt="Logo" className="h-12 mb-8 object-contain" style={{ filter: logoFilter }} />
+          )}
+          <h1 className="text-5xl md:text-6xl font-light mb-6 leading-tight">{content.heroTitle}</h1>
+          <p className="text-xl text-gray-500 mb-10">{content.heroSubtitle}</p>
+          {content.heroCtaText && (
+            <a href={content.heroCtaLink || "#contato"} className="inline-block border-2 border-gray-900 text-gray-900 font-medium px-8 py-3 hover:bg-gray-900 hover:text-white transition-colors" style={borderStyle}>
+              {content.heroCtaText}
+            </a>
+          )}
+        </div>
+      </section>
+    );
+  },
   about: ({ content }) => content.aboutText ? (
     <section className="py-20 px-6 border-b">
       <div className="max-w-3xl mx-auto">
@@ -280,7 +288,7 @@ const minimalSections: Record<string, React.FC<{ content: LPContent }>> = {
         <div className="space-y-8">
           {content.services.map((svc, i) => (
             <div key={i} className="flex gap-6">
-              <span className="text-3xl font-light text-gray-300">{String(i + 1).padStart(2, "0")}</span>
+              <span className="text-3xl font-light" style={{ color: content.branding?.primaryColor || '#d1d5db' }}>{String(i + 1).padStart(2, "0")}</span>
               <div>
                 <h3 className="text-lg font-medium mb-1">{svc.title}</h3>
                 <p className="text-gray-500 text-sm">{svc.description}</p>
