@@ -125,6 +125,12 @@ const Financeiro = () => {
   const profit = totalRevenue - totalExpense;
   const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
+  // Payment orders (RPV/Precatório) totals
+  const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
+  const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
+  const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
+  const totalClienteRpv = activeOrders.reduce((s, o) => s + (Number(o.client_amount) || 0), 0);
+
   // Monthly data for last 6 months
   const monthlyData = useMemo(() => {
     const months = [];
