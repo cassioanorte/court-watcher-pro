@@ -57,10 +57,11 @@ interface PaymentOrderFull {
   client_amount: number;
   income_tax: number;
   tax_percent: number;
+  office_fees_percent: number;
+  ownership_type: string;
   process_number: string | null;
   beneficiary_name: string | null;
   expected_payment_date: string | null;
-  ownership_type: string;
   fee_type: string;
 }
 
