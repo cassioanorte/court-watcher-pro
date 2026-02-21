@@ -57,10 +57,11 @@ interface PaymentOrderFull {
   client_amount: number;
   income_tax: number;
   tax_percent: number;
+  office_fees_percent: number;
+  ownership_type: string;
   process_number: string | null;
   beneficiary_name: string | null;
   expected_payment_date: string | null;
-  ownership_type: string;
   fee_type: string;
 }
 
@@ -110,7 +111,7 @@ const Financeiro = () => {
         supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
-        supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, process_number, beneficiary_name, expected_payment_date, ownership_type, fee_type").eq("tenant_id", tenantId),
+        supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, expected_payment_date, fee_type").eq("tenant_id", tenantId),
         supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_user_id, lawyer_name, amount").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
@@ -165,10 +166,15 @@ const Financeiro = () => {
   const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
   const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
 
-  // IR a pagar — usa o valor de income_tax já calculado em cada order
+  // IR a pagar — calcula usando tax_percent sobre honorários brutos
   const totalIrAPagar = activeOrders
     .filter(o => o.status !== "sacado")
-    .reduce((s, o) => s + (Number(o.income_tax) || 0), 0);
+    .reduce((s, o) => {
+      const officeGross = (o as any).ownership_type === "escritorio"
+        ? (Number(o.gross_amount) || 0)
+        : Math.round((Number(o.gross_amount) || 0) * (Number((o as any).office_fees_percent) || 0) / 100 * 100) / 100;
+      return s + Math.round(officeGross * (Number(o.tax_percent) || 0) / 100 * 100) / 100;
+    }, 0);
 
   // === RPV DASHBOARD DATA ===
   // Status breakdown

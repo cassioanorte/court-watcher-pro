@@ -137,25 +137,25 @@ const Pagamentos = () => {
     const feeP = parseFloat(formFeePercent) || 0;
     const costs = parseFloat(formCourtCosts) || 0;
     const soc = parseFloat(formSocSec) || 0;
-    const tax = parseFloat(formTax) || 0;
     const taxP = parseFloat(formTaxPercent) || 0;
 
     if (formOwnership === "escritorio") {
       // 100% do escritório - IR sobre o valor total (que é todo honorário)
       const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
+      setFormTax(taxAmount > 0 ? taxAmount.toString() : "");
       setFormOffice(gross > 0 ? (gross - taxAmount).toString() : "");
       setFormClient("0");
     } else {
-      // Cliente paga o bruto dos honorários sem desconto de IR
       // IR incide somente sobre os honorários do advogado
       const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
       const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
       const officeNet = Math.round((officeGross - officeTax) * 100) / 100;
-      const clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
+      const clientCalc = Math.round((gross - officeGross - costs - soc) * 100) / 100;
+      setFormTax(officeTax > 0 ? officeTax.toString() : "");
       setFormOffice(officeNet > 0 ? officeNet.toString() : "");
       setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
     }
-  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax, formOwnership, formTaxPercent]);
+  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formOwnership, formTaxPercent]);
 
   const applyRpvData = (d: Partial<RpvData>) => {
     if (d.type) setFormType(d.type);
@@ -388,24 +388,22 @@ const Pagamentos = () => {
     const feeP = parseFloat(String(editForm.office_fees_percent)) || 0;
     const costs = parseFloat(String(editForm.court_costs)) || 0;
     const soc = parseFloat(String(editForm.social_security)) || 0;
-    const tax = parseFloat(String(editForm.income_tax)) || 0;
     const taxP = parseFloat(String(editForm.tax_percent)) || 0;
     const ownership = editForm.ownership_type || "cliente";
 
     let officeCalc: number;
     let clientCalc: number;
+    let taxCalc: number;
 
     if (ownership === "escritorio") {
-      // 100% escritório - IR sobre o total
-      const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
-      officeCalc = Math.round((gross - taxAmount) * 100) / 100;
+      taxCalc = Math.round(gross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((gross - taxCalc) * 100) / 100;
       clientCalc = 0;
     } else {
-      // IR applies only on office fees (honorários)
       const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
-      const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
-      officeCalc = Math.round((officeGross - officeTax) * 100) / 100;
-      clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
+      taxCalc = Math.round(officeGross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((officeGross - taxCalc) * 100) / 100;
+      clientCalc = Math.round((gross - officeGross - costs - soc) * 100) / 100;
     }
 
     const updates = {
@@ -421,7 +419,7 @@ const Pagamentos = () => {
       client_amount: clientCalc,
       court_costs: costs,
       social_security: soc,
-      income_tax: tax,
+      income_tax: taxCalc,
       expected_payment_date: editForm.expected_payment_date || null,
       reference_date: editForm.reference_date || null,
       notes: editForm.notes || null,
@@ -707,7 +705,7 @@ const Pagamentos = () => {
             </div>
 
             {formOwnership === "cliente" && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
                   <Input type="number" step="0.01" value={formCourtCosts} onChange={e => setFormCourtCosts(e.target.value)} placeholder="0,00" />
@@ -716,14 +714,14 @@ const Pagamentos = () => {
                   <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
                   <Input type="number" step="0.01" value={formSocSec} onChange={e => setFormSocSec(e.target.value)} placeholder="0,00" />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
-                  <Input type="number" step="0.01" value={formTax} onChange={e => setFormTax(e.target.value)} placeholder="0,00" />
-                </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-3">
+            <div className="grid grid-cols-3 gap-2 bg-muted/30 rounded-lg p-3">
+              <div>
+                <p className="text-xs text-muted-foreground">IR ({formTaxPercent}%)</p>
+                <p className="text-sm font-bold text-destructive/80">{formTax ? fmt(parseFloat(formTax)) : "—"}</p>
+              </div>
               <div>
                 <p className="text-xs text-muted-foreground">Escritório recebe</p>
                 <p className="text-lg font-bold text-accent">{formOffice ? fmt(parseFloat(formOffice)) : "—"}</p>
