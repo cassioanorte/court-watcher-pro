@@ -52,6 +52,15 @@ const ClientDetail = () => {
     load();
   }, [id]);
 
+  // Scroll to processes section when returning from a process page
+  useEffect(() => {
+    if (!loading && (location.state as any)?.scrollToProcesses && processesRef.current) {
+      setTimeout(() => {
+        processesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [loading, location.state]);
+
   const toggleCase = async (caseId: string) => {
     if (expandedCase === caseId) {
       setExpandedCase(null);
