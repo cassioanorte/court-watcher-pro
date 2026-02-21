@@ -105,6 +105,7 @@ const ProcessDetail = () => {
       if (movRes.data) setMovements(movRes.data);
       if (msgRes.data) setMessages(msgRes.data);
       if (docRes.data) setDocuments(docRes.data);
+      if (taskRes.data) setCaseTasks(taskRes.data);
       setLoading(false);
     };
     load();
