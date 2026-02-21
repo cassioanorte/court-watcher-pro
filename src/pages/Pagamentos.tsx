@@ -757,13 +757,31 @@ const Pagamentos = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-accent/5 border border-accent/20 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Escritório ({selected.office_fees_percent}%)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selected.ownership_type === "escritorio" ? "Escritório (100% destacado)" : `Escritório (${selected.office_fees_percent}%)`}
+                  </p>
                   <p className="text-lg font-bold text-accent">{fmt(selected.office_amount)}</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Cliente</p>
-                  <p className="text-lg font-bold">{fmt(selected.client_amount)}</p>
-                </div>
+                {selected.ownership_type !== "escritorio" && (
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Cliente</p>
+                    <p className="text-lg font-bold">{fmt(selected.client_amount)}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {selected.ownership_type === "escritorio" ? "Destacado (Escritório)" : "Do Cliente"}
+                </Badge>
+                <Badge variant="outline" className="text-xs capitalize">
+                  {selected.fee_type || "contratuais"}
+                </Badge>
+                {selected.tax_percent != null && selected.tax_percent > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    Imposto: {selected.tax_percent}%
+                  </Badge>
+                )}
               </div>
 
               {(selected.court_costs > 0 || selected.social_security > 0 || selected.income_tax > 0) && (
