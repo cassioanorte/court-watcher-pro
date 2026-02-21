@@ -1083,6 +1083,75 @@ export type Database = {
           },
         ]
       }
+      reminders: {
+        Row: {
+          assigned_to: string
+          case_id: string | null
+          category: string
+          client_user_id: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          due_time: string | null
+          id: string
+          tagged_user_id: string | null
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          assigned_to: string
+          case_id?: string | null
+          category?: string
+          client_user_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          id?: string
+          tagged_user_id?: string | null
+          tenant_id: string
+          title: string
+        }
+        Update: {
+          assigned_to?: string
+          case_id?: string | null
+          category?: string
+          client_user_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          due_time?: string | null
+          id?: string
+          tagged_user_id?: string | null
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_case_access: {
         Row: {
           access_mode: Database["public"]["Enums"]["case_access_mode"]

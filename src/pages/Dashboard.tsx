@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardCalendar from "@/components/DashboardCalendar";
 import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
-import DashboardCasesChart from "@/components/dashboard/DashboardCasesChart";
+import DashboardReminders from "@/components/dashboard/DashboardReminders";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
 import DashboardTaskNotifications from "@/components/dashboard/DashboardTaskNotifications";
@@ -177,9 +177,9 @@ const Dashboard = () => {
       {/* Task Notifications */}
       <DashboardTaskNotifications />
 
-      {/* Charts + Pipeline row */}
+      {/* Reminders + Pipeline row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardCasesChart />
+        <DashboardReminders />
         <DashboardCrmPipeline />
       </div>
 
