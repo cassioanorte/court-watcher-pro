@@ -18,6 +18,7 @@ const navItems = [
   { to: "/publicacoes", icon: Newspaper, label: "Publicações" },
   { to: "/financeiro", icon: DollarSign, label: "Financeiro" },
   { to: "/cobranca", icon: Receipt, label: "Cobrança" },
+  { to: "/pagamentos", icon: Banknote, label: "Pagamentos" },
   { to: "/landing-pages", icon: Globe, label: "Landing Pages" },
 ];
 

@@ -115,6 +115,7 @@ const App = () => (
               <Route path="contatos/:id" element={<ContatoDetail />} />
               <Route path="financeiro" element={<Financeiro />} />
               <Route path="cobranca" element={<Cobranca />} />
+              <Route path="pagamentos" element={<Pagamentos />} />
               <Route path="landing-pages" element={<LandingPages />} />
               <Route path="landing-pages/:id" element={<LandingPageEditor />} />
               <Route path="configuracoes" element={<Settings />} />
