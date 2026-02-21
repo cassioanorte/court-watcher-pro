@@ -64,7 +64,7 @@ const DashboardCalendar = () => {
   const loadAppointments = async () => {
     if (!tenantId) return;
     const [apptRes, casesRes] = await Promise.all([
-      supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color").eq("tenant_id", tenantId),
+      supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color, client_user_id").eq("tenant_id", tenantId),
       supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
     ]);
     setAppointments(apptRes.data || []);
@@ -74,7 +74,7 @@ const DashboardCalendar = () => {
 
   const openDetail = async (appt: Appointment) => {
     // Build AppointmentDetail with case/client info
-    let clientUserId: string | null = null;
+    let clientUserId: string | null = (appt as any).client_user_id || null;
     let clientName: string | null = null;
     let processNumber: string | null = null;
 
@@ -82,12 +82,13 @@ const DashboardCalendar = () => {
       const caseData = cases.find(c => c.id === appt.case_id);
       if (caseData) {
         processNumber = caseData.process_number;
-        clientUserId = caseData.client_user_id;
-        if (clientUserId) {
-          const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", clientUserId).single();
-          clientName = p?.full_name || null;
-        }
+        if (!clientUserId) clientUserId = caseData.client_user_id;
       }
+    }
+
+    if (clientUserId) {
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", clientUserId).single();
+      clientName = p?.full_name || null;
     }
 
     setSelectedApptDetail({

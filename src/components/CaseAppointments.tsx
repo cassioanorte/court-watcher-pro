@@ -72,7 +72,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
   const fetchAppointments = async () => {
     const { data } = await supabase
       .from("appointments")
-      .select("id, title, description, start_at, end_at, color")
+      .select("id, title, description, start_at, end_at, color, client_user_id")
       .eq("case_id", caseId)
       .eq("tenant_id", tenantId)
       .order("start_at", { ascending: false });
@@ -234,11 +234,12 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
   };
 
   const openDetailModal = async (a: Appointment) => {
-    // Build detail with case info
+    // Build detail with case info — appointment-level client_user_id takes priority
     const { data: caseData } = await supabase.from("cases").select("id, process_number, client_user_id").eq("id", caseId).single();
+    const effectiveClientId = (a as any).client_user_id || caseData?.client_user_id || null;
     let clientName: string | null = null;
-    if (caseData?.client_user_id) {
-      const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", caseData.client_user_id).single();
+    if (effectiveClientId) {
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", effectiveClientId).single();
       clientName = p?.full_name || null;
     }
     setSelectedApptDetail({
@@ -248,7 +249,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       startAt: a.start_at,
       endAt: a.end_at,
       caseId: caseId,
-      clientUserId: caseData?.client_user_id || null,
+      clientUserId: effectiveClientId,
       clientName,
       processNumber: caseData?.process_number || null,
     });
