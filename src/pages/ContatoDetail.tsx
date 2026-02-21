@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Download, Loader2, ExternalLink, FolderOpen, Sparkles, MousePointerClick, ClipboardPaste, CheckCircle2, Copy } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
