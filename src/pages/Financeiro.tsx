@@ -111,7 +111,7 @@ const Financeiro = () => {
         supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
-        supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, process_number, beneficiary_name, expected_payment_date, ownership_type, fee_type").eq("tenant_id", tenantId),
+        supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, expected_payment_date, fee_type").eq("tenant_id", tenantId),
         supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_user_id, lawyer_name, amount").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
