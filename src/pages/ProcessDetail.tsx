@@ -744,6 +744,9 @@ const ProcessDetail = () => {
           </div>
         </div>
       )}
+      {activeTab === "atendimentos" && isLawyer && tenantId && (
+        <CaseAppointments caseId={id!} tenantId={tenantId} />
+      )}
       {activeTab === "substabelecimento" && isLawyer && (
         <SubstabelecimentoSection
           caseId={id!}
