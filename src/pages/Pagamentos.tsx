@@ -358,11 +358,18 @@ const Pagamentos = () => {
   const startEdit = (order: PaymentOrder) => {
     setEditing(true);
     setEditForm({ ...order });
+    // Pre-fill the form fields for PDF upload reuse
+    setFormDocUrl(order.document_url || "");
+    setFormDocName(order.document_name || "");
+    setFormAiExtracted(order.ai_extracted || false);
   };
 
   const cancelEdit = () => {
     setEditing(false);
     setEditForm({});
+    setFormDocUrl("");
+    setFormDocName("");
+    setFormAiExtracted(false);
   };
 
   const saveEdit = async () => {
