@@ -146,8 +146,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     const msg = buildNotificationMessage(savedAppointment, clientInfo.full_name, !!editingId);
     const url = `https://wa.me/${normalized}?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank");
-    setShowNotifyDialog(false);
-    setEditingId(null);
+    setWhatsappSent(true);
   };
 
   const [emailSent, setEmailSent] = useState(false);
