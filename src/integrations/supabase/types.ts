@@ -769,6 +769,60 @@ export type Database = {
           },
         ]
       }
+      fee_distributions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          lawyer_name: string
+          lawyer_user_id: string
+          paid_at: string | null
+          payment_order_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          lawyer_name: string
+          lawyer_user_id: string
+          paid_at?: string | null
+          payment_order_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          lawyer_name?: string
+          lawyer_user_id?: string
+          paid_at?: string | null
+          payment_order_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_distributions_payment_order_id_fkey"
+            columns: ["payment_order_id"]
+            isOneToOne: false
+            referencedRelation: "payment_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_distributions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_transactions: {
         Row: {
           amount: number
