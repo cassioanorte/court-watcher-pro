@@ -249,7 +249,8 @@ const DashboardCalendar = () => {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="rounded-md bg-muted/50 group"
+                    className="rounded-md bg-muted/50 group cursor-pointer hover:bg-muted/80 transition-colors"
+                    onClick={() => openDetail(appt)}
                   >
                     <div className="flex items-start gap-3 p-3">
                       <div className="w-1 h-full min-h-[32px] rounded-full bg-accent shrink-0" />
@@ -263,15 +264,9 @@ const DashboardCalendar = () => {
                           <p className="text-xs text-muted-foreground mt-1 truncate">{descWithoutLink}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleDelete(appt.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                     {videoLink && (
-                      <div className="border-t border-border/50 px-3 py-2.5 space-y-2">
+                      <div className="border-t border-border/50 px-3 py-2.5 space-y-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2 bg-background/50 rounded-md px-2.5 py-1.5">
                           <LinkIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <span className="text-xs text-foreground font-mono truncate flex-1">{videoLink}</span>
