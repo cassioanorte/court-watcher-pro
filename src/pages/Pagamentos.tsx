@@ -840,6 +840,7 @@ const Pagamentos = () => {
                   <CheckCircle2 className="w-3 h-3" /> Dados extraídos por IA
                 </Badge>
               )}
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
                   <Select value={editForm.type || "rpv"} onValueChange={v => setEditForm(f => ({ ...f, type: v }))}>
