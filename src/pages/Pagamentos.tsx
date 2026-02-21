@@ -462,12 +462,15 @@ const Pagamentos = () => {
           </DialogHeader>
 
           {/* PDF Upload */}
-          <DropZone
-            uploading={uploading}
-            extracting={extracting}
-            formDocName={formDocName}
-            onClear={() => { setFormDocUrl(""); setFormDocName(""); }}
+          <FileDropZone
             onFile={handleFileUpload}
+            accept=".pdf"
+            loading={uploading || extracting}
+            loadingText={extracting ? "Extraindo dados..." : "Enviando..."}
+            label="Arraste o PDF aqui ou clique para selecionar"
+            sublabel="Os dados serão preenchidos automaticamente"
+            fileName={formDocName}
+            onClear={() => { setFormDocUrl(""); setFormDocName(""); }}
           />
 
           {formAiExtracted && (
