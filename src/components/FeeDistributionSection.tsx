@@ -48,6 +48,8 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
   const [formAmount, setFormAmount] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formPaidAt, setFormPaidAt] = useState("");
+  const [formMode, setFormMode] = useState<"valor" | "percentual">("valor");
+  const [formPercent, setFormPercent] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchDistributions = useCallback(async () => {
