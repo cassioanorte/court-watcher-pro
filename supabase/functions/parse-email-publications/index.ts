@@ -294,17 +294,23 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
     // Extract clean teor (substance) from the section
     const cleanContent = extractTeor(trimmed);
 
+    // Extract OAB numbers found in THIS specific section only
+    const sectionOabs = extractOabsFromSection(trimmed);
+
     for (const proc of procsInSection) {
       const procClean = proc.replace(/[^0-9]/g, '');
       const hashKey = `${procClean}_${pubDate}_${pubType}`;
       if (seenProcs.has(hashKey)) continue;
       seenProcs.add(hashKey);
 
+      // Use section-specific OAB if found, otherwise leave empty for enrichment
+      const sectionOab = sectionOabs.length > 0 ? sectionOabs.join(', ') : '';
+
       const hash = `email_${source.toLowerCase()}_${procClean}_${pubDate}_${pubType.toLowerCase().replace(/\s+/g, '_')}`;
 
       publications.push({
         tenant_id: tenantId,
-        oab_number: '',
+        oab_number: sectionOab,
         source,
         publication_date: pubDate,
         title: `${pubType} - ${proc}`.substring(0, 300),
