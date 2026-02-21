@@ -63,12 +63,14 @@ const DashboardTaskNotifications = () => {
         <p className={`text-sm line-clamp-2 ${task.completed ? "text-muted-foreground line-through" : "text-foreground font-medium"}`}>
           {task.task_description}
         </p>
-        {task.process_number && (
-          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{task.process_number}</p>
-        )}
-        {task.parties && (
-          <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{task.parties}</p>
-        )}
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          {task.process_number && (
+            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">{task.process_number}</span>
+          )}
+          {task.parties && (
+            <span className="text-[10px] text-foreground/70">{task.parties}</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           {task.due_date && (
             <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue(task) ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
