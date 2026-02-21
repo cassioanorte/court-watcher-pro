@@ -707,7 +707,7 @@ const Pagamentos = () => {
             </div>
 
             {formOwnership === "cliente" && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
                   <Input type="number" step="0.01" value={formCourtCosts} onChange={e => setFormCourtCosts(e.target.value)} placeholder="0,00" />
@@ -715,10 +715,6 @@ const Pagamentos = () => {
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
                   <Input type="number" step="0.01" value={formSocSec} onChange={e => setFormSocSec(e.target.value)} placeholder="0,00" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
-                  <Input type="number" step="0.01" value={formTax} onChange={e => setFormTax(e.target.value)} placeholder="0,00" />
                 </div>
               </div>
             )}
