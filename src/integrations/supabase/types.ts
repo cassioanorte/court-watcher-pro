@@ -234,6 +234,7 @@ export type Database = {
           id: string
           last_checked_at: string | null
           next_step: string | null
+          next_step_responsible_id: string | null
           parties: string | null
           process_number: string
           responsible_user_id: string | null
@@ -253,6 +254,7 @@ export type Database = {
           id?: string
           last_checked_at?: string | null
           next_step?: string | null
+          next_step_responsible_id?: string | null
           parties?: string | null
           process_number: string
           responsible_user_id?: string | null
@@ -272,6 +274,7 @@ export type Database = {
           id?: string
           last_checked_at?: string | null
           next_step?: string | null
+          next_step_responsible_id?: string | null
           parties?: string | null
           process_number?: string
           responsible_user_id?: string | null

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link, useLocation } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,8 +30,10 @@ const ProcessDetail = () => {
   const [editingNextStep, setEditingNextStep] = useState(false);
   const [caseSummary, setCaseSummary] = useState("");
   const [nextStep, setNextStep] = useState("");
+  const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
   const [savingSummary, setSavingSummary] = useState(false);
   const [savingNextStep, setSavingNextStep] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   // New message
   const [newMessage, setNewMessage] = useState("");
@@ -69,6 +71,7 @@ const ProcessDetail = () => {
         setCaseData(caseRes.data);
         setCaseSummary(caseRes.data.case_summary || "");
         setNextStep(caseRes.data.next_step || "");
+        setNextStepResponsibleId(caseRes.data.next_step_responsible_id || null);
       }
       if (movRes.data) setMovements(movRes.data);
       if (msgRes.data) setMessages(msgRes.data);
@@ -77,6 +80,29 @@ const ProcessDetail = () => {
     };
     load();
   }, [id]);
+
+  // Fetch team members for responsible assignment
+  useEffect(() => {
+    if (!tenantId) return;
+    const fetchTeam = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .eq("tenant_id", tenantId)
+        .order("full_name");
+      // Filter to only staff/owner by checking user_roles
+      if (data) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("user_id, role")
+          .in("user_id", data.map(d => d.user_id))
+          .in("role", ["owner", "staff"]);
+        const staffIds = new Set(roles?.map(r => r.user_id) || []);
+        setTeamMembers(data.filter(d => staffIds.has(d.user_id)));
+      }
+    };
+    fetchTeam();
+  }, [tenantId]);
 
   const handleRefresh = async () => {
     if (!id) return;
@@ -117,10 +143,10 @@ const ProcessDetail = () => {
   const handleSaveNextStep = async () => {
     if (!id) return;
     setSavingNextStep(true);
-    const { error } = await supabase.from("cases").update({ next_step: nextStep }).eq("id", id);
+    const { error } = await supabase.from("cases").update({ next_step: nextStep, next_step_responsible_id: nextStepResponsibleId || null } as any).eq("id", id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else {
-      setCaseData((prev: any) => ({ ...prev, next_step: nextStep }));
+      setCaseData((prev: any) => ({ ...prev, next_step: nextStep, next_step_responsible_id: nextStepResponsibleId }));
       setEditingNextStep(false);
       toast({ title: "Próximo passo salvo!" });
     }
@@ -414,15 +440,36 @@ const ProcessDetail = () => {
           {editingNextStep && isLawyer ? (
             <div className="space-y-2">
               <textarea value={nextStep} onChange={(e) => setNextStep(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" placeholder="Qual o próximo passo?" />
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Responsável</label>
+                <select
+                  value={nextStepResponsibleId || ""}
+                  onChange={(e) => setNextStepResponsibleId(e.target.value || null)}
+                  className="w-full mt-1 h-9 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                >
+                  <option value="">Nenhum</option>
+                  {teamMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>{m.full_name}</option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2">
                 <button onClick={handleSaveNextStep} disabled={savingNextStep} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold disabled:opacity-50">
                   {savingNextStep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Salvar
                 </button>
-                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
+                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); setNextStepResponsibleId(caseData.next_step_responsible_id || null); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-foreground">{caseData.next_step || "—"}</p>
+            <div>
+              <p className="text-sm text-foreground">{caseData.next_step || "—"}</p>
+              {caseData.next_step_responsible_id && (
+                <p className="text-xs text-accent mt-1 flex items-center gap-1">
+                  <UserCircle className="w-3.5 h-3.5" />
+                  {teamMembers.find((m: any) => m.user_id === caseData.next_step_responsible_id)?.full_name || "Responsável atribuído"}
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
