@@ -587,10 +587,34 @@ const ProcessDetail = () => {
 
         {/* Próximo passo */}
         <div className="bg-card rounded-lg p-4 border shadow-card">
-          <div className="flex items-center justify-between mb-1">
+           <div className="flex items-center justify-between mb-1">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Próximo Passo</p>
             {isLawyer && !editingNextStep && (
-              <button onClick={() => setEditingNextStep(true)} className="text-[10px] text-accent hover:underline">Editar</button>
+              <div className="flex items-center gap-2">
+                {caseData.next_step && (
+                  <button
+                    onClick={async () => {
+                      const { error } = await supabase.from("cases").update({ next_step: null, next_step_responsible_id: null } as any).eq("id", id);
+                      if (error) {
+                        toast({ title: "Erro", description: error.message, variant: "destructive" });
+                      } else {
+                        // Also delete related task assignments
+                        if (caseData.next_step) {
+                          await supabase.from("task_assignments").delete().eq("case_id", id as string).eq("task_description", caseData.next_step);
+                        }
+                        setCaseData((prev: any) => ({ ...prev, next_step: null, next_step_responsible_id: null }));
+                        setNextStep("");
+                        setNextStepResponsibleId(null);
+                        toast({ title: "Próximo passo removido!" });
+                      }
+                    }}
+                    className="text-[10px] text-destructive hover:underline"
+                  >
+                    Excluir
+                  </button>
+                )}
+                <button onClick={() => setEditingNextStep(true)} className="text-[10px] text-accent hover:underline">Editar</button>
+              </div>
             )}
           </div>
           {editingNextStep && isLawyer ? (
