@@ -554,6 +554,14 @@ const Processes = () => {
         </div>
       )}
 
+      {accessControlCase && (
+        <ProcessAccessControl
+          caseId={accessControlCase.id}
+          processNumber={accessControlCase.process_number}
+          onClose={() => setAccessControlCase(null)}
+        />
+      )}
+
       <NewProcessModal open={showNew} onClose={() => setShowNew(false)} onSuccess={fetchProcesses} />
     </div>
   );
