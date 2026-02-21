@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
+import { FeeDistributionSection } from "@/components/FeeDistributionSection";
 
 
 
