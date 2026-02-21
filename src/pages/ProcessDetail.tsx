@@ -151,18 +151,33 @@ const ProcessDetail = () => {
       setEditingNextStep(false);
       toast({ title: "Próximo passo salvo!" });
 
-      // Send notification to the assigned responsible
-      if (nextStepResponsibleId && nextStepResponsibleId !== user?.id) {
-        const responsibleName = teamMembers.find(m => m.user_id === nextStepResponsibleId)?.full_name || "";
-        await supabase.from("notifications").insert({
-          user_id: nextStepResponsibleId,
-          title: `Nova tarefa atribuída: ${nextStep}`,
-          body: `Você foi designado como responsável no processo ${caseData.process_number}${caseData.parties ? ` (${caseData.parties})` : ""}. Tarefa: ${nextStep}`,
+      // Create task assignment record
+      if (nextStepResponsibleId && tenantId) {
+        await supabase.from("task_assignments" as any).insert({
+          tenant_id: tenantId,
           case_id: id,
+          assigned_by: user?.id,
+          assigned_to: nextStepResponsibleId,
+          task_description: nextStep,
+          process_number: caseData.process_number,
+          parties: caseData.parties || null,
+          due_date: nextStepDueDate || null,
         });
+
+        // Also send a notification popup
+        if (nextStepResponsibleId !== user?.id) {
+          const dueDateText = nextStepDueDate ? ` | Prazo: ${new Date(nextStepDueDate + "T12:00:00").toLocaleDateString("pt-BR")}` : "";
+          await supabase.from("notifications").insert({
+            user_id: nextStepResponsibleId,
+            title: `Nova tarefa: ${nextStep}`,
+            body: `Processo ${caseData.process_number}${caseData.parties ? ` (${caseData.parties})` : ""}${dueDateText}`,
+            case_id: id,
+          });
+        }
       }
     }
     setSavingNextStep(false);
+    setNextStepDueDate("");
   };
 
   const handleSendMessage = async () => {
