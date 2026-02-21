@@ -20,6 +20,8 @@ const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { tenantId } = useAuth();
   const { toast } = useToast();
+  const location = useLocation();
+  const processesRef = useRef<HTMLDivElement>(null);
   const [client, setClient] = useState<any>(null);
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
