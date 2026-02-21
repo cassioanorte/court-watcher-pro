@@ -74,6 +74,13 @@ const ProcessDetail = () => {
   const [editMovDetails, setEditMovDetails] = useState("");
   const [savingMov, setSavingMov] = useState(false);
 
+  // Full edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", parties: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
+  const [editClients, setEditClients] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [editStaff, setEditStaff] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const isLawyer = role === "owner" || role === "staff" || role === "superadmin";
 
   useEffect(() => {
