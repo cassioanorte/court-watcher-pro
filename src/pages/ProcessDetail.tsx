@@ -429,19 +429,42 @@ const ProcessDetail = () => {
           <p className="text-sm font-semibold text-foreground">{caseData.simple_status || "—"}</p>
         </div>
         <div className="bg-card rounded-lg p-4 border shadow-card">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Partes Envolvidas</p>
-          {(() => {
-            const parts = (caseData.parties || "").split(/\s*\|\s*/);
-            const author = parts[0]?.trim();
-            const defendant = parts[1]?.trim();
-            return (
-              <div className="space-y-0.5">
-                {author ? <p className="text-xs text-foreground"><span className="text-muted-foreground">Autor:</span> {author}</p> : null}
-                {defendant ? <p className="text-xs text-foreground"><span className="text-muted-foreground">Réu:</span> {defendant}</p> : null}
-                {!author && !defendant && <p className="text-sm text-foreground">—</p>}
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Partes Envolvidas</p>
+            {isLawyer && !editingParties && (
+              <button onClick={() => { setEditingParties(true); setPartiesText(caseData.parties || ""); }} className="text-[10px] text-accent hover:underline">Editar</button>
+            )}
+          </div>
+          {editingParties && isLawyer ? (
+            <div className="space-y-2">
+              <input
+                value={partiesText}
+                onChange={(e) => setPartiesText(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                placeholder="Autor | Réu"
+              />
+              <p className="text-[10px] text-muted-foreground">Formato: Nome do Autor | Nome do Réu</p>
+              <div className="flex gap-2">
+                <button onClick={handleSaveParties} disabled={savingParties} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold disabled:opacity-50">
+                  {savingParties ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Salvar
+                </button>
+                <button onClick={() => { setEditingParties(false); setPartiesText(caseData.parties || ""); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
               </div>
-            );
-          })()}
+            </div>
+          ) : (
+            (() => {
+              const parts = (caseData.parties || "").split(/\s*\|\s*/);
+              const author = parts[0]?.trim();
+              const defendant = parts[1]?.trim();
+              return (
+                <div className="space-y-0.5">
+                  {author ? <p className="text-xs text-foreground"><span className="text-muted-foreground">Autor:</span> {author}</p> : null}
+                  {defendant ? <p className="text-xs text-foreground"><span className="text-muted-foreground">Réu:</span> {defendant}</p> : null}
+                  {!author && !defendant && <p className="text-sm text-foreground">—</p>}
+                </div>
+              );
+            })()
+          )}
         </div>
         <div className="bg-card rounded-lg p-4 border shadow-card">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Última consulta</p>
