@@ -293,6 +293,10 @@ const ProcessDetail = () => {
     { key: "timeline" as const, label: "Timeline", icon: RefreshCw },
     { key: "documentos" as const, label: "Documentos", icon: FileText },
     { key: "mensagens" as const, label: "Mensagens", icon: MessageSquare },
+    ...(isLawyer ? [
+      { key: "substabelecimento" as const, label: "Substabelecimento", icon: UserCheck },
+      { key: "historico" as const, label: "Histórico", icon: History },
+    ] : []),
   ];
 
   return (
