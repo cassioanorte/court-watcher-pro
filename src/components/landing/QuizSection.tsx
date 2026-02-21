@@ -19,11 +19,19 @@ interface QuizConfig {
   collectContactOnUnqualified: boolean;
 }
 
+interface QuizBranding {
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  textColor?: string;
+}
+
 interface QuizSectionProps {
   quiz: QuizConfig;
   whatsappNumber?: string;
   tenantId: string;
   variant?: "classic" | "modern" | "minimal";
+  branding?: QuizBranding;
 }
 
 const normalizeWhatsapp = (raw: string) => {
