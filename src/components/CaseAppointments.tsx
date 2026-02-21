@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check, Link2 } from "lucide-react";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check, Link2, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -559,6 +559,21 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                       className="p-1.5 rounded-md hover:bg-accent/10 transition-colors text-accent"
                     >
                       <Send className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase.from("appointments").delete().eq("id", a.id);
+                        if (error) {
+                          toast({ title: "Erro ao excluir", variant: "destructive" });
+                        } else {
+                          toast({ title: "Atendimento excluído" });
+                          fetchAppointments();
+                        }
+                      }}
+                      title="Excluir"
+                      className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
