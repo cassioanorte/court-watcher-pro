@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import SubstabelecimentoSection from "@/components/SubstabelecimentoSection";
+import CaseActivityLog from "@/components/CaseActivityLog";
 
 const ProcessDetail = () => {
   const { id } = useParams();
