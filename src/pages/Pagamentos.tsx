@@ -495,16 +495,18 @@ const Pagamentos = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-muted-foreground border-b">
-                  <th className="p-3 font-medium">Tipo</th>
-                  <th className="p-3 font-medium">Beneficiário</th>
-                  <th className="p-3 font-medium">Processo</th>
-                  <th className="p-3 font-medium text-right">Bruto</th>
-                  <th className="p-3 font-medium text-right">Escritório</th>
-                  <th className="p-3 font-medium text-right">Cliente</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium text-right">Ações</th>
-                </tr>
+                 <tr className="text-left text-muted-foreground border-b">
+                   <th className="p-3 font-medium">Tipo</th>
+                   <th className="p-3 font-medium">Beneficiário</th>
+                   <th className="p-3 font-medium">Processo</th>
+                   <th className="p-3 font-medium text-right">Bruto</th>
+                   <th className="p-3 font-medium text-right">Imposto</th>
+                   <th className="p-3 font-medium text-right">Líquido</th>
+                   <th className="p-3 font-medium text-right">Escritório</th>
+                   <th className="p-3 font-medium text-right">Cliente</th>
+                   <th className="p-3 font-medium">Status</th>
+                   <th className="p-3 font-medium text-right">Ações</th>
+                 </tr>
               </thead>
               <tbody>
                 {orders.map((o) => {
@@ -517,9 +519,11 @@ const Pagamentos = () => {
                       </td>
                       <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
                       <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</td>
-                      <td className="p-3 text-right text-foreground">{fmt(o.gross_amount)}</td>
-                      <td className="p-3 text-right text-accent font-medium">{fmt(o.office_amount)}</td>
-                      <td className="p-3 text-right text-foreground">{fmt(o.client_amount)}</td>
+                       <td className="p-3 text-right text-foreground">{fmt(o.gross_amount)}</td>
+                       <td className="p-3 text-right text-muted-foreground">{fmt(Math.round(o.gross_amount * (o.tax_percent || 0) / 100 * 100) / 100)} <span className="text-xs">({o.tax_percent ?? 10.9}%)</span></td>
+                       <td className="p-3 text-right text-foreground font-medium">{fmt(Math.round((o.gross_amount - o.gross_amount * (o.tax_percent || 0) / 100) * 100) / 100)}</td>
+                       <td className="p-3 text-right text-accent font-medium">{fmt(o.office_amount)}</td>
+                       <td className="p-3 text-right text-foreground">{fmt(o.client_amount)}</td>
                       <td className="p-3">
                         <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border ${st.color}`}>
                           <StIcon className="w-3 h-3" /> {st.label}
