@@ -49,6 +49,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [lastMovRefresh, setLastMovRefresh] = useState<Date>(new Date());
+  const [refreshingPubs, setRefreshingPubs] = useState(false);
 
   const fetchTodayMovements = useCallback(async () => {
     if (!tenantId) return;
