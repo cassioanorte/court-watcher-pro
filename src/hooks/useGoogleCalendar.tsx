@@ -40,7 +40,7 @@ export const useGoogleCalendar = () => {
   const connect = useCallback(async () => {
     setLoading(true);
     try {
-      const redirect_uri = `${window.location.origin}/google-calendar-callback`;
+      const redirect_uri = `https://court-watcher-pro.lovable.app/google-calendar-callback`;
       const { data, error } = await supabase.functions.invoke("google-calendar", {
         body: { action: "get_auth_url", redirect_uri },
       });
