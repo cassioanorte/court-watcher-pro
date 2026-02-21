@@ -207,6 +207,9 @@ const Financeiro = () => {
           <TabsTrigger value="rpv-precatorio" className="gap-1.5">
             <Banknote className="w-4 h-4" /> RPV / Precatório
           </TabsTrigger>
+          <TabsTrigger value="aguardando-pagamento" className="gap-1.5">
+            <Clock className="w-4 h-4" /> Aguardando Pagamento
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao-geral">
