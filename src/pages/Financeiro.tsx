@@ -195,15 +195,26 @@ const Financeiro = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
-          <p className="text-sm text-muted-foreground mt-1">Visão completa da saúde financeira do escritório</p>
-        </div>
-        <Button onClick={() => setShowModal(true)} className="gap-1">
-          <Plus className="w-4 h-4" /> Nova Transação
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
+        <p className="text-sm text-muted-foreground mt-1">Visão completa da saúde financeira do escritório</p>
       </div>
+
+      <Tabs defaultValue="visao-geral" className="w-full">
+        <TabsList>
+          <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
+          <TabsTrigger value="rpv-precatorio" className="gap-1.5">
+            <Banknote className="w-4 h-4" /> RPV / Precatório
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral">
+          <div className="space-y-6">
+            <div className="flex justify-end">
+              <Button onClick={() => setShowModal(true)} className="gap-1">
+                <Plus className="w-4 h-4" /> Nova Transação
+              </Button>
+            </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
