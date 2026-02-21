@@ -48,6 +48,10 @@ const DashboardCalendar = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ title: "", description: "", date: "", startTime: "", endTime: "" });
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     title: "Reunião presencial",
@@ -56,6 +60,52 @@ const DashboardCalendar = () => {
     end_time: "10:00",
     case_id: "",
   });
+
+  const openDetail = (appt: Appointment) => {
+    setSelectedAppt(appt);
+    setEditing(false);
+    setEditForm({
+      title: appt.title,
+      description: appt.description || "",
+      date: format(new Date(appt.start_at), "yyyy-MM-dd"),
+      startTime: format(new Date(appt.start_at), "HH:mm"),
+      endTime: format(new Date(appt.end_at), "HH:mm"),
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedAppt) return;
+    setSaving(true);
+    const start_at = `${editForm.date}T${editForm.startTime}:00`;
+    const end_at = `${editForm.date}T${editForm.endTime}:00`;
+    const { error } = await supabase.from("appointments").update({
+      title: editForm.title,
+      description: editForm.description || null,
+      start_at,
+      end_at,
+    }).eq("id", selectedAppt.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar");
+      return;
+    }
+    setAppointments((prev) => prev.map((a) => a.id === selectedAppt.id ? { ...a, title: editForm.title, description: editForm.description || null, start_at, end_at } : a));
+    setSelectedAppt({ ...selectedAppt, title: editForm.title, description: editForm.description || null, start_at, end_at });
+    setEditing(false);
+    toast.success("Compromisso atualizado!");
+  };
+
+  const handleDeleteFromModal = async () => {
+    if (!selectedAppt) return;
+    const { error } = await supabase.from("appointments").delete().eq("id", selectedAppt.id);
+    if (error) {
+      toast.error("Erro ao excluir");
+      return;
+    }
+    setAppointments((prev) => prev.filter((a) => a.id !== selectedAppt.id));
+    setSelectedAppt(null);
+    toast.success("Compromisso removido");
+  };
 
   useEffect(() => {
     if (!tenantId) return;
