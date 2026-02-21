@@ -173,15 +173,24 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
   };
 
   const handleLinkClient = async () => {
-    if (!data || !data.caseId || !selectedClientId) return;
+    if (!data || !selectedClientId) return;
     setSaving(true);
-    const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", data.caseId);
-    if (error) {
-      toast({ title: "Erro ao vincular cliente", variant: "destructive" });
+    if (data.caseId) {
+      // If there's already a linked case, update the case's client
+      const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", data.caseId);
+      if (error) {
+        toast({ title: "Erro ao vincular cliente", variant: "destructive" });
+      } else {
+        toast({ title: "Cliente vinculado!" });
+        setLinkingClient(false);
+        await refreshData(data.id);
+      }
     } else {
+      // No case linked — just store the client name locally for display
+      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", selectedClientId).single();
+      setData(prev => prev ? { ...prev, clientUserId: selectedClientId, clientName: profile?.full_name || "Cliente" } : prev);
       toast({ title: "Cliente vinculado!" });
       setLinkingClient(false);
-      await refreshData(data.id);
     }
     setSaving(false);
   };
