@@ -176,10 +176,10 @@ const InviteClientModal = ({ open, onClose, onSuccess }: InviteClientModalProps)
                 ))}
                 <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
                 <FileDropZone
-                  onFiles={(files) => {
-                    setAttachments(prev => [...prev, ...files]);
+                  onFiles={(newFiles) => {
+                    setFiles(prev => [...prev, ...newFiles]);
                   }}
-                  onFile={(f) => setAttachments(prev => [...prev, f])}
+                  onFile={(f) => setFiles(prev => [...prev, f])}
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                   multiple
                   label="Arraste documentos aqui ou clique para anexar"
