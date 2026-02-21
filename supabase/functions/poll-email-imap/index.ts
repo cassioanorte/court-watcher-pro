@@ -240,17 +240,19 @@ async function processMailbox(serviceClient: any, cred: any, lookbackDays: numbe
             console.error(`Error fetching from sender ${sender} in ${folder}:`, fetchErr instanceof Error ? fetchErr.message : fetchErr);
             errors++;
           }
+          if (timedOut) break;
         }
       } finally {
         lock.release();
       }
+      if (timedOut) break;
     }
   } finally {
     await client.logout().catch(() => {});
   }
 
-  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}, errors ${errors}`);
-  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned, errors };
+  console.log(`✅ Scanned ${emailsScanned} emails, found ${totalFound}, inserted ${totalInserted}, errors ${errors}${timedOut ? ' (timed out)' : ''}`);
+  return { found: totalFound, inserted: totalInserted, emails_scanned: emailsScanned, errors, timed_out: timedOut };
 }
 
 async function generateApiKey(tenantId: string): Promise<string> {
