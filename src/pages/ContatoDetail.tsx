@@ -689,7 +689,7 @@ const ContatoDetail = () => {
                   {cases.map((c) => (
                     <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link to={`/processos/${c.id}`} className="text-primary hover:underline font-mono text-xs">
+                        <Link to={`/processos/${c.id}`} state={{ from: `/contatos/${id}` }} className="text-primary hover:underline font-mono text-xs">
                           {c.process_number}
                         </Link>
                       </td>
