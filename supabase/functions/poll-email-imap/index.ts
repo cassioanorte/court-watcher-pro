@@ -43,11 +43,20 @@ Deno.serve(async (req) => {
     }
 
     const results: any[] = [];
+    const startTime = Date.now();
+    const MAX_RUNTIME_MS = 140_000; // 140s safety margin (limit is 150s)
 
     for (const cred of credentials) {
+      // Check if we're running out of time
+      if (Date.now() - startTime > MAX_RUNTIME_MS) {
+        console.log('⏱️ Approaching time limit, stopping early');
+        break;
+      }
+
       try {
         console.log(`Processing mailbox for tenant ${cred.tenant_id}: ${cred.imap_user}@${cred.imap_host}`);
-        const result = await processMailbox(serviceClient, cred);
+        const lookbackDays = isCron ? 3 : 30;
+        const result = await processMailbox(serviceClient, cred, lookbackDays, startTime, MAX_RUNTIME_MS);
         results.push({ tenant_id: cred.tenant_id, ...result });
 
         await serviceClient
