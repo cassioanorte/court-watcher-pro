@@ -164,6 +164,15 @@ const calcComponents: Record<string, React.FC> = {
   revisao_ccb: RevisaoCcbCalc,
   capital_giro: CapitalGiroCalc,
   credito_rural: CreditoRuralCalc,
+  fator_previdenciario: FatorPrevidenciarioCalc,
+  inss_restituicao: InssRestituicaoCalc,
+  revisao_pasep: RevisaoPasepCalc,
+  contribuicoes_atraso: ContribuicoesAtrasoCalc,
+  restabelecimento: RestabelecimentoCalc,
+  complementacao: ComplementacaoCalc,
+  bpc_loas: BpcLoasCalc,
+  restituicao_teto: RestituicaoTetoCalc,
+  restituicao_ir_doenca: RestituicaoIrDoencaCalc,
 };
 
 export default function Calculadoras() {
