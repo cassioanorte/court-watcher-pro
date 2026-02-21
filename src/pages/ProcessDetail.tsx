@@ -132,7 +132,19 @@ const ProcessDetail = () => {
     }
   };
 
-  const handleSaveSummary = async () => {
+  const handleSaveParties = async () => {
+    if (!id) return;
+    setSavingParties(true);
+    const { error } = await supabase.from("cases").update({ parties: partiesText.trim() || null }).eq("id", id);
+    if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+    else {
+      setCaseData((prev: any) => ({ ...prev, parties: partiesText.trim() || null }));
+      setEditingParties(false);
+      toast({ title: "Partes atualizadas!" });
+    }
+    setSavingParties(false);
+  };
+
     if (!id) return;
     setSavingSummary(true);
     const { error } = await supabase.from("cases").update({ case_summary: caseSummary }).eq("id", id);
