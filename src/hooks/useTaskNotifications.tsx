@@ -40,8 +40,8 @@ export function useTaskNotifications() {
         .order("created_at", { ascending: false })
         .limit(50),
     ]);
-    setReceivedTasks((receivedRes.data || []) as TaskAssignment[]);
-    setDelegatedTasks((delegatedRes.data || []) as TaskAssignment[]);
+    setReceivedTasks((receivedRes.data || []) as unknown as TaskAssignment[]);
+    setDelegatedTasks((delegatedRes.data || []) as unknown as TaskAssignment[]);
     setLoading(false);
   }, [user?.id]);
 
