@@ -67,6 +67,7 @@ export default function FatorPrevidenciarioCalc() {
   return (
     <div className="space-y-4">
       <CnisUpload onDataExtracted={handleCnisData} />
+      <div className="grid grid-cols-2 gap-4">
         <div><Label>Idade (anos)</Label><Input type="number" value={idade} onChange={e => setIdade(e.target.value)} /></div>
         <div><Label>Tempo de Contribuição (anos)</Label><Input type="number" value={tempoContribuicao} onChange={e => setTempoContribuicao(e.target.value)} /></div>
         <div><Label>Sexo</Label>
