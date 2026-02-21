@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Save, Palette, Upload, X, Eye, RotateCcw, Wand2 } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
+import StaffAccessControl from "@/components/StaffAccessControl";
 import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
 import MassImportBookmarklet from "@/components/MassImportBookmarklet";
@@ -604,6 +605,7 @@ const Settings = () => {
       {/* EprocCredentials oculto — mantido no código caso volte a ser útil */}
       {/* <EprocCredentials /> */}
       <TeamManagement />
+      <StaffAccessControl />
     </div>
   );
 };
