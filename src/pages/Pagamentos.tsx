@@ -419,7 +419,7 @@ const Pagamentos = () => {
       client_amount: clientCalc,
       court_costs: costs,
       social_security: soc,
-      income_tax: tax,
+      income_tax: taxCalc,
       expected_payment_date: editForm.expected_payment_date || null,
       reference_date: editForm.reference_date || null,
       notes: editForm.notes || null,
