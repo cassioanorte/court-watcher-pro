@@ -198,7 +198,7 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       if (expensesAmount > 0 && selectedOrder) {
         await supabase.from("financial_transactions").insert({
           tenant_id: tenantId,
-          type: "despesa",
+          type: "expense",
           category: "Despesas Processuais",
           amount: expensesAmount,
           description: `Despesa descontada do rateio — ${selectedOrder.type.toUpperCase()} ${selectedOrder.process_number || selectedOrder.beneficiary_name || ""}${formExpensesDesc ? `: ${formExpensesDesc}` : ""}`,
