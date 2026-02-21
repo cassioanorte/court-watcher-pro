@@ -99,7 +99,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-2 py-4 space-y-1">
           {navItems.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to));
             return (
@@ -107,15 +107,17 @@ const AdminLayout = () => {
                 key={item.to}
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
+                title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  sidebarCollapsed && "justify-center px-2",
                   active
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                 )}
               >
-                <item.icon className="w-4 h-4" />
-                {item.label}
+                <item.icon className="w-4 h-4 shrink-0" />
+                {!sidebarCollapsed && item.label}
               </Link>
             );
           })}
