@@ -603,40 +603,20 @@ const ProcessDetail = () => {
         </div>
 
         {/* Próximo passo */}
-        <div className="bg-card rounded-lg p-4 border shadow-card">
-           <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Próximo Passo</p>
+        <div className="bg-card rounded-lg p-4 border shadow-card col-span-1 md:col-span-2 lg:col-span-1">
+           <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Tarefas / Próximos Passos</p>
             {isLawyer && !editingNextStep && (
-              <div className="flex items-center gap-2">
-                {caseData.next_step && (
-                  <button
-                    onClick={async () => {
-                      const { error } = await supabase.from("cases").update({ next_step: null, next_step_responsible_id: null } as any).eq("id", id);
-                      if (error) {
-                        toast({ title: "Erro", description: error.message, variant: "destructive" });
-                      } else {
-                        // Also delete related task assignments
-                        if (caseData.next_step) {
-                          await supabase.from("task_assignments").delete().eq("case_id", id as string).eq("task_description", caseData.next_step);
-                        }
-                        setCaseData((prev: any) => ({ ...prev, next_step: null, next_step_responsible_id: null }));
-                        setNextStep("");
-                        setNextStepResponsibleId(null);
-                        toast({ title: "Próximo passo removido!" });
-                      }
-                    }}
-                    className="text-[10px] text-destructive hover:underline"
-                  >
-                    Excluir
-                  </button>
-                )}
-                <button onClick={() => setEditingNextStep(true)} className="text-[10px] text-accent hover:underline">Editar</button>
-              </div>
+              <button onClick={() => { setEditingNextStep(true); setNextStep(""); setNextStepResponsibleId(null); setNextStepDueDate(""); }} className="text-[10px] text-accent hover:underline flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Nova tarefa
+              </button>
             )}
           </div>
-          {editingNextStep && isLawyer ? (
-            <div className="space-y-2">
-              <textarea value={nextStep} onChange={(e) => setNextStep(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" placeholder="Qual o próximo passo?" />
+
+          {/* Add new task form */}
+          {editingNextStep && isLawyer && (
+            <div className="space-y-2 mb-3 p-3 rounded-lg bg-muted/30 border border-dashed">
+              <textarea value={nextStep} onChange={(e) => setNextStep(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" placeholder="Descreva a tarefa..." />
               <div>
                 <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Responsável</label>
                 <select
@@ -661,21 +641,62 @@ const ProcessDetail = () => {
               </div>
               <div className="flex gap-2">
                 <button onClick={handleSaveNextStep} disabled={savingNextStep} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold disabled:opacity-50">
-                  {savingNextStep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Salvar
+                  {savingNextStep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Adicionar
                 </button>
-                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); setNextStepResponsibleId(caseData.next_step_responsible_id || null); setNextStepDueDate(""); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
+                <button onClick={() => setEditingNextStep(false)} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
               </div>
             </div>
-          ) : (
-            <div>
-              <p className="text-sm text-foreground">{caseData.next_step || "—"}</p>
-              {caseData.next_step_responsible_id && (
-                <p className="text-xs text-accent mt-1 flex items-center gap-1">
-                  <UserCircle className="w-3.5 h-3.5" />
-                  {teamMembers.find((m: any) => m.user_id === caseData.next_step_responsible_id)?.full_name || "Responsável atribuído"}
-                </p>
-              )}
+          )}
+
+          {/* Task list */}
+          {caseTasks.length > 0 ? (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {caseTasks.map((task) => {
+                const isOverdue = task.due_date && new Date(task.due_date + "T23:59:59") < new Date();
+                return (
+                  <div key={task.id} className="flex items-start justify-between gap-2 p-2 rounded-lg bg-muted/20 border text-xs">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-medium">{task.task_description}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {task.due_date && (
+                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded", isOverdue ? "bg-destructive/15 text-destructive font-semibold" : "bg-muted text-muted-foreground")}>
+                            {isOverdue ? "⚠ " : ""}Prazo: {new Date(task.due_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                          </span>
+                        )}
+                        {task.assigned_to && (
+                          <span className="text-[10px] text-accent flex items-center gap-0.5">
+                            <UserCircle className="w-3 h-3" />
+                            {teamMembers.find((m: any) => m.user_id === task.assigned_to)?.full_name || "Atribuído"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isLawyer && (
+                      <button
+                        onClick={async () => {
+                          setDeletingTaskId(task.id);
+                          const { error } = await supabase.from("task_assignments").delete().eq("id", task.id);
+                          if (error) {
+                            toast({ title: "Erro", description: error.message, variant: "destructive" });
+                          } else {
+                            setCaseTasks(prev => prev.filter(t => t.id !== task.id));
+                            toast({ title: "Tarefa removida!" });
+                          }
+                          setDeletingTaskId(null);
+                        }}
+                        disabled={deletingTaskId === task.id}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        title="Excluir tarefa"
+                      >
+                        {deletingTaskId === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+          ) : (
+            !editingNextStep && <p className="text-sm text-muted-foreground">Nenhuma tarefa pendente</p>
           )}
         </div>
       </div>
