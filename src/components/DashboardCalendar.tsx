@@ -257,10 +257,77 @@ const DashboardCalendar = () => {
             <DialogTitle>Novo Compromisso</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Type selection */}
             <div>
-              <label className="text-sm font-medium text-foreground">Título *</label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ex: Audiência inicial" />
+              <label className="text-sm font-medium text-foreground">Tipo *</label>
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {typeOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, title: opt.value })}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                        form.title === opt.value
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "bg-background text-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" /> {opt.value}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Video platform picker */}
+            {form.title === "Videochamada" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Plataforma de vídeo</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVideoPlatform("jitsi")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                      videoPlatform === "jitsi"
+                        ? "bg-accent text-accent-foreground border-accent"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    )}
+                  >
+                    <Video className="w-3.5 h-3.5" /> Jitsi Meet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (googleConnected) {
+                        setVideoPlatform("google_meet");
+                      } else {
+                        connectGoogle();
+                      }
+                    }}
+                    disabled={googleLoading}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                      videoPlatform === "google_meet" && googleConnected
+                        ? "bg-accent text-accent-foreground border-accent"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    )}
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    {googleConnected ? "Google Meet" : googleLoading ? "Conectando..." : "Conectar Google Meet"}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {videoPlatform === "jitsi"
+                    ? "Link do Jitsi será gerado automaticamente"
+                    : "Evento criado no Google Calendar com link do Meet"}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium text-foreground">Descrição</label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Detalhes do compromisso" rows={2} />
