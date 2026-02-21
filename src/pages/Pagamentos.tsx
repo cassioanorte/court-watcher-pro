@@ -719,7 +719,11 @@ const Pagamentos = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-3">
+            <div className="grid grid-cols-3 gap-2 bg-muted/30 rounded-lg p-3">
+              <div>
+                <p className="text-xs text-muted-foreground">IR ({formTaxPercent}%)</p>
+                <p className="text-sm font-bold text-destructive/80">{formTax ? fmt(parseFloat(formTax)) : "—"}</p>
+              </div>
               <div>
                 <p className="text-xs text-muted-foreground">Escritório recebe</p>
                 <p className="text-lg font-bold text-accent">{formOffice ? fmt(parseFloat(formOffice)) : "—"}</p>
