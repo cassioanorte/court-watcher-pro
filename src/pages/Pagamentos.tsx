@@ -446,13 +446,19 @@ const Pagamentos = () => {
 
   const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
 
-  const totals = orders.filter(o => o.status !== "cancelado").reduce(
-    (acc, o) => ({
-      gross: acc.gross + (o.gross_amount || 0),
-      office: acc.office + (o.office_amount || 0),
-      client: acc.client + (o.client_amount || 0),
-    }),
-    { gross: 0, office: 0, client: 0 }
+  const activeOrders = orders.filter(o => o.status !== "cancelado");
+  const totals = activeOrders.reduce(
+    (acc, o) => {
+      const officeGross = o.ownership_type === "escritorio" ? o.gross_amount : Math.round(o.gross_amount * (o.office_fees_percent || 0) / 100 * 100) / 100;
+      const ir = Math.round(officeGross * (o.tax_percent || 0) / 100 * 100) / 100;
+      return {
+        gross: acc.gross + (o.gross_amount || 0),
+        office: acc.office + (o.office_amount || 0),
+        client: acc.client + (o.client_amount || 0),
+        ir: acc.ir + ir,
+      };
+    },
+    { gross: 0, office: 0, client: 0, ir: 0 }
   );
 
   const getCasePn = (caseId: string | null) => {
@@ -475,16 +481,20 @@ const Pagamentos = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl border p-4">
           <p className="text-xs text-muted-foreground mb-1">Valor Bruto Total</p>
           <p className="text-xl font-bold text-foreground">{fmt(totals.gross)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-xl border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Honorários (Escritório)</p>
-          <p className="text-xl font-bold text-accent">{fmt(totals.office)}</p>
+          <p className="text-xs text-muted-foreground mb-1">IR s/ Honorários</p>
+          <p className="text-xl font-bold text-destructive/80">{fmt(totals.ir)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl border p-4">
+          <p className="text-xs text-muted-foreground mb-1">Honorários Líquidos</p>
+          <p className="text-xl font-bold text-accent">{fmt(totals.office)}</p>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-xl border p-4">
           <p className="text-xs text-muted-foreground mb-1">Valor do Cliente</p>
           <p className="text-xl font-bold text-foreground">{fmt(totals.client)}</p>
         </motion.div>
