@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase, Pencil, Save } from "lucide-react";
+import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase, Pencil, Save, Users, ArrowDownRight } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -567,6 +567,14 @@ const Pagamentos = () => {
           </div>
         </div>
       )}
+
+      {/* Fee Distribution / Cash Flow Section */}
+      <FeeDistributionSection 
+        orders={orders} 
+        tenantId={tenantId} 
+        userId={user?.id || ""} 
+        fmt={fmt} 
+      />
 
       {/* New Record Dialog */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
