@@ -495,16 +495,18 @@ const Pagamentos = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-muted-foreground border-b">
-                  <th className="p-3 font-medium">Tipo</th>
-                  <th className="p-3 font-medium">Beneficiário</th>
-                  <th className="p-3 font-medium">Processo</th>
-                  <th className="p-3 font-medium text-right">Bruto</th>
-                  <th className="p-3 font-medium text-right">Escritório</th>
-                  <th className="p-3 font-medium text-right">Cliente</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium text-right">Ações</th>
-                </tr>
+                 <tr className="text-left text-muted-foreground border-b">
+                   <th className="p-3 font-medium">Tipo</th>
+                   <th className="p-3 font-medium">Beneficiário</th>
+                   <th className="p-3 font-medium">Processo</th>
+                   <th className="p-3 font-medium text-right">Bruto</th>
+                   <th className="p-3 font-medium text-right">Imposto</th>
+                   <th className="p-3 font-medium text-right">Líquido</th>
+                   <th className="p-3 font-medium text-right">Escritório</th>
+                   <th className="p-3 font-medium text-right">Cliente</th>
+                   <th className="p-3 font-medium">Status</th>
+                   <th className="p-3 font-medium text-right">Ações</th>
+                 </tr>
               </thead>
               <tbody>
                 {orders.map((o) => {
