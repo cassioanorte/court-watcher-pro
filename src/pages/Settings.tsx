@@ -605,6 +605,7 @@ const Settings = () => {
       {/* EprocCredentials oculto — mantido no código caso volte a ser útil */}
       {/* <EprocCredentials /> */}
       <TeamManagement />
+      <StaffAccessControl />
     </div>
   );
 };
