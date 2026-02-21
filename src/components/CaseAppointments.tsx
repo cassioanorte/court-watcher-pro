@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check, Link2 } from "lucide-react";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check, Link2, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -560,6 +560,21 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                     >
                       <Send className="w-3.5 h-3.5" />
                     </button>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase.from("appointments").delete().eq("id", a.id);
+                        if (error) {
+                          toast({ title: "Erro ao excluir", variant: "destructive" });
+                        } else {
+                          toast({ title: "Atendimento excluído" });
+                          fetchAppointments();
+                        }
+                      }}
+                      title="Excluir"
+                      className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );
@@ -576,13 +591,28 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
             {past.map((a) => {
               const Icon = getTypeIcon(a.title);
               return (
-                <div key={a.id} className="flex items-start gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors">
+                <div key={a.id} className="flex items-start gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors group">
                   <Icon className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">{a.title}</p>
                     {a.description && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{a.description}</p>}
                   </div>
                   <span className="text-[10px] text-muted-foreground shrink-0">{formatDateTime(a.start_at)}</span>
+                  <button
+                    onClick={async () => {
+                      const { error } = await supabase.from("appointments").delete().eq("id", a.id);
+                      if (error) {
+                        toast({ title: "Erro ao excluir", variant: "destructive" });
+                      } else {
+                        toast({ title: "Atendimento excluído" });
+                        fetchAppointments();
+                      }
+                    }}
+                    title="Excluir"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-destructive/10 transition-all text-destructive shrink-0"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               );
             })}
