@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
