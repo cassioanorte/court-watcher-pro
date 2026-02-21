@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Pagamentos from "@/pages/Pagamentos";
+import PaymentOrdersTracker from "@/components/PaymentOrdersTracker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
