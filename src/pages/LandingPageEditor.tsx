@@ -269,13 +269,14 @@ const LandingPageEditor = () => {
         {/* Right: Content editor */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="hero" className="w-full">
-            <TabsList className="grid grid-cols-6 w-full">
+            <TabsList className="grid grid-cols-7 w-full">
               <TabsTrigger value="hero">Hero</TabsTrigger>
               <TabsTrigger value="about">Sobre</TabsTrigger>
               <TabsTrigger value="services">Serviços</TabsTrigger>
               <TabsTrigger value="testimonials">Depoimentos</TabsTrigger>
               <TabsTrigger value="contact">Contato</TabsTrigger>
               <TabsTrigger value="quiz">Quiz</TabsTrigger>
+              <TabsTrigger value="branding" className="gap-1"><Palette className="w-3 h-3" /> Marca</TabsTrigger>
             </TabsList>
 
             <TabsContent value="hero" className="space-y-4 mt-4">
