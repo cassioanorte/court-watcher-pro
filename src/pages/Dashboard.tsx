@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardCalendar from "@/components/DashboardCalendar";
 import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
-import DashboardCasesChart from "@/components/dashboard/DashboardCasesChart";
+import DashboardReminders from "@/components/dashboard/DashboardReminders";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
 import DashboardTaskNotifications from "@/components/dashboard/DashboardTaskNotifications";
