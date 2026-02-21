@@ -567,11 +567,21 @@ const ContatoDetail = () => {
                 className="hidden"
                 onChange={handleAvatarUpload}
               />
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={uploadingAvatar}
-                className="w-16 h-16 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden disabled:opacity-50"
-                title="Clique para alterar a foto"
+              <div
+                onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const f = e.dataTransfer.files?.[0];
+                  if (f && f.type.startsWith("image/") && avatarInputRef.current) {
+                    const dt = new DataTransfer();
+                    dt.items.add(f);
+                    avatarInputRef.current.files = dt.files;
+                    avatarInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                }}
+                className={`w-16 h-16 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden ${uploadingAvatar ? 'opacity-50' : ''}`}
+                title="Clique ou arraste uma imagem"
               >
                 {contact.avatar_url ? (
                   <>
@@ -585,7 +595,7 @@ const ContatoDetail = () => {
                 ) : (
                   <Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
                 )}
-              </button>
+              </div>
             </div>
 
             {/* Contact info */}

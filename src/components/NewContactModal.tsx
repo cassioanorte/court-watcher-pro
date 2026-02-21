@@ -284,11 +284,19 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                       }
                     }}
                   />
-                  <button
-                    type="button"
+                  <div
                     onClick={() => avatarInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => {
+                      e.preventDefault(); e.stopPropagation();
+                      const f = e.dataTransfer.files?.[0];
+                      if (f && f.type.startsWith("image/")) {
+                        setAvatarFile(f);
+                        setAvatarPreview(URL.createObjectURL(f));
+                      }
+                    }}
                     className="w-14 h-14 rounded-full bg-muted flex items-center justify-center relative cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all group overflow-hidden"
-                    title="Clique para adicionar foto"
+                    title="Clique ou arraste uma imagem"
                   >
                     {avatarPreview ? (
                       <>
@@ -300,9 +308,9 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                     ) : (
                       <Camera className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     )}
-                  </button>
+                  </div>
                   <span className="text-xs text-muted-foreground">
-                    {avatarPreview ? "Clique para trocar" : "Clique para adicionar"}
+                    {avatarPreview ? "Clique ou arraste para trocar" : "Clique ou arraste para adicionar"}
                   </span>
                 </div>
               </div>
