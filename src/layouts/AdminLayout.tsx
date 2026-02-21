@@ -26,6 +26,9 @@ const navItems = [
 const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
   const { tenantId, profile, role, user } = useAuth();
   // Realtime popup notifications for task assignments
   useTaskNotifications();
@@ -55,23 +58,38 @@ const AdminLayout = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 gradient-hero flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 gradient-hero",
+          sidebarCollapsed ? "w-16" : "w-64",
+          "lg:relative",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Brand */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container">
-            {tenantLogo ? (
-              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
-            ) : (
-              <Scale className="w-5 h-5 text-accent-foreground" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide truncate">{tenantName}</h1>
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Escritório</p>
-          </div>
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+          {!sidebarCollapsed && (
+            <>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container">
+                {tenantLogo ? (
+                  <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
+                ) : (
+                  <Scale className="w-5 h-5 text-accent-foreground" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide truncate">{tenantName}</h1>
+                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Escritório</p>
+              </div>
+            </>
+          )}
+          {sidebarCollapsed && (
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container mx-auto">
+              {tenantLogo ? (
+                <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
+              ) : (
+                <Scale className="w-5 h-5 text-accent-foreground" />
+              )}
+            </div>
+          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="ml-auto lg:hidden text-sidebar-foreground/60 hover:text-sidebar-foreground"
@@ -81,7 +99,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-2 py-4 space-y-1">
           {navItems.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to));
             return (
@@ -89,41 +107,59 @@ const AdminLayout = () => {
                 key={item.to}
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
+                title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  sidebarCollapsed && "justify-center px-2",
                   active
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                 )}
               >
-                <item.icon className="w-4 h-4" />
-                {item.label}
+                <item.icon className="w-4 h-4 shrink-0" />
+                {!sidebarCollapsed && item.label}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
+        <div className="px-2 py-4 border-t border-sidebar-border space-y-1">
           {role === "superadmin" && (
-            <Link to="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all">
-              <Shield className="w-4 h-4" />
-              Painel Super Admin
+            <Link to="/admin" onClick={() => setSidebarOpen(false)} title={sidebarCollapsed ? "Painel Super Admin" : undefined} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all", sidebarCollapsed && "justify-center px-2")}>
+              <Shield className="w-4 h-4 shrink-0" />
+              {!sidebarCollapsed && "Painel Super Admin"}
             </Link>
           )}
-          <Link to="/configuracoes" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all">
-            <Settings className="w-4 h-4" />
-            Configurações
+          <Link to="/configuracoes" onClick={() => setSidebarOpen(false)} title={sidebarCollapsed ? "Configurações" : undefined} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all", sidebarCollapsed && "justify-center px-2")}>
+            <Settings className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && "Configurações"}
           </Link>
+          {/* Collapse toggle - desktop only */}
+          <button
+            onClick={() => {
+              setSidebarCollapsed(prev => {
+                const next = !prev;
+                localStorage.setItem("sidebar-collapsed", String(next));
+                return next;
+              });
+            }}
+            title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            className={cn("hidden lg:flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all", sidebarCollapsed && "justify-center px-2")}
+          >
+            {sidebarCollapsed ? <Menu className="w-4 h-4 shrink-0" /> : <X className="w-4 h-4 shrink-0" />}
+            {!sidebarCollapsed && "Recolher menu"}
+          </button>
           <button
             onClick={async () => {
               await supabase.auth.signOut();
               window.location.href = "/auth";
             }}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10 w-full transition-all"
+            className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10 w-full transition-all", sidebarCollapsed && "justify-center px-2")}
+            title={sidebarCollapsed ? "Sair" : undefined}
           >
-            <LogOut className="w-4 h-4" />
-            Sair
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && "Sair"}
           </button>
         </div>
       </aside>

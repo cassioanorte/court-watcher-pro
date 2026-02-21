@@ -42,7 +42,7 @@ interface TodayMovement {
 
 const Dashboard = () => {
   const { tenantId } = useAuth();
-  const [casesCount, setCasesCount] = useState(0);
+  const [agentsCount, setAgentsCount] = useState(0);
   const [clientsCount, setClientsCount] = useState(0);
   const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [todayPubs, setTodayPubs] = useState<Publication[]>([]);
@@ -98,14 +98,14 @@ const Dashboard = () => {
       weekEnd.setDate(weekEnd.getDate() + 7);
       const weekEndStr = weekEnd.toISOString();
 
-      const [casesRes, profilesRes, appointmentsRes, pubsRes] = await Promise.all([
-        supabase.from("cases").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+      const [agentsRes, profilesRes, appointmentsRes, pubsRes] = await Promise.all([
+        supabase.from("ai_agents").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id").eq("tenant_id", tenantId),
         supabase.from("appointments").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("start_at", new Date().toISOString()).lte("start_at", weekEndStr),
         supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
       ]);
 
-      setCasesCount(casesRes.count || 0);
+      setAgentsCount(agentsRes.count || 0);
       setAppointmentsCount(appointmentsRes.count || 0);
       setTodayPubs((pubsRes.data || []) as Publication[]);
 
@@ -168,7 +168,7 @@ const Dashboard = () => {
 
       {/* Stat Cards with gradients */}
       <DashboardStatsCards
-        casesCount={casesCount}
+        agentsCount={agentsCount}
         clientsCount={clientsCount}
         appointmentsCount={appointmentsCount}
         loading={loading}
