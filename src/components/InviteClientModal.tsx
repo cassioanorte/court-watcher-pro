@@ -184,7 +184,7 @@ const InviteClientModal = ({ open, onClose, onSuccess }: InviteClientModalProps)
                   multiple
                   label="Arraste documentos aqui ou clique para anexar"
                   compact
-                />
+              </div>
             </div>
 
             <button type="submit" disabled={loading} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
