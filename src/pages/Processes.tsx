@@ -456,6 +456,11 @@ const Processes = () => {
                 <input type="text" value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
               </div>
               <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Partes Envolvidas</label>
+                <input type="text" value={editForm.parties} onChange={(e) => setEditForm(f => ({ ...f, parties: e.target.value }))} placeholder="Ex: João da Silva | Maria Souza" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                <p className="text-[10px] text-muted-foreground mt-1">Use "|" para separar Autor e Réu</p>
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resumo do caso</label>
                 <textarea value={editForm.case_summary} onChange={(e) => setEditForm(f => ({ ...f, case_summary: e.target.value }))} placeholder="Descreva brevemente o caso, partes envolvidas, pedidos, etc." rows={3} className="w-full mt-1 px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" />
               </div>
