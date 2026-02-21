@@ -7,6 +7,7 @@ import { ArrowLeft, Pencil, Trash2, Save, X, Camera, Upload, FileText, Link2, Do
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ContactAppointments from "@/components/ContactAppointments";
 
 const ContatoDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -927,8 +928,13 @@ const ContatoDetail = () => {
           </div>
         </TabsContent>
 
+        {/* Atendimentos tab */}
+        <TabsContent value="atendimentos" className="mt-6">
+          {tenantId && id && <ContactAppointments contactUserId={id} tenantId={tenantId} />}
+        </TabsContent>
+
         {/* Placeholder tabs */}
-        {["atendimentos", "despesas", "honorarios", "timesheets", "notificacoes"].map((tab) => (
+        {["despesas", "honorarios", "timesheets", "notificacoes"].map((tab) => (
           <TabsContent key={tab} value={tab} className="mt-6">
             <div className="bg-card border rounded-lg p-8 text-center">
               <p className="text-sm text-muted-foreground">Em breve — funcionalidade de {tab} será implementada.</p>
