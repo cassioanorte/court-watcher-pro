@@ -48,9 +48,9 @@ const DEFAULT_SECTIONS = [
   { id: "hero", label: "Hero", visible: true },
   { id: "about", label: "Sobre", visible: true },
   { id: "services", label: "Serviços", visible: true },
+  { id: "quiz", label: "Quiz", visible: false },
   { id: "testimonials", label: "Depoimentos", visible: true },
   { id: "contact", label: "Contato", visible: true },
-  { id: "quiz", label: "Quiz", visible: false },
 ];
 
 // Ensure quiz section exists in sections array
