@@ -3,11 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote } from "lucide-react";
+import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
 
 interface PaymentOrder {
   id: string;
@@ -36,6 +37,8 @@ const PaymentOrdersTracker = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ beneficiary_name: "", process_number: "", gross_amount: "", office_amount: "", client_amount: "", expected_payment_date: "" });
 
   const fetchOrders = useCallback(async () => {
     if (!tenantId) return;
@@ -65,7 +68,49 @@ const PaymentOrdersTracker = () => {
     toast.success("Status atualizado");
   };
 
-  const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
+  const startEdit = (o: PaymentOrder) => {
+    setEditingId(o.id);
+    setEditForm({
+      beneficiary_name: o.beneficiary_name || "",
+      process_number: o.process_number || "",
+      gross_amount: String(o.gross_amount || 0),
+      office_amount: String(o.office_amount || 0),
+      client_amount: String(o.client_amount || 0),
+      expected_payment_date: o.expected_payment_date || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const { error } = await supabase.from("payment_orders" as any).update({
+      beneficiary_name: editForm.beneficiary_name || null,
+      process_number: editForm.process_number || null,
+      gross_amount: parseFloat(editForm.gross_amount) || 0,
+      office_amount: parseFloat(editForm.office_amount) || 0,
+      client_amount: parseFloat(editForm.client_amount) || 0,
+      expected_payment_date: editForm.expected_payment_date || null,
+    }).eq("id", editingId);
+    if (error) { toast.error("Erro ao salvar"); return; }
+    setOrders(prev => prev.map(o => o.id === editingId ? {
+      ...o,
+      beneficiary_name: editForm.beneficiary_name || null,
+      process_number: editForm.process_number || null,
+      gross_amount: parseFloat(editForm.gross_amount) || 0,
+      office_amount: parseFloat(editForm.office_amount) || 0,
+      client_amount: parseFloat(editForm.client_amount) || 0,
+      expected_payment_date: editForm.expected_payment_date || null,
+    } : o));
+    setEditingId(null);
+    toast.success("Registro atualizado");
+  };
+
+  const deleteOrder = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este RPV/Precatório?")) return;
+    const { error } = await supabase.from("payment_orders" as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    setOrders(prev => prev.filter(o => o.id !== id));
+    toast.success("Registro excluído");
+  };
 
   const filtered = orders.filter(o => {
     if (filterStatus !== "all" && o.status !== filterStatus) return false;
