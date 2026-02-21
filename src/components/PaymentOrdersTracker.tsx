@@ -195,6 +195,7 @@ const PaymentOrdersTracker = () => {
                   <th className="p-3 font-medium text-right">Cliente</th>
                   <th className="p-3 font-medium">Status</th>
                   <th className="p-3 font-medium">Previsão</th>
+                  <th className="p-3 font-medium text-center">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,6 +203,7 @@ const PaymentOrdersTracker = () => {
                   const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
                   const StIcon = st.icon;
                   const isPaid = o.status === "sacado";
+                  const isEditing = editingId === o.id;
                   return (
                     <motion.tr
                       key={o.id}
@@ -211,21 +213,36 @@ const PaymentOrdersTracker = () => {
                       className={`border-b last:border-0 transition-colors ${isPaid ? "bg-muted/20" : "hover:bg-muted/30"}`}
                     >
                       <td className="p-3">
-                        <Checkbox
-                          checked={isPaid}
-                          onCheckedChange={() => togglePaid(o.id, o.status)}
-                        />
+                        <Checkbox checked={isPaid} onCheckedChange={() => togglePaid(o.id, o.status)} />
                       </td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
                       </td>
                       <td className={`p-3 font-medium ${isPaid ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                        {o.beneficiary_name || "—"}
+                        {isEditing ? (
+                          <Input value={editForm.beneficiary_name} onChange={e => setEditForm(f => ({ ...f, beneficiary_name: e.target.value }))} className="h-7 text-xs" />
+                        ) : (o.beneficiary_name || "—")}
                       </td>
-                      <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || "—"}</td>
-                      <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>{fmt(o.gross_amount)}</td>
-                      <td className={`p-3 text-right font-medium ${isPaid ? "text-muted-foreground" : "text-accent"}`}>{fmt(o.office_amount)}</td>
-                      <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>{fmt(o.client_amount)}</td>
+                      <td className="p-3 text-muted-foreground font-mono text-xs">
+                        {isEditing ? (
+                          <Input value={editForm.process_number} onChange={e => setEditForm(f => ({ ...f, process_number: e.target.value }))} className="h-7 text-xs font-mono" />
+                        ) : (o.process_number || "—")}
+                      </td>
+                      <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
+                        {isEditing ? (
+                          <Input type="number" value={editForm.gross_amount} onChange={e => setEditForm(f => ({ ...f, gross_amount: e.target.value }))} className="h-7 text-xs text-right w-24 ml-auto" />
+                        ) : fmt(o.gross_amount)}
+                      </td>
+                      <td className={`p-3 text-right font-medium ${isPaid ? "text-muted-foreground" : "text-accent"}`}>
+                        {isEditing ? (
+                          <Input type="number" value={editForm.office_amount} onChange={e => setEditForm(f => ({ ...f, office_amount: e.target.value }))} className="h-7 text-xs text-right w-24 ml-auto" />
+                        ) : fmt(o.office_amount)}
+                      </td>
+                      <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
+                        {isEditing ? (
+                          <Input type="number" value={editForm.client_amount} onChange={e => setEditForm(f => ({ ...f, client_amount: e.target.value }))} className="h-7 text-xs text-right w-24 ml-auto" />
+                        ) : fmt(o.client_amount)}
+                      </td>
                       <td className="p-3">
                         <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
                           <SelectTrigger className="h-7 text-xs w-[130px] border-0 bg-transparent p-0">
@@ -242,7 +259,24 @@ const PaymentOrdersTracker = () => {
                         </Select>
                       </td>
                       <td className="p-3 text-xs text-muted-foreground">
-                        {o.expected_payment_date ? new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
+                        {isEditing ? (
+                          <Input type="date" value={editForm.expected_payment_date} onChange={e => setEditForm(f => ({ ...f, expected_payment_date: e.target.value }))} className="h-7 text-xs w-32" />
+                        ) : (o.expected_payment_date ? new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR") : "—")}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={saveEdit}><Save className="w-3.5 h-3.5" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(null)}><X className="w-3.5 h-3.5" /></Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEdit(o)}><Pencil className="w-3.5 h-3.5" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteOrder(o.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </motion.tr>
                   );
