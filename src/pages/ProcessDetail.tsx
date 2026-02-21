@@ -973,6 +973,71 @@ const ProcessDetail = () => {
       {activeTab === "historico" && isLawyer && (
         <CaseActivityLog caseId={id!} />
       )}
+
+      {/* Full Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setShowEditModal(false)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-lg p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowEditModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+            <h2 className="text-lg font-bold text-foreground mb-1">Editar Processo</h2>
+            <p className="text-sm text-muted-foreground mb-5">Atualize os dados cadastrais do processo</p>
+            <form onSubmit={handleSaveFullEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Número CNJ *</label>
+                <input type="text" value={editForm.process_number} onChange={(e) => setEditForm(f => ({ ...f, process_number: e.target.value }))} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Origem *</label>
+                <select value={editForm.source} onChange={(e) => setEditForm(f => ({ ...f, source: e.target.value as ProcessSource }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  {Object.entries(allSourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assunto</label>
+                <input type="text" value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Partes Envolvidas</label>
+                <input type="text" value={editForm.parties} onChange={(e) => setEditForm(f => ({ ...f, parties: e.target.value }))} placeholder="Ex: João da Silva | Maria Souza" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                <p className="text-[10px] text-muted-foreground mt-1">Use "|" para separar Autor e Réu</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resumo do caso</label>
+                <textarea value={editForm.case_summary} onChange={(e) => setEditForm(f => ({ ...f, case_summary: e.target.value }))} placeholder="Descreva brevemente o caso..." rows={3} className="w-full mt-1 px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cliente</label>
+                <select value={editForm.client_user_id} onChange={(e) => setEditForm(f => ({ ...f, client_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Sem cliente vinculado</option>
+                  {editClients.map(c => <option key={c.user_id} value={c.user_id}>{c.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado responsável</label>
+                <select value={editForm.responsible_user_id} onChange={(e) => setEditForm(f => ({ ...f, responsible_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Selecione...</option>
+                  {editStaff.map(s => <option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+                <input type="text" value={editForm.simple_status} onChange={(e) => setEditForm(f => ({ ...f, simple_status: e.target.value }))} placeholder="Ex: Em andamento" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editForm.automation_enabled} onChange={(e) => setEditForm(f => ({ ...f, automation_enabled: e.target.checked }))} className="rounded border-border" />
+                <span className="text-sm text-foreground">Ativar captura automática de movimentações</span>
+              </label>
+              <button type="submit" disabled={savingEdit} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" />
+                {savingEdit ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
