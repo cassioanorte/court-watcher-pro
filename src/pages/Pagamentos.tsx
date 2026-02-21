@@ -44,6 +44,9 @@ interface PaymentOrder {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  ownership_type: string;
+  fee_type: string;
+  tax_percent: number | null;
 }
 
 interface CaseOption {
@@ -93,6 +96,9 @@ const Pagamentos = () => {
   const [formDocName, setFormDocName] = useState("");
   const [formAiExtracted, setFormAiExtracted] = useState(false);
   const [formAiRaw, setFormAiRaw] = useState<any>(null);
+  const [formOwnership, setFormOwnership] = useState("cliente");
+  const [formFeeType, setFormFeeType] = useState("contratuais");
+  const [formTaxPercent, setFormTaxPercent] = useState("10.9");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchOrders = useCallback(async () => {
