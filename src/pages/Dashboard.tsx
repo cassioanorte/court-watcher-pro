@@ -10,6 +10,7 @@ import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
 import DashboardCasesChart from "@/components/dashboard/DashboardCasesChart";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
+import DashboardTaskNotifications from "@/components/dashboard/DashboardTaskNotifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -172,6 +173,9 @@ const Dashboard = () => {
         appointmentsCount={appointmentsCount}
         loading={loading}
       />
+
+      {/* Task Notifications */}
+      <DashboardTaskNotifications />
 
       {/* Charts + Pipeline row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useTaskNotifications } from "@/hooks/useTaskNotifications";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
@@ -24,6 +25,8 @@ const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { tenantId, profile, role, user } = useAuth();
+  // Realtime popup notifications for task assignments
+  useTaskNotifications();
   const [tenantName, setTenantName] = useState("Portal Jurídico");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
