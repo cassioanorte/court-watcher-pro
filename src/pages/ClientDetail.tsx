@@ -353,6 +353,9 @@ const ClientDetail = () => {
                               </div>
                             )}
                           </div>
+
+                          {/* Atendimentos */}
+                          <CaseAppointments caseId={c.id} tenantId={c.tenant_id} />
                         </div>
                       </motion.div>
                     )}
