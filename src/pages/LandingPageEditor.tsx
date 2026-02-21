@@ -15,6 +15,18 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/hooks/use-toast";
 
+interface LPBranding {
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  textColor?: string;
+  logoHue?: number;
+  logoBrightness?: number;
+  logoSaturate?: number;
+  logoInvert?: number;
+}
+
 interface LPContent {
   heroTitle: string;
   heroSubtitle: string;
@@ -32,6 +44,7 @@ interface LPContent {
   footerText: string;
   sections?: { id: string; label: string; visible: boolean }[];
   quiz?: QuizConfig;
+  branding?: LPBranding;
 }
 
 const DEFAULT_SECTIONS = [
