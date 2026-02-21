@@ -176,6 +176,54 @@ export type Database = {
           },
         ]
       }
+      case_activities: {
+        Row: {
+          action_type: string
+          case_id: string
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          case_id: string
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json | null
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          case_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json | null
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_activities_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_activities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           archived: boolean
@@ -1072,6 +1120,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "staff_case_access_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      substabelecimentos: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string
+          document_url: string | null
+          from_user_id: string
+          id: string
+          notes: string | null
+          tenant_id: string
+          to_user_id: string
+          type: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by: string
+          document_url?: string | null
+          from_user_id: string
+          id?: string
+          notes?: string | null
+          tenant_id: string
+          to_user_id: string
+          type: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          document_url?: string | null
+          from_user_id?: string
+          id?: string
+          notes?: string | null
+          tenant_id?: string
+          to_user_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "substabelecimentos_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "substabelecimentos_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
