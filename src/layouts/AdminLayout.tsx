@@ -65,18 +65,31 @@ const AdminLayout = () => {
         )}
       >
         {/* Brand */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container">
-            {tenantLogo ? (
-              <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
-            ) : (
-              <Scale className="w-5 h-5 text-accent-foreground" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide truncate">{tenantName}</h1>
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Escritório</p>
-          </div>
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+          {!sidebarCollapsed && (
+            <>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container">
+                {tenantLogo ? (
+                  <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
+                ) : (
+                  <Scale className="w-5 h-5 text-accent-foreground" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide truncate">{tenantName}</h1>
+                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Escritório</p>
+              </div>
+            </>
+          )}
+          {sidebarCollapsed && (
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container mx-auto">
+              {tenantLogo ? (
+                <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
+              ) : (
+                <Scale className="w-5 h-5 text-accent-foreground" />
+              )}
+            </div>
+          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="ml-auto lg:hidden text-sidebar-foreground/60 hover:text-sidebar-foreground"
