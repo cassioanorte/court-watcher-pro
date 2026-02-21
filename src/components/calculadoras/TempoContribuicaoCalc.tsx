@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
+import CnisUpload from "./CnisUpload";
+import type { CnisDados } from "@/lib/cnisParser";
 
 interface Vinculo {
   inicio: string;
@@ -15,6 +17,13 @@ interface Vinculo {
 export default function TempoContribuicaoCalc() {
   const [vinculos, setVinculos] = useState<Vinculo[]>([{ inicio: "", fim: "", empresa: "" }]);
   const [resultado, setResultado] = useState<{ anos: number; meses: number; dias: number; totalDias: number } | null>(null);
+
+  const handleCnisData = (dados: CnisDados) => {
+    if (dados.vinculos.length > 0) {
+      setVinculos(dados.vinculos.map(v => ({ inicio: v.inicio, fim: v.fim, empresa: v.empresa })));
+      setResultado(dados.tempoTotal);
+    }
+  };
 
   const addVinculo = () => setVinculos([...vinculos, { inicio: "", fim: "", empresa: "" }]);
   const removeVinculo = (i: number) => setVinculos(vinculos.filter((_, idx) => idx !== i));
@@ -42,6 +51,8 @@ export default function TempoContribuicaoCalc() {
 
   return (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+      <CnisUpload onDataExtracted={handleCnisData} />
+
       {vinculos.map((v, i) => (
         <Card key={i} className="p-3">
           <div className="flex items-center justify-between mb-2">
