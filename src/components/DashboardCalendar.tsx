@@ -11,7 +11,8 @@ import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { toast } from "sonner";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2, Pencil, X, Save } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2, Pencil, X, Save, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ interface Appointment {
   start_at: string;
   end_at: string;
   case_id: string | null;
+  lead_id: string | null;
   color: string | null;
 }
 
@@ -111,7 +113,7 @@ const DashboardCalendar = () => {
     if (!tenantId) return;
     const load = async () => {
       const [apptRes, casesRes] = await Promise.all([
-        supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, color").eq("tenant_id", tenantId),
+        supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color").eq("tenant_id", tenantId),
         supabase.from("cases").select("id, process_number, subject").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
       ]);
       setAppointments(apptRes.data || []);
@@ -462,9 +464,19 @@ const DashboardCalendar = () => {
               {selectedAppt.case_id && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo vinculado</p>
-                  <p className="text-sm text-accent mt-0.5">
-                    {cases.find((c) => c.id === selectedAppt.case_id)?.process_number || "Ver processo"}
-                  </p>
+                  <Link to={`/processos/${selectedAppt.case_id}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {cases.find((c) => c.id === selectedAppt.case_id)?.process_number || "Ver processo"} →
+                  </Link>
+                </div>
+              )}
+              {selectedAppt.lead_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Lead vinculado</p>
+                  <Link to={`/crm`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Ver no CRM →
+                  </Link>
                 </div>
               )}
               <div className="flex gap-2 pt-2">
