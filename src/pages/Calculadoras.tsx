@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent } from "lucide-react";
+import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent, Landmark, Car, Wheat } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,16 @@ import PartilhaBensCalc from "@/components/calculadoras/PartilhaBensCalc";
 import DistratoImovelCalc from "@/components/calculadoras/DistratoImovelCalc";
 import DanoMoralCalc from "@/components/calculadoras/DanoMoralCalc";
 import CobrancaIndevidaCalc from "@/components/calculadoras/CobrancaIndevidaCalc";
+import RevisaoBancariaCalc from "@/components/calculadoras/RevisaoBancariaCalc";
+import SuperendividamentoCalc from "@/components/calculadoras/SuperendividamentoCalc";
+import RmcRccCalc from "@/components/calculadoras/RmcRccCalc";
+import AmortizacaoComparativaCalc from "@/components/calculadoras/AmortizacaoComparativaCalc";
+import FinanciamentoCalc from "@/components/calculadoras/FinanciamentoCalc";
+import TaxaMediaBacenCalc from "@/components/calculadoras/TaxaMediaBacenCalc";
+import BuscaApreensaoCalc from "@/components/calculadoras/BuscaApreensaoCalc";
+import RevisaoCcbCalc from "@/components/calculadoras/RevisaoCcbCalc";
+import CapitalGiroCalc from "@/components/calculadoras/CapitalGiroCalc";
+import CreditoRuralCalc from "@/components/calculadoras/CreditoRuralCalc";
 
 interface Calculadora {
   id: string;
