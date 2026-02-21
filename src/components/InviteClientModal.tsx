@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { X, Copy, Check, Upload, FileText, Trash2 } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 
 interface InviteClientModalProps {
   open: boolean;
