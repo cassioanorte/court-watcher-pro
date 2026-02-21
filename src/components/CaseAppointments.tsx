@@ -2,7 +2,14 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText } from "lucide-react";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 type Appointment = {
   id: string;
@@ -11,6 +18,12 @@ type Appointment = {
   start_at: string;
   end_at: string;
   color: string | null;
+};
+
+type ClientInfo = {
+  full_name: string;
+  phone: string | null;
+  email: string | null;
 };
 
 const typeOptions = [
@@ -35,6 +48,19 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     endTime: "10:00",
   });
 
+  // Notification dialog state
+  const [showNotifyDialog, setShowNotifyDialog] = useState(false);
+  const [savedAppointment, setSavedAppointment] = useState<{
+    title: string;
+    description: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    videoLink: string | null;
+  } | null>(null);
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
   const fetchAppointments = async () => {
     const { data } = await supabase
       .from("appointments")
@@ -50,6 +76,105 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     fetchAppointments();
   }, [caseId]);
 
+  // Fetch client info from case
+  const fetchClientInfo = async (): Promise<ClientInfo | null> => {
+    const { data: caseData } = await supabase
+      .from("cases")
+      .select("client_user_id")
+      .eq("id", caseId)
+      .single();
+
+    if (!caseData?.client_user_id) return null;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, phone, email")
+      .eq("user_id", caseData.client_user_id)
+      .single();
+
+    return profile || null;
+  };
+
+  const generateJitsiLink = (appointmentId: string): string => {
+    const roomName = `atendimento-${appointmentId.slice(0, 8)}`;
+    return `https://meet.jit.si/${roomName}`;
+  };
+
+  const normalizePhone = (phone: string): string | null => {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length === 11 && digits[2] === "9") {
+      return digits.startsWith("55") ? digits : `55${digits}`;
+    }
+    if (digits.length === 13 && digits.startsWith("55") && digits[4] === "9") {
+      return digits;
+    }
+    return null;
+  };
+
+  const buildNotificationMessage = (data: NonNullable<typeof savedAppointment>, clientName?: string): string => {
+    const dateFormatted = new Date(`${data.date}T00:00:00`).toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    let msg = `Olá${clientName ? `, ${clientName}` : ""}! 👋\n\n`;
+    msg += `Seu atendimento foi agendado:\n\n`;
+    msg += `📋 *Tipo:* ${data.title}\n`;
+    msg += `📅 *Data:* ${dateFormatted}\n`;
+    msg += `🕐 *Horário:* ${data.startTime} às ${data.endTime}\n`;
+    if (data.description) {
+      msg += `📝 *Obs:* ${data.description}\n`;
+    }
+    if (data.videoLink) {
+      msg += `\n🔗 *Link da videochamada:*\n${data.videoLink}\n`;
+    }
+    msg += `\nQualquer dúvida, entre em contato.`;
+    return msg;
+  };
+
+  const handleWhatsApp = () => {
+    if (!clientInfo?.phone || !savedAppointment) return;
+    const normalized = normalizePhone(clientInfo.phone);
+    if (!normalized) {
+      toast({ title: "Número inválido", description: "O telefone do cliente não é um celular válido.", variant: "destructive" });
+      return;
+    }
+    const msg = buildNotificationMessage(savedAppointment, clientInfo.full_name);
+    const url = `https://wa.me/${normalized}?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+    setShowNotifyDialog(false);
+  };
+
+  const handleSendEmail = async () => {
+    if (!clientInfo?.email || !savedAppointment) return;
+    setSendingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-appointment-email", {
+        body: {
+          clientEmail: clientInfo.email,
+          clientName: clientInfo.full_name,
+          appointmentTitle: savedAppointment.title,
+          appointmentDate: savedAppointment.date,
+          startTime: savedAppointment.startTime,
+          endTime: savedAppointment.endTime,
+          description: savedAppointment.description || null,
+          videoLink: savedAppointment.videoLink,
+          tenantId,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "E-mail enviado com sucesso!" });
+      setShowNotifyDialog(false);
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !form.date || !form.title) return;
@@ -58,7 +183,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     const start_at = `${form.date}T${form.startTime}:00`;
     const end_at = `${form.date}T${form.endTime}:00`;
 
-    const { error } = await supabase.from("appointments").insert({
+    const { data: inserted, error } = await supabase.from("appointments").insert({
       title: form.title,
       description: form.description || null,
       start_at,
@@ -66,15 +191,16 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       case_id: caseId,
       tenant_id: tenantId,
       user_id: user.id,
-    });
+    }).select("id").single();
 
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Atendimento registrado!" });
-      setShowForm(false);
-      setForm({ title: "Reunião presencial", description: "", date: "", startTime: "09:00", endTime: "10:00" });
-      fetchAppointments();
+
+      const videoLink = form.title === "Videochamada" && inserted?.id
+        ? generateJitsiLink(inserted.id)
+        : null;
 
       // Log activity
       await supabase.from("case_activities").insert({
@@ -83,14 +209,32 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
         user_id: user.id,
         action_type: "appointment_created",
         description: `Atendimento registrado: ${form.title}`,
-        metadata: { start_at, end_at, type: form.title },
+        metadata: { start_at, end_at, type: form.title, video_link: videoLink },
       });
+
+      // Prepare notification dialog
+      const client = await fetchClientInfo();
+      if (client && (client.phone || client.email)) {
+        setClientInfo(client);
+        setSavedAppointment({
+          title: form.title,
+          description: form.description,
+          date: form.date,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          videoLink,
+        });
+        setShowNotifyDialog(true);
+      }
+
+      setShowForm(false);
+      setForm({ title: "Reunião presencial", description: "", date: "", startTime: "09:00", endTime: "10:00" });
+      fetchAppointments();
     }
     setSaving(false);
   };
 
   const now = new Date();
-
   const upcoming = appointments.filter((a) => new Date(a.start_at) >= now);
   const past = appointments.filter((a) => new Date(a.start_at) < now);
 
@@ -147,6 +291,12 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
               })}
             </div>
           </div>
+
+          {form.title === "Videochamada" && (
+            <p className="text-[10px] text-accent flex items-center gap-1">
+              <Video className="w-3 h-3" /> Link do Jitsi Meet será gerado automaticamente
+            </p>
+          )}
 
           <div className="grid grid-cols-3 gap-2">
             <div>
@@ -249,6 +399,77 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       {appointments.length === 0 && !showForm && (
         <p className="text-xs text-muted-foreground py-2">Nenhum atendimento registrado.</p>
       )}
+
+      {/* Notification dialog */}
+      <Dialog open={showNotifyDialog} onOpenChange={setShowNotifyDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-4 h-4 text-accent" /> Notificar Cliente
+            </DialogTitle>
+            <DialogDescription>
+              Deseja enviar uma mensagem avisando o cliente sobre este atendimento?
+            </DialogDescription>
+          </DialogHeader>
+
+          {clientInfo && savedAppointment && (
+            <div className="space-y-4">
+              {/* Appointment summary */}
+              <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-xs">
+                <p><span className="font-medium text-muted-foreground">Tipo:</span> {savedAppointment.title}</p>
+                <p><span className="font-medium text-muted-foreground">Data:</span> {new Date(`${savedAppointment.date}T00:00:00`).toLocaleDateString("pt-BR")} — {savedAppointment.startTime} às {savedAppointment.endTime}</p>
+                {savedAppointment.description && (
+                  <p><span className="font-medium text-muted-foreground">Obs:</span> {savedAppointment.description}</p>
+                )}
+                {savedAppointment.videoLink && (
+                  <p className="flex items-center gap-1">
+                    <Video className="w-3 h-3 text-accent" />
+                    <a href={savedAppointment.videoLink} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      {savedAppointment.videoLink}
+                    </a>
+                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                  </p>
+                )}
+              </div>
+
+              {/* Client info */}
+              <div className="text-xs space-y-1">
+                <p className="font-medium text-foreground">Cliente: {clientInfo.full_name}</p>
+                {clientInfo.phone && <p className="text-muted-foreground">📱 {clientInfo.phone}</p>}
+                {clientInfo.email && <p className="text-muted-foreground">✉️ {clientInfo.email}</p>}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2">
+                {clientInfo.phone && normalizePhone(clientInfo.phone) && (
+                  <button
+                    onClick={handleWhatsApp}
+                    className="w-full h-10 rounded-lg bg-[#25D366] text-white text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" /> Enviar via WhatsApp
+                  </button>
+                )}
+                {clientInfo.email && (
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail}
+                    className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                  >
+                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    {sendingEmail ? "Enviando..." : "Enviar por E-mail"}
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowNotifyDialog(false)}
+                  className="w-full h-9 rounded-lg border text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Não notificar
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
