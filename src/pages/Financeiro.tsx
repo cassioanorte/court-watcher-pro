@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   DollarSign, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, X, Save,
   ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar, Banknote, Clock,
-  CheckCircle2, AlertTriangle, Users, Briefcase, Scale, Wallet
+  CheckCircle2, AlertTriangle, Users, Briefcase, Scale, Wallet, Receipt
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Pagamentos from "@/pages/Pagamentos";
@@ -86,6 +86,7 @@ const EXPENSE_CATEGORIES = [
   "Capacitação e Cursos", "OAB - Anuidade", "Despesas Bancárias", "Outros"
 ];
 const PIE_COLORS = ["hsl(var(--accent))", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6b7280"];
+const TAX_CATEGORIES = ["IR sobre Honorários", "INSS", "ISS", "IRPJ/CSLL", "Impostos"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   aguardando: { label: "Aguardando", color: "text-amber-600", icon: Clock },
@@ -168,8 +169,11 @@ const Financeiro = () => {
   // === COMPUTATIONS ===
   const confirmed = transactions.filter((t) => t.status === "confirmed");
   const totalRevenue = confirmed.filter((t) => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
-  const totalExpense = confirmed.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-  const profit = totalRevenue - totalExpense;
+  const pureExpenses = confirmed.filter((t) => t.type === "expense" && !TAX_CATEGORIES.includes(t.category));
+  const taxExpenses = confirmed.filter((t) => t.type === "expense" && TAX_CATEGORIES.includes(t.category));
+  const totalExpense = pureExpenses.reduce((s, t) => s + Number(t.amount), 0);
+  const totalIrPago = taxExpenses.reduce((s, t) => s + Number(t.amount), 0);
+  const profit = totalRevenue - totalExpense - totalIrPago;
 
   // Payment orders totals
   const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
@@ -308,8 +312,9 @@ const Financeiro = () => {
   const kpis = [
     { label: "Receitas", value: fmt(totalRevenue), icon: TrendingUp, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
     { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10", clickable: true, onClick: openExpenseModal },
-    { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
-    { label: "IR a Pagar", value: fmt(totalIrAPagar), icon: Target, color: "text-amber-500", bgColor: "bg-amber-500/10", subtitle: `sobre RPVs/Precatórios pendentes` },
+    { label: "IR Pago", value: fmt(totalIrPago), icon: Receipt, color: "text-amber-500", bgColor: "bg-amber-500/10", subtitle: "impostos já recolhidos" },
+    { label: "IR a Pagar", value: fmt(totalIrAPagar), icon: Target, color: "text-orange-500", bgColor: "bg-orange-500/10", subtitle: "RPVs/Precatórios pendentes" },
+    { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", subtitle: "receitas − despesas − impostos" },
     { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
   ];
 
