@@ -287,7 +287,7 @@ const Financeiro = () => {
     { label: "Receitas", value: fmt(totalRevenue), icon: TrendingUp, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
     { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10" },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
-    { label: "Margem de Lucro", value: `${profitMargin.toFixed(1)}%`, icon: Target, color: "text-accent", bgColor: "bg-accent/10" },
+    { label: "IR a Pagar", value: fmt(totalIrAPagar), icon: Target, color: "text-amber-500", bgColor: "bg-amber-500/10", subtitle: `10,9% sobre ${fmt(totalHonorariosPrevistos)} em honorários` },
     { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
   ];
 
