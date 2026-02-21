@@ -461,27 +461,29 @@ const LandingPageEditor = () => {
                     if (!content.branding?.logoUrl) return;
                     setExtractingColors(true);
                     try {
-                      const colors = await extractColorsFromImage(content.branding.logoUrl, 4);
-                      const primary = colors[0] || "#1e293b";
-                      const accent = colors[1] || colors[0] || "#f59e0b";
-                      // Derive secondary as a very light version of primary
-                      const hexToRgb = (hex: string) => {
-                        const c = hex.replace("#", "");
-                        return [parseInt(c.substring(0, 2), 16), parseInt(c.substring(2, 4), 16), parseInt(c.substring(4, 6), 16)];
+                      const clrs = await extractColorsFromImage(content.branding.logoUrl, 4);
+                      const primary = clrs[0] || "#1e293b";
+                      const accent = clrs[1] || clrs[0] || "#f59e0b";
+                      const toRgb = (h: string) => {
+                        const x = h.replace("#", "");
+                        return [parseInt(x.substring(0, 2), 16), parseInt(x.substring(2, 4), 16), parseInt(x.substring(4, 6), 16)];
                       };
-                      const [pr, pg, pb] = hexToRgb(primary);
-                      const secondary = `#${Math.min(255, pr + 200).toString(16).padStart(2, "0")}${Math.min(255, pg + 200).toString(16).padStart(2, "0")}${Math.min(255, pb + 200).toString(16).padStart(2, "0")}`;
-                      // Text color based on luminance of primary
+                      const [pr, pg, pb] = toRgb(primary);
+                      const sec = `#${Math.min(255, pr + 200).toString(16).padStart(2, "0")}${Math.min(255, pg + 200).toString(16).padStart(2, "0")}${Math.min(255, pb + 200).toString(16).padStart(2, "0")}`;
                       const lum = 0.299 * pr + 0.587 * pg + 0.114 * pb;
-                      const textColor = lum < 128 ? "#ffffff" : "#1e293b";
-                      updateContent("branding", {
-                        ...content.branding,
-                        primaryColor: primary,
-                        secondaryColor: secondary,
-                        accentColor: accent,
-                        textColor,
-                      });
-                      toast({ title: "Cores extraídas do logotipo!", description: "As cores foram aplicadas. Você pode ajustá-las manualmente se preferir." });
+                      const txt = lum < 128 ? "#ffffff" : "#1e293b";
+                      const nb = { ...content.branding, primaryColor: primary, secondaryColor: sec, accentColor: accent, textColor: txt };
+                      const nc = { ...content, branding: nb };
+                      setContent(nc);
+                      const { error } = await supabase
+                        .from("landing_pages")
+                        .update({ title, slug, content: nc as any } as any)
+                        .eq("id", id!);
+                      if (error) {
+                        toast({ title: "Cores extraídas, mas erro ao salvar", description: error.message, variant: "destructive" });
+                      } else {
+                        toast({ title: "Cores extraídas e salvas!", description: "Clique em Preview para ver. Ajuste manualmente se preferir." });
+                      }
                     } catch {
                       toast({ title: "Não foi possível extrair cores", description: "Tente enviar a imagem novamente.", variant: "destructive" });
                     }
