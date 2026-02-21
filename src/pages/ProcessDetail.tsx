@@ -81,6 +81,29 @@ const ProcessDetail = () => {
     load();
   }, [id]);
 
+  // Fetch team members for responsible assignment
+  useEffect(() => {
+    if (!tenantId) return;
+    const fetchTeam = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .eq("tenant_id", tenantId)
+        .order("full_name");
+      // Filter to only staff/owner by checking user_roles
+      if (data) {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("user_id, role")
+          .in("user_id", data.map(d => d.user_id))
+          .in("role", ["owner", "staff"]);
+        const staffIds = new Set(roles?.map(r => r.user_id) || []);
+        setTeamMembers(data.filter(d => staffIds.has(d.user_id)));
+      }
+    };
+    fetchTeam();
+  }, [tenantId]);
+
   const handleRefresh = async () => {
     if (!id) return;
     setRefreshing(true);
