@@ -76,6 +76,7 @@ const LandingPageEditor = () => {
   const [loading, setLoading] = useState(true);
   const [showAiDialog, setShowAiDialog] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [extractingColors, setExtractingColors] = useState(false);
   const [aiForm, setAiForm] = useState({
     officeName: "",
     areaOfPractice: "",
