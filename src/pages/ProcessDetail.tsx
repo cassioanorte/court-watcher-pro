@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import SubstabelecimentoSection from "@/components/SubstabelecimentoSection";
 import CaseActivityLog from "@/components/CaseActivityLog";
+import CaseAppointments from "@/components/CaseAppointments";
 
 const ProcessDetail = () => {
   const { id } = useParams();
@@ -19,7 +20,7 @@ const ProcessDetail = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"timeline" | "documentos" | "mensagens" | "substabelecimento" | "historico">("timeline");
+  const [activeTab, setActiveTab] = useState<"timeline" | "documentos" | "mensagens" | "atendimentos" | "substabelecimento" | "historico">("timeline");
 
   // Editable fields
   const [editingSummary, setEditingSummary] = useState(false);
@@ -294,6 +295,7 @@ const ProcessDetail = () => {
     { key: "documentos" as const, label: "Documentos", icon: FileText },
     { key: "mensagens" as const, label: "Mensagens", icon: MessageSquare },
     ...(isLawyer ? [
+      { key: "atendimentos" as const, label: "Atendimentos", icon: Calendar },
       { key: "substabelecimento" as const, label: "Substabelecimento", icon: UserCheck },
       { key: "historico" as const, label: "Histórico", icon: History },
     ] : []),
@@ -741,6 +743,9 @@ const ProcessDetail = () => {
             </div>
           </div>
         </div>
+      )}
+      {activeTab === "atendimentos" && isLawyer && tenantId && (
+        <CaseAppointments caseId={id!} tenantId={tenantId} />
       )}
       {activeTab === "substabelecimento" && isLawyer && (
         <SubstabelecimentoSection
