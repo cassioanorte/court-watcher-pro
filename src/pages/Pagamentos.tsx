@@ -824,7 +824,22 @@ const Pagamentos = () => {
           )}
           {selected && editing && (
             <div className="space-y-3 mt-2">
-              <div className="grid grid-cols-2 gap-2">
+              {/* PDF Upload for edit */}
+              <FileDropZone
+                onFile={handleEditFileUpload}
+                accept=".pdf"
+                loading={uploading || extracting}
+                loadingText={extracting ? "Extraindo dados..." : "Enviando..."}
+                label="Anexar novo PDF para atualizar dados"
+                sublabel="Os campos serão atualizados automaticamente"
+                fileName={editForm.document_name || undefined}
+                onClear={() => setEditForm(f => ({ ...f, document_url: null, document_name: null }))}
+              />
+              {editForm.ai_extracted && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Dados extraídos por IA
+                </Badge>
+              )}
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
                   <Select value={editForm.type || "rpv"} onValueChange={v => setEditForm(f => ({ ...f, type: v }))}>
