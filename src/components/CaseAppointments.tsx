@@ -254,7 +254,25 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       } else {
         toast({ title: "Atendimento atualizado!" });
 
-        const videoLink = form.title === "Videochamada" ? generateJitsiLink(editingId) : null;
+        let videoLink: string | null = null;
+        if (form.title === "Videochamada") {
+          if (videoPlatform === "google_meet" && googleConnected) {
+            try {
+              const result = await createMeetEvent({
+                title: form.title,
+                description: form.description,
+                start_at: start_at,
+                end_at: end_at,
+              });
+              videoLink = result?.meet_link || null;
+            } catch {
+              videoLink = generateJitsiLink(editingId);
+              toast({ title: "Falha no Google Meet, usando Jitsi", variant: "destructive" });
+            }
+          } else {
+            videoLink = generateJitsiLink(editingId);
+          }
+        }
 
         await supabase.from("case_activities").insert({
           case_id: caseId,
@@ -301,9 +319,25 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       } else {
         toast({ title: "Atendimento registrado!" });
 
-        const videoLink = form.title === "Videochamada" && inserted?.id
-          ? generateJitsiLink(inserted.id)
-          : null;
+        let videoLink: string | null = null;
+        if (form.title === "Videochamada" && inserted?.id) {
+          if (videoPlatform === "google_meet" && googleConnected) {
+            try {
+              const result = await createMeetEvent({
+                title: form.title,
+                description: form.description,
+                start_at: start_at,
+                end_at: end_at,
+              });
+              videoLink = result?.meet_link || null;
+            } catch {
+              videoLink = generateJitsiLink(inserted.id);
+              toast({ title: "Falha no Google Meet, usando Jitsi", variant: "destructive" });
+            }
+          } else {
+            videoLink = generateJitsiLink(inserted.id);
+          }
+        }
 
         await supabase.from("case_activities").insert({
           case_id: caseId,
