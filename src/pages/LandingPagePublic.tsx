@@ -5,6 +5,18 @@ import { Phone, Mail, MapPin, Scale } from "lucide-react";
 import QuizSection from "@/components/landing/QuizSection";
 import type { QuizConfig } from "@/components/landing/QuizSection";
 
+interface LPBranding {
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  textColor?: string;
+  logoHue?: number;
+  logoBrightness?: number;
+  logoSaturate?: number;
+  logoInvert?: number;
+}
+
 interface LPContent {
   heroTitle: string;
   heroSubtitle: string;
@@ -22,6 +34,7 @@ interface LPContent {
   footerText: string;
   sections?: { id: string; label: string; visible: boolean }[];
   quiz?: QuizConfig;
+  branding?: LPBranding;
 }
 
 interface LPData {
