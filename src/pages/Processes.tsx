@@ -37,7 +37,7 @@ const Processes = () => {
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editProcess, setEditProcess] = useState<Tables<"cases"> | null>(null);
-  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", parties: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [staff, setStaff] = useState<{ user_id: string; full_name: string }[]>([]);
   const [saving, setSaving] = useState(false);
