@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar, UserCircle } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +10,19 @@ import { useToast } from "@/hooks/use-toast";
 import SubstabelecimentoSection from "@/components/SubstabelecimentoSection";
 import CaseActivityLog from "@/components/CaseActivityLog";
 import CaseAppointments from "@/components/CaseAppointments";
+
+type ProcessSource = Database["public"]["Enums"]["process_source"];
+
+const allSourceLabels: Record<string, string> = {
+  TJRS_1G: "TJRS - 1º Grau", TJRS_2G: "TJRS - 2º Grau",
+  TRF4_JFRS: "TRF4 - JFRS", TRF4_JFSC: "TRF4 - JFSC", TRF4_JFPR: "TRF4 - JFPR",
+  TST: "TST", TSE: "TSE", STJ: "STJ", STM: "STM",
+  TRF1: "TRF1", TRF2: "TRF2", TRF3: "TRF3", TRF4: "TRF4", TRF5: "TRF5", TRF6: "TRF6",
+  TRT1: "TRT1", TRT2: "TRT2", TRT3: "TRT3", TRT4: "TRT4", TRT5: "TRT5", TRT6: "TRT6",
+  TRT7: "TRT7", TRT8: "TRT8", TRT9: "TRT9", TRT10: "TRT10", TRT11: "TRT11", TRT12: "TRT12",
+  TRT13: "TRT13", TRT14: "TRT14", TRT15: "TRT15", TRT16: "TRT16", TRT17: "TRT17", TRT18: "TRT18",
+  TRT19: "TRT19", TRT20: "TRT20", TRT21: "TRT21", TRT22: "TRT22", TRT23: "TRT23", TRT24: "TRT24",
+};
 
 const ProcessDetail = () => {
   const { id } = useParams();
@@ -59,6 +73,13 @@ const ProcessDetail = () => {
   const [editMovTitle, setEditMovTitle] = useState("");
   const [editMovDetails, setEditMovDetails] = useState("");
   const [savingMov, setSavingMov] = useState(false);
+
+  // Full edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", parties: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
+  const [editClients, setEditClients] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [editStaff, setEditStaff] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const isLawyer = role === "owner" || role === "staff" || role === "superadmin";
 
@@ -334,6 +355,66 @@ const ProcessDetail = () => {
     }
   };
 
+  const openEditModal = async () => {
+    if (!caseData || !tenantId) return;
+    setEditForm({
+      process_number: caseData.process_number,
+      source: caseData.source,
+      subject: caseData.subject || "",
+      parties: caseData.parties || "",
+      case_summary: caseData.case_summary || "",
+      client_user_id: caseData.client_user_id || "",
+      responsible_user_id: caseData.responsible_user_id || "",
+      simple_status: caseData.simple_status || "",
+      automation_enabled: caseData.automation_enabled ?? true,
+    });
+    // Fetch clients & staff
+    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId);
+    if (profiles) {
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", profiles.map(p => p.user_id));
+      const clientIds = new Set((roles || []).filter(r => r.role === "client").map(r => r.user_id));
+      const staffIds = new Set((roles || []).filter(r => r.role === "owner" || r.role === "staff").map(r => r.user_id));
+      setEditClients(profiles.filter(p => clientIds.has(p.user_id)));
+      setEditStaff(profiles.filter(p => staffIds.has(p.user_id)));
+    }
+    setShowEditModal(true);
+  };
+
+  const handleSaveFullEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase.from("cases").update({
+        process_number: editForm.process_number,
+        source: editForm.source,
+        subject: editForm.subject || null,
+        parties: editForm.parties || null,
+        case_summary: editForm.case_summary || null,
+        client_user_id: editForm.client_user_id || null,
+        responsible_user_id: editForm.responsible_user_id || null,
+        simple_status: editForm.simple_status || null,
+        automation_enabled: editForm.automation_enabled,
+      }).eq("id", id);
+      if (error) throw error;
+      // Reload case data
+      const { data: updated } = await supabase.from("cases").select("*").eq("id", id).single();
+      if (updated) {
+        setCaseData(updated);
+        setCaseSummary(updated.case_summary || "");
+        setNextStep(updated.next_step || "");
+        setPartiesText(updated.parties || "");
+      }
+      toast({ title: "Processo atualizado!" });
+      setShowEditModal(false);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+
   if (loading) return <div className="text-sm text-muted-foreground">Carregando...</div>;
   if (!caseData) return <div className="text-sm text-destructive">Processo não encontrado.</div>;
 
@@ -416,6 +497,14 @@ const ProcessDetail = () => {
               >
                 {caseData.archived ? <ArchiveRestore className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
                 {caseData.archived ? "Desarquivar" : "Arquivar"}
+              </button>
+            )}
+            {isLawyer && (
+              <button
+                onClick={openEditModal}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border hover:bg-muted transition-colors text-muted-foreground"
+              >
+                <Pencil className="w-3 h-3" /> Editar
               </button>
             )}
           </div>
@@ -883,6 +972,71 @@ const ProcessDetail = () => {
 
       {activeTab === "historico" && isLawyer && (
         <CaseActivityLog caseId={id!} />
+      )}
+
+      {/* Full Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/30" onClick={() => setShowEditModal(false)} />
+          <div className="relative bg-card rounded-xl border shadow-lg w-full max-w-lg p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowEditModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+            <h2 className="text-lg font-bold text-foreground mb-1">Editar Processo</h2>
+            <p className="text-sm text-muted-foreground mb-5">Atualize os dados cadastrais do processo</p>
+            <form onSubmit={handleSaveFullEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Número CNJ *</label>
+                <input type="text" value={editForm.process_number} onChange={(e) => setEditForm(f => ({ ...f, process_number: e.target.value }))} required className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Origem *</label>
+                <select value={editForm.source} onChange={(e) => setEditForm(f => ({ ...f, source: e.target.value as ProcessSource }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  {Object.entries(allSourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assunto</label>
+                <input type="text" value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Partes Envolvidas</label>
+                <input type="text" value={editForm.parties} onChange={(e) => setEditForm(f => ({ ...f, parties: e.target.value }))} placeholder="Ex: João da Silva | Maria Souza" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                <p className="text-[10px] text-muted-foreground mt-1">Use "|" para separar Autor e Réu</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resumo do caso</label>
+                <textarea value={editForm.case_summary} onChange={(e) => setEditForm(f => ({ ...f, case_summary: e.target.value }))} placeholder="Descreva brevemente o caso..." rows={3} className="w-full mt-1 px-3 py-2 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cliente</label>
+                <select value={editForm.client_user_id} onChange={(e) => setEditForm(f => ({ ...f, client_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Sem cliente vinculado</option>
+                  {editClients.map(c => <option key={c.user_id} value={c.user_id}>{c.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado responsável</label>
+                <select value={editForm.responsible_user_id} onChange={(e) => setEditForm(f => ({ ...f, responsible_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
+                  <option value="">Selecione...</option>
+                  {editStaff.map(s => <option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>
+                <input type="text" value={editForm.simple_status} onChange={(e) => setEditForm(f => ({ ...f, simple_status: e.target.value }))} placeholder="Ex: Em andamento" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editForm.automation_enabled} onChange={(e) => setEditForm(f => ({ ...f, automation_enabled: e.target.checked }))} className="rounded border-border" />
+                <span className="text-sm text-foreground">Ativar captura automática de movimentações</span>
+              </label>
+              <button type="submit" disabled={savingEdit} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" />
+                {savingEdit ? "Salvando..." : "Salvar alterações"}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
