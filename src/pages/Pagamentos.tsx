@@ -130,6 +130,7 @@ const Pagamentos = () => {
   }, [fetchOrders, fetchCases]);
 
   // Auto-calculate when gross or fee% changes
+  // IR applies only on office fees (honorários), NOT on gross amount
   useEffect(() => {
     const gross = parseFloat(formGross) || 0;
     const feeP = parseFloat(formFeePercent) || 0;
@@ -139,14 +140,18 @@ const Pagamentos = () => {
     const taxP = parseFloat(formTaxPercent) || 0;
 
     if (formOwnership === "escritorio") {
-      // 100% do escritório, sem divisão com cliente
+      // 100% do escritório - IR sobre o valor total (que é todo honorário)
       const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
       setFormOffice(gross > 0 ? (gross - taxAmount).toString() : "");
       setFormClient("0");
     } else {
-      const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-      const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
-      setFormOffice(officeCalc > 0 ? officeCalc.toString() : "");
+      // Cliente paga o bruto dos honorários sem desconto de IR
+      // IR incide somente sobre os honorários do advogado
+      const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
+      const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
+      const officeNet = Math.round((officeGross - officeTax) * 100) / 100;
+      const clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
+      setFormOffice(officeNet > 0 ? officeNet.toString() : "");
       setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
     }
   }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax, formOwnership, formTaxPercent]);
@@ -390,12 +395,16 @@ const Pagamentos = () => {
     let clientCalc: number;
 
     if (ownership === "escritorio") {
+      // 100% escritório - IR sobre o total
       const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
       officeCalc = Math.round((gross - taxAmount) * 100) / 100;
       clientCalc = 0;
     } else {
-      officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-      clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+      // IR applies only on office fees (honorários)
+      const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
+      const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((officeGross - officeTax) * 100) / 100;
+      clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
     }
 
     const updates = {
@@ -500,28 +509,28 @@ const Pagamentos = () => {
                    <th className="p-3 font-medium">Beneficiário</th>
                    <th className="p-3 font-medium">Processo</th>
                    <th className="p-3 font-medium text-right">Bruto</th>
-                   <th className="p-3 font-medium text-right">Imposto</th>
-                   <th className="p-3 font-medium text-right">Líquido</th>
-                   <th className="p-3 font-medium text-right">Escritório</th>
+                   <th className="p-3 font-medium text-right">IR s/ Hon.</th>
+                   <th className="p-3 font-medium text-right">Escritório Líq.</th>
                    <th className="p-3 font-medium text-right">Cliente</th>
                    <th className="p-3 font-medium">Status</th>
                    <th className="p-3 font-medium text-right">Ações</th>
                  </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => {
-                  const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
-                  const StIcon = st.icon;
-                  return (
-                    <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelected(o)}>
-                      <td className="p-3">
-                        <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
-                      </td>
-                      <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
-                      <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</td>
+               </thead>
+               <tbody>
+                 {orders.map((o) => {
+                   const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
+                   const StIcon = st.icon;
+                   const officeGross = o.ownership_type === "escritorio" ? o.gross_amount : Math.round(o.gross_amount * (o.office_fees_percent || 0) / 100 * 100) / 100;
+                   const irAmount = Math.round(officeGross * (o.tax_percent || 0) / 100 * 100) / 100;
+                   return (
+                     <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelected(o)}>
+                       <td className="p-3">
+                         <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
+                       </td>
+                       <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
+                       <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</td>
                        <td className="p-3 text-right text-foreground">{fmt(o.gross_amount)}</td>
-                       <td className="p-3 text-right text-muted-foreground">{fmt(Math.round(o.gross_amount * (o.tax_percent || 0) / 100 * 100) / 100)} <span className="text-xs">({o.tax_percent ?? 10.9}%)</span></td>
-                       <td className="p-3 text-right text-foreground font-medium">{fmt(Math.round((o.gross_amount - o.gross_amount * (o.tax_percent || 0) / 100) * 100) / 100)}</td>
+                       <td className="p-3 text-right text-destructive/80 text-xs">{fmt(irAmount)} <span className="text-[10px]">({o.tax_percent ?? 10.9}%)</span></td>
                        <td className="p-3 text-right text-accent font-medium">{fmt(o.office_amount)}</td>
                        <td className="p-3 text-right text-foreground">{fmt(o.client_amount)}</td>
                       <td className="p-3">
