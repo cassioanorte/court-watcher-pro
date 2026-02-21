@@ -867,14 +867,21 @@ const ProcessDetail = () => {
                 accept={extractUseAi ? ".pdf,.jpg,.jpeg,.png,.webp" : ".pdf"}
                 onChange={handleExtractFromFile}
               />
-              <button
-                onClick={() => extractFileRef.current?.click()}
-                disabled={extractingExternal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {extractingExternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {extractingExternal ? "Extraindo..." : extractUseAi ? "Upload e extrair (IA)" : "Upload e extrair (Regex)"}
-              </button>
+              <FileDropZone
+                onFile={(f) => {
+                  const dt = new DataTransfer();
+                  dt.items.add(f);
+                  if (extractFileRef.current) {
+                    extractFileRef.current.files = dt.files;
+                    extractFileRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                }}
+                accept={extractUseAi ? ".pdf,.jpg,.jpeg,.png,.webp" : ".pdf"}
+                loading={extractingExternal}
+                loadingText="Extraindo..."
+                label={extractUseAi ? "Arraste o arquivo aqui ou clique (IA)" : "Arraste o PDF aqui ou clique (Regex)"}
+                compact
+              />
             </div>
           )}
           {documents.length === 0 && !isLawyer && (
