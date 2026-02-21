@@ -397,6 +397,183 @@ const LandingPageEditor = () => {
                 }}
               />
             </TabsContent>
+
+            <TabsContent value="branding" className="space-y-6 mt-4">
+              {/* Logo */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Logotipo do Escritório</Label>
+                <div className="flex items-center gap-4">
+                  {content.branding?.logoUrl ? (
+                    <div className="relative">
+                      <img
+                        src={content.branding.logoUrl}
+                        alt="Logo"
+                        className="h-16 max-w-[200px] object-contain rounded-lg border p-2"
+                        style={{
+                          filter: `hue-rotate(${content.branding?.logoHue ?? 0}deg) brightness(${content.branding?.logoBrightness ?? 100}%) saturate(${content.branding?.logoSaturate ?? 100}%) invert(${content.branding?.logoInvert ?? 0}%)`
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateContent("branding", { ...content.branding, logoUrl: undefined })}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:border-accent/50 transition-colors">
+                      <Upload className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Enviar logotipo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const ext = file.name.split('.').pop();
+                          const path = `lp-logos/${id}-${Date.now()}.${ext}`;
+                          const { error } = await supabase.storage.from("case-documents").upload(path, file, { upsert: true });
+                          if (error) {
+                            toast({ title: "Erro ao enviar", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+                          updateContent("branding", { ...content.branding, logoUrl: urlData.publicUrl });
+                          toast({ title: "Logo enviado!" });
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Logo color adjustments */}
+              {content.branding?.logoUrl && (
+                <div className="space-y-4 border rounded-lg p-4">
+                  <Label className="text-sm font-semibold">Ajuste de cores do logotipo</Label>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Matiz (Hue)</span>
+                        <span>{content.branding?.logoHue ?? 0}°</span>
+                      </div>
+                      <Slider
+                        value={[content.branding?.logoHue ?? 0]}
+                        onValueChange={([v]) => updateContent("branding", { ...content.branding, logoHue: v })}
+                        min={0} max={360} step={1}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Brilho</span>
+                        <span>{content.branding?.logoBrightness ?? 100}%</span>
+                      </div>
+                      <Slider
+                        value={[content.branding?.logoBrightness ?? 100]}
+                        onValueChange={([v]) => updateContent("branding", { ...content.branding, logoBrightness: v })}
+                        min={0} max={200} step={1}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Saturação</span>
+                        <span>{content.branding?.logoSaturate ?? 100}%</span>
+                      </div>
+                      <Slider
+                        value={[content.branding?.logoSaturate ?? 100]}
+                        onValueChange={([v]) => updateContent("branding", { ...content.branding, logoSaturate: v })}
+                        min={0} max={200} step={1}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Inverter</span>
+                        <span>{content.branding?.logoInvert ?? 0}%</span>
+                      </div>
+                      <Slider
+                        value={[content.branding?.logoInvert ?? 0]}
+                        onValueChange={([v]) => updateContent("branding", { ...content.branding, logoInvert: v })}
+                        min={0} max={100} step={1}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Page colors */}
+              <div className="space-y-4 border rounded-lg p-4">
+                <Label className="text-sm font-semibold">Cores da Página</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Cor primária (Hero/Rodapé)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="color"
+                        value={content.branding?.primaryColor || "#1e293b"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, primaryColor: e.target.value })}
+                        className="w-10 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={content.branding?.primaryColor || "#1e293b"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, primaryColor: e.target.value })}
+                        className="flex-1 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Cor secundária (Fundo alternado)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="color"
+                        value={content.branding?.secondaryColor || "#f8fafc"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, secondaryColor: e.target.value })}
+                        className="w-10 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={content.branding?.secondaryColor || "#f8fafc"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, secondaryColor: e.target.value })}
+                        className="flex-1 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Cor de destaque (Botões/Detalhes)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="color"
+                        value={content.branding?.accentColor || "#f59e0b"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, accentColor: e.target.value })}
+                        className="w-10 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={content.branding?.accentColor || "#f59e0b"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, accentColor: e.target.value })}
+                        className="flex-1 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Cor do texto (sobre primária)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="color"
+                        value={content.branding?.textColor || "#ffffff"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, textColor: e.target.value })}
+                        className="w-10 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={content.branding?.textColor || "#ffffff"}
+                        onChange={(e) => updateContent("branding", { ...content.branding, textColor: e.target.value })}
+                        className="flex-1 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">As cores serão aplicadas nas seções da landing page pública.</p>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
