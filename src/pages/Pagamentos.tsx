@@ -629,6 +629,36 @@ const Pagamentos = () => {
             </div>
 
             <hr className="border-border" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Classificação</p>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Titularidade</label>
+                <Select value={formOwnership} onValueChange={setFormOwnership}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cliente">Do Cliente</SelectItem>
+                    <SelectItem value="escritorio">Destacado (Escritório)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tipo Honorários</label>
+                <Select value={formFeeType} onValueChange={setFormFeeType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contratuais">Contratuais</SelectItem>
+                    <SelectItem value="sucumbenciais">Sucumbenciais</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Imposto (%)</label>
+                <Input type="number" step="0.1" value={formTaxPercent} onChange={e => setFormTaxPercent(e.target.value)} placeholder="10.9" />
+              </div>
+            </div>
+
+            <hr className="border-border" />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valores</p>
 
             <div className="grid grid-cols-2 gap-2">
@@ -636,26 +666,30 @@ const Pagamentos = () => {
                 <label className="text-xs text-muted-foreground mb-1 block">Valor Bruto (R$)</label>
                 <Input type="number" step="0.01" value={formGross} onChange={e => setFormGross(e.target.value)} placeholder="0,00" />
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
-                <Input type="number" step="0.1" value={formFeePercent} onChange={e => setFormFeePercent(e.target.value)} />
-              </div>
+              {formOwnership === "cliente" && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
+                  <Input type="number" step="0.1" value={formFeePercent} onChange={e => setFormFeePercent(e.target.value)} />
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
-                <Input type="number" step="0.01" value={formCourtCosts} onChange={e => setFormCourtCosts(e.target.value)} placeholder="0,00" />
+            {formOwnership === "cliente" && (
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
+                  <Input type="number" step="0.01" value={formCourtCosts} onChange={e => setFormCourtCosts(e.target.value)} placeholder="0,00" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
+                  <Input type="number" step="0.01" value={formSocSec} onChange={e => setFormSocSec(e.target.value)} placeholder="0,00" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
+                  <Input type="number" step="0.01" value={formTax} onChange={e => setFormTax(e.target.value)} placeholder="0,00" />
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
-                <Input type="number" step="0.01" value={formSocSec} onChange={e => setFormSocSec(e.target.value)} placeholder="0,00" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">IR</label>
-                <Input type="number" step="0.01" value={formTax} onChange={e => setFormTax(e.target.value)} placeholder="0,00" />
-              </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2 bg-muted/30 rounded-lg p-3">
               <div>
