@@ -461,7 +461,7 @@ const ContatoDetail = () => {
       </motion.div>
 
       {/* Tabs */}
-      <Tabs defaultValue="cadastro" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-auto p-0 gap-0">
           {[
             { value: "cadastro", label: "Cadastro" },
