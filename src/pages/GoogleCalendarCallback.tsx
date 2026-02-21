@@ -29,7 +29,7 @@ const GoogleCalendarCallback = () => {
 
     const exchangeCode = async () => {
       try {
-        const redirect_uri = `${window.location.origin}/google-calendar-callback`;
+        const redirect_uri = `https://court-watcher-pro.lovable.app/google-calendar-callback`;
         const { data, error: fnError } = await supabase.functions.invoke("google-calendar", {
           body: { action: "exchange_code", code, redirect_uri },
         });
