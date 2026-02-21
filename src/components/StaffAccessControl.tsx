@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Eye, Shield, Save, X, Plus, Trash2 } from "lucide-react";
+import { Eye, Shield, Save, Plus, Trash2, Ban, CheckCircle } from "lucide-react";
 
 type AccessMode = "all" | "own_only" | "own_plus_oab" | "own_plus_clients";
 
@@ -20,11 +20,19 @@ interface AccessConfig {
   access_mode: AccessMode;
   allowed_oab_numbers: string[];
   allowed_client_ids: string[];
+  blocked_case_ids: string[];
+  extra_case_ids: string[];
+}
+
+interface CaseInfo {
+  id: string;
+  process_number: string;
+  parties: string | null;
 }
 
 const accessModeLabels: Record<AccessMode, { label: string; description: string }> = {
   all: { label: "Todos os processos", description: "Acesso irrestrito a todos os processos do escritório" },
-  own_only: { label: "Somente os seus", description: "Apenas processos onde é responsável" },
+  own_only: { label: "Somente os seus", description: "Apenas processos onde é responsável ou onde sua OAB aparece em publicações" },
   own_plus_oab: { label: "Seus + OAB específica", description: "Seus processos + processos de advogados específicos" },
   own_plus_clients: { label: "Seus + Clientes específicos", description: "Seus processos + processos de clientes selecionados" },
 };
@@ -36,9 +44,11 @@ const StaffAccessControl = () => {
   const [configs, setConfigs] = useState<Record<string, AccessConfig>>({});
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [oabNumbers, setOabNumbers] = useState<{ oab: string; name: string }[]>([]);
+  const [cases, setCases] = useState<CaseInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [caseSearch, setCaseSearch] = useState("");
 
   const canManageAccess = role === "owner" || role === "superadmin";
 
@@ -50,10 +60,11 @@ const StaffAccessControl = () => {
   const loadData = async () => {
     if (!tenantId) return;
 
-    const [profilesRes, rolesRes, accessRes] = await Promise.all([
+    const [profilesRes, rolesRes, accessRes, casesRes] = await Promise.all([
       supabase.from("profiles").select("user_id, full_name, position, oab_number").eq("tenant_id", tenantId),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("staff_case_access").select("*").eq("tenant_id", tenantId),
+      supabase.from("cases").select("id, process_number, parties").eq("tenant_id", tenantId).order("process_number"),
     ]);
 
     const profiles = profilesRes.data || [];
@@ -61,14 +72,11 @@ const StaffAccessControl = () => {
     const roleMap: Record<string, string> = {};
     roles.forEach((r) => { roleMap[r.user_id] = r.role; });
 
-    // Filter staff members (not owners, not clients)
     const staffMembers = profiles
       .filter((p) => roleMap[p.user_id] === "staff")
       .map((p) => ({ ...p, role: roleMap[p.user_id] || "staff" }));
-
     setStaff(staffMembers);
 
-    // Build access configs map
     const configMap: Record<string, AccessConfig> = {};
     (accessRes.data || []).forEach((a: any) => {
       configMap[a.user_id] = {
@@ -76,27 +84,28 @@ const StaffAccessControl = () => {
         access_mode: a.access_mode,
         allowed_oab_numbers: a.allowed_oab_numbers || [],
         allowed_client_ids: a.allowed_client_ids || [],
+        blocked_case_ids: a.blocked_case_ids || [],
+        extra_case_ids: a.extra_case_ids || [],
       };
     });
     setConfigs(configMap);
 
-    // Get all clients for dropdown
     const clientList = profiles
       .filter((p) => roleMap[p.user_id] === "client")
       .map((p) => ({ user_id: p.user_id, full_name: p.full_name }));
     setClients(clientList);
 
-    // Get all unique OAB numbers
     const oabs = profiles
       .filter((p) => p.oab_number && (roleMap[p.user_id] === "staff" || roleMap[p.user_id] === "owner"))
       .map((p) => ({ oab: p.oab_number!, name: p.full_name }));
     setOabNumbers(oabs);
 
+    setCases(casesRes.data || []);
     setLoading(false);
   };
 
   const getConfig = (userId: string): AccessConfig => {
-    return configs[userId] || { user_id: userId, access_mode: "own_only", allowed_oab_numbers: [], allowed_client_ids: [] };
+    return configs[userId] || { user_id: userId, access_mode: "own_only", allowed_oab_numbers: [], allowed_client_ids: [], blocked_case_ids: [], extra_case_ids: [] };
   };
 
   const updateConfig = (userId: string, updates: Partial<AccessConfig>) => {
@@ -119,7 +128,9 @@ const StaffAccessControl = () => {
           access_mode: config.access_mode,
           allowed_oab_numbers: config.allowed_oab_numbers,
           allowed_client_ids: config.allowed_client_ids,
-        },
+          blocked_case_ids: config.blocked_case_ids,
+          extra_case_ids: config.extra_case_ids,
+        } as any,
         { onConflict: "user_id,tenant_id" }
       );
       if (error) throw error;
@@ -132,6 +143,18 @@ const StaffAccessControl = () => {
     }
   };
 
+  const getCaseName = (caseId: string) => {
+    const c = cases.find(cs => cs.id === caseId);
+    return c ? `${c.process_number}${c.parties ? ` — ${c.parties.substring(0, 40)}` : ''}` : caseId;
+  };
+
+  const filteredCases = caseSearch.length >= 3
+    ? cases.filter(c =>
+        c.process_number.includes(caseSearch) ||
+        (c.parties && c.parties.toLowerCase().includes(caseSearch.toLowerCase()))
+      ).slice(0, 10)
+    : [];
+
   if (!canManageAccess) return null;
 
   return (
@@ -142,7 +165,7 @@ const StaffAccessControl = () => {
         </h2>
       </div>
       <p className="text-xs text-muted-foreground">
-        Configure quais processos cada membro da equipe pode visualizar. Por padrão, cada membro vê apenas os processos onde é responsável.
+        Configure quais processos cada membro da equipe pode visualizar. Por padrão, cada membro vê processos onde sua OAB aparece em publicações. Use os ajustes manuais para corrigir erros.
       </p>
 
       {loading ? (
@@ -169,13 +192,25 @@ const StaffAccessControl = () => {
                     <p className="text-sm font-medium text-foreground truncate">{member.full_name}</p>
                     <p className="text-xs text-muted-foreground">{modeInfo.label}</p>
                   </div>
-                  <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                    config.access_mode === "all" ? "bg-emerald-500/10 text-emerald-600" :
-                    config.access_mode === "own_only" ? "bg-orange-500/10 text-orange-600" :
-                    "bg-blue-500/10 text-blue-600"
-                  }`}>
-                    {config.access_mode === "all" ? "Total" : config.access_mode === "own_only" ? "Restrito" : "Parcial"}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {config.blocked_case_ids.length > 0 && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/10 text-red-600">
+                        {config.blocked_case_ids.length} bloqueado(s)
+                      </span>
+                    )}
+                    {config.extra_case_ids.length > 0 && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
+                        {config.extra_case_ids.length} extra(s)
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                      config.access_mode === "all" ? "bg-emerald-500/10 text-emerald-600" :
+                      config.access_mode === "own_only" ? "bg-orange-500/10 text-orange-600" :
+                      "bg-blue-500/10 text-blue-600"
+                    }`}>
+                      {config.access_mode === "all" ? "Total" : config.access_mode === "own_only" ? "Restrito" : "Parcial"}
+                    </span>
+                  </div>
                 </div>
 
                 {isEditing && (
@@ -213,15 +248,7 @@ const StaffAccessControl = () => {
                                 placeholder="Ex: RS 123456"
                                 className="flex-1 h-9 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
                               />
-                              <button
-                                onClick={() => {
-                                  const updated = config.allowed_oab_numbers.filter((_, i) => i !== idx);
-                                  updateConfig(member.user_id, { allowed_oab_numbers: updated });
-                                }}
-                                className="p-1.5 text-destructive hover:bg-destructive/10 rounded-md"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <button onClick={() => updateConfig(member.user_id, { allowed_oab_numbers: config.allowed_oab_numbers.filter((_, i) => i !== idx) })} className="p-1.5 text-destructive hover:bg-destructive/10 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           ))}
                           {oabNumbers.length > 0 && (
@@ -241,12 +268,7 @@ const StaffAccessControl = () => {
                               ))}
                             </select>
                           )}
-                          <button
-                            onClick={() => updateConfig(member.user_id, { allowed_oab_numbers: [...config.allowed_oab_numbers, ""] })}
-                            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                          >
-                            <Plus className="w-3 h-3" /> Adicionar OAB manualmente
-                          </button>
+                          <button onClick={() => updateConfig(member.user_id, { allowed_oab_numbers: [...config.allowed_oab_numbers, ""] })} className="inline-flex items-center gap-1 text-xs text-accent hover:underline"><Plus className="w-3 h-3" /> Adicionar OAB manualmente</button>
                         </div>
                       </div>
                     )}
@@ -260,18 +282,8 @@ const StaffAccessControl = () => {
                             const client = clients.find(c => c.user_id === clientId);
                             return (
                               <div key={idx} className="flex items-center gap-2">
-                                <span className="flex-1 h-9 px-3 rounded-lg bg-background border text-sm text-foreground flex items-center">
-                                  {client?.full_name || clientId}
-                                </span>
-                                <button
-                                  onClick={() => {
-                                    const updated = config.allowed_client_ids.filter((_, i) => i !== idx);
-                                    updateConfig(member.user_id, { allowed_client_ids: updated });
-                                  }}
-                                  className="p-1.5 text-destructive hover:bg-destructive/10 rounded-md"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <span className="flex-1 h-9 px-3 rounded-lg bg-background border text-sm text-foreground flex items-center">{client?.full_name || clientId}</span>
+                                <button onClick={() => updateConfig(member.user_id, { allowed_client_ids: config.allowed_client_ids.filter((_, i) => i !== idx) })} className="p-1.5 text-destructive hover:bg-destructive/10 rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             );
                           })}
@@ -293,6 +305,104 @@ const StaffAccessControl = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Manual overrides section */}
+                    <div className="border-t pt-4 space-y-3">
+                      <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                        Ajustes Manuais
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        Use para corrigir erros nas publicações: bloqueie processos que aparecem indevidamente ou libere processos que não aparecem.
+                      </p>
+
+                      {/* Blocked cases */}
+                      <div>
+                        <label className="text-xs font-medium text-red-600 flex items-center gap-1">
+                          <Ban className="w-3 h-3" /> Processos bloqueados (não aparecerão mesmo que a OAB conste)
+                        </label>
+                        <div className="mt-2 space-y-1">
+                          {config.blocked_case_ids.map((caseId) => (
+                            <div key={caseId} className="flex items-center gap-2 bg-red-500/5 rounded-lg px-3 py-1.5">
+                              <span className="flex-1 text-xs text-foreground truncate">{getCaseName(caseId)}</span>
+                              <button onClick={() => updateConfig(member.user_id, { blocked_case_ids: config.blocked_case_ids.filter(id => id !== caseId) })} className="p-1 text-destructive hover:bg-destructive/10 rounded"><Trash2 className="w-3 h-3" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Extra allowed cases */}
+                      <div>
+                        <label className="text-xs font-medium text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Processos liberados manualmente (aparecerão sempre)
+                        </label>
+                        <div className="mt-2 space-y-1">
+                          {config.extra_case_ids.map((caseId) => (
+                            <div key={caseId} className="flex items-center gap-2 bg-green-500/5 rounded-lg px-3 py-1.5">
+                              <span className="flex-1 text-xs text-foreground truncate">{getCaseName(caseId)}</span>
+                              <button onClick={() => updateConfig(member.user_id, { extra_case_ids: config.extra_case_ids.filter(id => id !== caseId) })} className="p-1 text-destructive hover:bg-destructive/10 rounded"><Trash2 className="w-3 h-3" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Case search to add */}
+                      <div>
+                        <input
+                          type="text"
+                          value={caseSearch}
+                          onChange={(e) => setCaseSearch(e.target.value)}
+                          placeholder="Buscar processo por número ou nome da parte (mínimo 3 caracteres)..."
+                          className="w-full h-9 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                        />
+                        {filteredCases.length > 0 && (
+                          <div className="mt-1 border rounded-lg bg-background max-h-40 overflow-y-auto">
+                            {filteredCases.map((c) => {
+                              const isBlocked = config.blocked_case_ids.includes(c.id);
+                              const isExtra = config.extra_case_ids.includes(c.id);
+                              return (
+                                <div key={c.id} className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 border-b last:border-b-0">
+                                  <span className="text-xs text-foreground truncate flex-1">{c.process_number}{c.parties ? ` — ${c.parties.substring(0, 30)}` : ''}</span>
+                                  <div className="flex items-center gap-1 ml-2">
+                                    <button
+                                      onClick={() => {
+                                        if (!isBlocked) {
+                                          updateConfig(member.user_id, {
+                                            blocked_case_ids: [...config.blocked_case_ids, c.id],
+                                            extra_case_ids: config.extra_case_ids.filter(id => id !== c.id),
+                                          });
+                                        } else {
+                                          updateConfig(member.user_id, { blocked_case_ids: config.blocked_case_ids.filter(id => id !== c.id) });
+                                        }
+                                        setCaseSearch("");
+                                      }}
+                                      className={`text-[10px] px-2 py-1 rounded ${isBlocked ? 'bg-red-500 text-white' : 'bg-red-500/10 text-red-600 hover:bg-red-500/20'}`}
+                                    >
+                                      <Ban className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (!isExtra) {
+                                          updateConfig(member.user_id, {
+                                            extra_case_ids: [...config.extra_case_ids, c.id],
+                                            blocked_case_ids: config.blocked_case_ids.filter(id => id !== c.id),
+                                          });
+                                        } else {
+                                          updateConfig(member.user_id, { extra_case_ids: config.extra_case_ids.filter(id => id !== c.id) });
+                                        }
+                                        setCaseSearch("");
+                                      }}
+                                      className={`text-[10px] px-2 py-1 rounded ${isExtra ? 'bg-green-500 text-white' : 'bg-green-500/10 text-green-600 hover:bg-green-500/20'}`}
+                                    >
+                                      <CheckCircle className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Save button */}
                     <div className="flex justify-end gap-2">
