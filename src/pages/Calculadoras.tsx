@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 
 import CorrecaoMonetariaCalc from "@/components/calculadoras/CorrecaoMonetariaCalc";
+import FacilCalc from "@/components/calculadoras/FacilCalc";
 import JurosMoratoriosCalc from "@/components/calculadoras/JurosMoratoriosCalc";
 import ParcelamentoCalc from "@/components/calculadoras/ParcelamentoCalc";
 import TempoContribuicaoCalc from "@/components/calculadoras/TempoContribuicaoCalc";
