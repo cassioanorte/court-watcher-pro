@@ -25,6 +25,8 @@ const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { tenantId, profile, role, user } = useAuth();
+  // Realtime popup notifications for task assignments
+  useTaskNotifications();
   const [tenantName, setTenantName] = useState("Portal Jurídico");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
