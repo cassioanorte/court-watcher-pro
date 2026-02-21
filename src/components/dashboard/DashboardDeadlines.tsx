@@ -46,6 +46,8 @@ const DashboardDeadlines = () => {
   const load = async () => {
     if (!tenantId) return;
     const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
     const in7days = new Date();
     in7days.setDate(in7days.getDate() + 7);
 
@@ -54,10 +56,10 @@ const DashboardDeadlines = () => {
         .from("appointments")
         .select("id, title, description, start_at, end_at, case_id")
         .eq("tenant_id", tenantId)
-        .gte("start_at", now.toISOString())
+        .gte("start_at", todayStart.toISOString())
         .lte("start_at", in7days.toISOString())
         .order("start_at")
-        .limit(5),
+        .limit(10),
       supabase
         .from("crm_tasks")
         .select("id, title, description, due_date, lead_id")
