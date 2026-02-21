@@ -53,7 +53,7 @@ const DashboardDeadlines = () => {
           title: a.title,
           due: a.start_at,
           type: "appointment",
-          link: "/agenda",
+          link: a.case_id ? `/processos/${a.case_id}` : "/agenda",
           overdue: new Date(a.start_at) < now,
         })
       );
