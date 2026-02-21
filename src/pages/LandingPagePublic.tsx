@@ -189,6 +189,7 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
               {content.heroCtaText}
             </a>
           )}
+          </div>
         </div>
       </section>
     );
