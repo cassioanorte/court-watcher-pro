@@ -114,7 +114,7 @@ const DashboardCalendar = () => {
     const load = async () => {
       const [apptRes, casesRes] = await Promise.all([
         supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color").eq("tenant_id", tenantId),
-        supabase.from("cases").select("id, process_number, subject").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+        supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
       ]);
       setAppointments(apptRes.data || []);
       setCases(casesRes.data || []);
