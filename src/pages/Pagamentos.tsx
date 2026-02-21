@@ -474,7 +474,7 @@ const Pagamentos = () => {
                   <th className="p-3 font-medium text-right">Escritório</th>
                   <th className="p-3 font-medium text-right">Cliente</th>
                   <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium"></th>
+                  <th className="p-3 font-medium text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
