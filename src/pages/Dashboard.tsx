@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink } from "lucide-react";
+import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw } from "lucide-react";
 import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 interface Publication {
   id: string;
@@ -48,6 +49,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [lastMovRefresh, setLastMovRefresh] = useState<Date>(new Date());
+  const [refreshingPubs, setRefreshingPubs] = useState(false);
 
   const fetchTodayMovements = useCallback(async () => {
     if (!tenantId) return;
@@ -123,6 +125,30 @@ const Dashboard = () => {
     }, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchTodayMovements]);
+
+  const refreshPubs = useCallback(async () => {
+    if (!tenantId) return;
+    setRefreshingPubs(true);
+    try {
+      await supabase.functions.invoke("poll-email-imap", {
+        body: { tenant_id: tenantId },
+      });
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await supabase
+        .from("dje_publications")
+        .select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url")
+        .eq("tenant_id", tenantId)
+        .eq("publication_date", today)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setTodayPubs((data || []) as Publication[]);
+      toast.success("Publicações atualizadas");
+    } catch (err) {
+      toast.error("Erro ao atualizar publicações");
+    } finally {
+      setRefreshingPubs(false);
+    }
+  }, [tenantId]);
 
   const handlePubClick = async (pub: Publication) => {
     setSelectedPub(pub);
@@ -211,9 +237,15 @@ const Dashboard = () => {
                 <Badge variant="secondary" className="text-xs">{todayPubs.length}</Badge>
               )}
             </div>
-            <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
-              <Link to="/publicacoes">Ver todas <ArrowRight className="w-4 h-4" /></Link>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={refreshPubs} disabled={refreshingPubs} className="text-muted-foreground text-xs h-7 px-2 gap-1">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshingPubs ? "animate-spin" : ""}`} />
+                {refreshingPubs ? "Verificando..." : "Atualizar"}
+              </Button>
+              <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
+                <Link to="/publicacoes">Ver todas <ArrowRight className="w-4 h-4" /></Link>
+              </Button>
+            </div>
           </div>
           {todayPubs.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhuma publicação hoje</p>
