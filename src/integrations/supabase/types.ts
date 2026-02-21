@@ -1037,7 +1037,9 @@ export type Database = {
           access_mode: Database["public"]["Enums"]["case_access_mode"]
           allowed_client_ids: string[] | null
           allowed_oab_numbers: string[] | null
+          blocked_case_ids: string[] | null
           created_at: string
+          extra_case_ids: string[] | null
           id: string
           tenant_id: string
           updated_at: string
@@ -1047,7 +1049,9 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["case_access_mode"]
           allowed_client_ids?: string[] | null
           allowed_oab_numbers?: string[] | null
+          blocked_case_ids?: string[] | null
           created_at?: string
+          extra_case_ids?: string[] | null
           id?: string
           tenant_id: string
           updated_at?: string
@@ -1057,7 +1061,9 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["case_access_mode"]
           allowed_client_ids?: string[] | null
           allowed_oab_numbers?: string[] | null
+          blocked_case_ids?: string[] | null
           created_at?: string
+          extra_case_ids?: string[] | null
           id?: string
           tenant_id?: string
           updated_at?: string
