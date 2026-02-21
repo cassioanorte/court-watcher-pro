@@ -31,6 +31,7 @@ interface CaseOption {
   id: string;
   process_number: string;
   subject: string | null;
+  client_user_id: string | null;
 }
 
 const typeOptions = [
@@ -114,7 +115,7 @@ const DashboardCalendar = () => {
     const load = async () => {
       const [apptRes, casesRes] = await Promise.all([
         supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color").eq("tenant_id", tenantId),
-        supabase.from("cases").select("id, process_number, subject").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+        supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
       ]);
       setAppointments(apptRes.data || []);
       setCases(casesRes.data || []);
@@ -470,15 +471,20 @@ const DashboardCalendar = () => {
                   </Link>
                 </div>
               )}
-              {selectedAppt.lead_id && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Lead vinculado</p>
-                  <Link to={`/crm`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Ver no CRM →
-                  </Link>
-                </div>
-              )}
+              {(() => {
+                const linkedCase = selectedAppt.case_id ? cases.find((c) => c.id === selectedAppt.case_id) : null;
+                const clientUserId = linkedCase?.client_user_id;
+                if (!clientUserId) return null;
+                return (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Cliente vinculado</p>
+                    <Link to={`/contatos/${clientUserId}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Ver cliente →
+                    </Link>
+                  </div>
+                );
+              })()}
               <div className="flex gap-2 pt-2">
                 <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => setEditing(true)}>
                   <Pencil className="w-3.5 h-3.5" /> Editar
