@@ -149,6 +149,17 @@ const ProcessDetail = () => {
       setCaseData((prev: any) => ({ ...prev, next_step: nextStep, next_step_responsible_id: nextStepResponsibleId }));
       setEditingNextStep(false);
       toast({ title: "Próximo passo salvo!" });
+
+      // Send notification to the assigned responsible
+      if (nextStepResponsibleId && nextStepResponsibleId !== user?.id) {
+        const responsibleName = teamMembers.find(m => m.user_id === nextStepResponsibleId)?.full_name || "";
+        await supabase.from("notifications").insert({
+          user_id: nextStepResponsibleId,
+          title: `Nova tarefa atribuída: ${nextStep}`,
+          body: `Você foi designado como responsável no processo ${caseData.process_number}${caseData.parties ? ` (${caseData.parties})` : ""}. Tarefa: ${nextStep}`,
+          case_id: id,
+        });
+      }
     }
     setSavingNextStep(false);
   };
