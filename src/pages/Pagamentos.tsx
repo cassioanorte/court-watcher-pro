@@ -137,25 +137,25 @@ const Pagamentos = () => {
     const feeP = parseFloat(formFeePercent) || 0;
     const costs = parseFloat(formCourtCosts) || 0;
     const soc = parseFloat(formSocSec) || 0;
-    const tax = parseFloat(formTax) || 0;
     const taxP = parseFloat(formTaxPercent) || 0;
 
     if (formOwnership === "escritorio") {
       // 100% do escritório - IR sobre o valor total (que é todo honorário)
       const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
+      setFormTax(taxAmount > 0 ? taxAmount.toString() : "");
       setFormOffice(gross > 0 ? (gross - taxAmount).toString() : "");
       setFormClient("0");
     } else {
-      // Cliente paga o bruto dos honorários sem desconto de IR
       // IR incide somente sobre os honorários do advogado
       const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
       const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
       const officeNet = Math.round((officeGross - officeTax) * 100) / 100;
-      const clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
+      const clientCalc = Math.round((gross - officeGross - costs - soc) * 100) / 100;
+      setFormTax(officeTax > 0 ? officeTax.toString() : "");
       setFormOffice(officeNet > 0 ? officeNet.toString() : "");
       setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
     }
-  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax, formOwnership, formTaxPercent]);
+  }, [formGross, formFeePercent, formCourtCosts, formSocSec, formOwnership, formTaxPercent]);
 
   const applyRpvData = (d: Partial<RpvData>) => {
     if (d.type) setFormType(d.type);
