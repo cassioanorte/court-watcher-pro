@@ -388,24 +388,22 @@ const Pagamentos = () => {
     const feeP = parseFloat(String(editForm.office_fees_percent)) || 0;
     const costs = parseFloat(String(editForm.court_costs)) || 0;
     const soc = parseFloat(String(editForm.social_security)) || 0;
-    const tax = parseFloat(String(editForm.income_tax)) || 0;
     const taxP = parseFloat(String(editForm.tax_percent)) || 0;
     const ownership = editForm.ownership_type || "cliente";
 
     let officeCalc: number;
     let clientCalc: number;
+    let taxCalc: number;
 
     if (ownership === "escritorio") {
-      // 100% escritório - IR sobre o total
-      const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
-      officeCalc = Math.round((gross - taxAmount) * 100) / 100;
+      taxCalc = Math.round(gross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((gross - taxCalc) * 100) / 100;
       clientCalc = 0;
     } else {
-      // IR applies only on office fees (honorários)
       const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
-      const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
-      officeCalc = Math.round((officeGross - officeTax) * 100) / 100;
-      clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
+      taxCalc = Math.round(officeGross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((officeGross - taxCalc) * 100) / 100;
+      clientCalc = Math.round((gross - officeGross - costs - soc) * 100) / 100;
     }
 
     const updates = {
