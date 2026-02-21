@@ -143,10 +143,10 @@ const ProcessDetail = () => {
   const handleSaveNextStep = async () => {
     if (!id) return;
     setSavingNextStep(true);
-    const { error } = await supabase.from("cases").update({ next_step: nextStep }).eq("id", id);
+    const { error } = await supabase.from("cases").update({ next_step: nextStep, next_step_responsible_id: nextStepResponsibleId || null } as any).eq("id", id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else {
-      setCaseData((prev: any) => ({ ...prev, next_step: nextStep }));
+      setCaseData((prev: any) => ({ ...prev, next_step: nextStep, next_step_responsible_id: nextStepResponsibleId }));
       setEditingNextStep(false);
       toast({ title: "Próximo passo salvo!" });
     }
