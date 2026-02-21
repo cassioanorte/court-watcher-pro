@@ -39,6 +39,7 @@ import LandingPages from "./pages/LandingPages";
 import LandingPageEditor from "./pages/LandingPageEditor";
 import LandingPagePublic from "./pages/LandingPagePublic";
 import Pagamentos from "./pages/Pagamentos";
+import AgentesIA from "./pages/AgentesIA";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -119,6 +120,7 @@ const App = () => (
               <Route path="landing-pages" element={<LandingPages />} />
               <Route path="landing-pages/:id" element={<LandingPageEditor />} />
               <Route path="configuracoes" element={<Settings />} />
+              <Route path="agentes-ia" element={<AgentesIA />} />
             </Route>
 
             {/* Client portal routes */}
