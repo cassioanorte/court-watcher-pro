@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check } from "lucide-react";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check, Link2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,11 +37,13 @@ const typeOptions = [
 const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: string }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isConnected: googleConnected, connect: connectGoogle, createMeetEvent, loading: googleLoading } = useGoogleCalendar();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
   const [form, setForm] = useState({
     title: "Reunião presencial",
     description: "",
