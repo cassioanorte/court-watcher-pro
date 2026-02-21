@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import NewProcessModal from "@/components/NewProcessModal";
+import ProcessAccessControl from "@/components/ProcessAccessControl";
 import ImportReview from "@/components/ImportReview";
 import type { Tables, Database } from "@/integrations/supabase/types";
 
