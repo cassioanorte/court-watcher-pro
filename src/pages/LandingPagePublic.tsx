@@ -175,10 +175,13 @@ const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
     return (
       <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white py-28 px-6 relative overflow-hidden" style={bgStyle}>
         
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-4xl mx-auto relative z-10">
           {b?.logoUrl && (
-            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
+            <div className="mb-8">
+              <img src={b.logoUrl} alt="Logo" className="h-20 md:h-24 object-contain" style={{ filter: logoFilter }} />
+            </div>
           )}
+          <div className="text-center">
           <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight" style={textStyle}>{content.heroTitle}</h1>
           <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
           {content.heroCtaText && (
