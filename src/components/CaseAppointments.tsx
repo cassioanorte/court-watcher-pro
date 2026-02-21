@@ -520,7 +520,14 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       )}
 
       {/* Notification dialog */}
-      <Dialog open={showNotifyDialog} onOpenChange={(open) => { setShowNotifyDialog(open); if (!open) setEditingId(null); }}>
+      <Dialog open={showNotifyDialog} onOpenChange={(open) => { 
+        if (!open) { 
+          setShowNotifyDialog(false); 
+          setEditingId(null); 
+          setEmailSent(false); 
+          setWhatsappSent(false); 
+        } 
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
