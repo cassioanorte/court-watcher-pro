@@ -355,6 +355,66 @@ const ProcessDetail = () => {
     }
   };
 
+  const openEditModal = async () => {
+    if (!caseData || !tenantId) return;
+    setEditForm({
+      process_number: caseData.process_number,
+      source: caseData.source,
+      subject: caseData.subject || "",
+      parties: caseData.parties || "",
+      case_summary: caseData.case_summary || "",
+      client_user_id: caseData.client_user_id || "",
+      responsible_user_id: caseData.responsible_user_id || "",
+      simple_status: caseData.simple_status || "",
+      automation_enabled: caseData.automation_enabled ?? true,
+    });
+    // Fetch clients & staff
+    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId);
+    if (profiles) {
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", profiles.map(p => p.user_id));
+      const clientIds = new Set((roles || []).filter(r => r.role === "client").map(r => r.user_id));
+      const staffIds = new Set((roles || []).filter(r => r.role === "owner" || r.role === "staff").map(r => r.user_id));
+      setEditClients(profiles.filter(p => clientIds.has(p.user_id)));
+      setEditStaff(profiles.filter(p => staffIds.has(p.user_id)));
+    }
+    setShowEditModal(true);
+  };
+
+  const handleSaveFullEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase.from("cases").update({
+        process_number: editForm.process_number,
+        source: editForm.source,
+        subject: editForm.subject || null,
+        parties: editForm.parties || null,
+        case_summary: editForm.case_summary || null,
+        client_user_id: editForm.client_user_id || null,
+        responsible_user_id: editForm.responsible_user_id || null,
+        simple_status: editForm.simple_status || null,
+        automation_enabled: editForm.automation_enabled,
+      }).eq("id", id);
+      if (error) throw error;
+      // Reload case data
+      const { data: updated } = await supabase.from("cases").select("*").eq("id", id).single();
+      if (updated) {
+        setCaseData(updated);
+        setCaseSummary(updated.case_summary || "");
+        setNextStep(updated.next_step || "");
+        setPartiesText(updated.parties || "");
+      }
+      toast({ title: "Processo atualizado!" });
+      setShowEditModal(false);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+
   if (loading) return <div className="text-sm text-muted-foreground">Carregando...</div>;
   if (!caseData) return <div className="text-sm text-destructive">Processo não encontrado.</div>;
 
