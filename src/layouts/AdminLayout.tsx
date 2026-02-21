@@ -26,6 +26,9 @@ const navItems = [
 const AdminLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
   const { tenantId, profile, role, user } = useAuth();
   // Realtime popup notifications for task assignments
   useTaskNotifications();
