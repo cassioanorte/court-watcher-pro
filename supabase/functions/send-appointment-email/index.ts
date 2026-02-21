@@ -60,7 +60,6 @@ serve(async (req) => {
     }
 
     const smtpHost = getSmtpHost(creds.imap_host);
-    const smtpPort = 587;
 
     // Get tenant name for email branding
     const { data: tenant } = await supabase
@@ -96,11 +95,14 @@ serve(async (req) => {
     `;
 
     // Send email via SMTP
+    const useImplicitTLS = smtpHost.includes("gmail") || smtpHost.includes("zoho");
+    const smtpPort = useImplicitTLS ? 465 : 587;
+
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
         port: smtpPort,
-        tls: true,
+        tls: useImplicitTLS,
         auth: {
           username: creds.imap_user,
           password: creds.imap_password,
