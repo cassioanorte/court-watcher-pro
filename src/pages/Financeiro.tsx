@@ -6,11 +6,12 @@ import { motion } from "framer-motion";
 import {
   DollarSign, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, X, Save,
   ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar, Banknote, Clock,
-  CheckCircle2, AlertTriangle, Users, Briefcase, Scale
+  CheckCircle2, AlertTriangle, Users, Briefcase, Scale, Wallet
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Pagamentos from "@/pages/Pagamentos";
 import PaymentOrdersTracker from "@/components/PaymentOrdersTracker";
+import FluxoDeCaixa from "@/components/FluxoDeCaixa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -329,6 +330,9 @@ const Financeiro = () => {
           </TabsTrigger>
           <TabsTrigger value="aguardando-pagamento" className="gap-1.5">
             <Clock className="w-4 h-4" /> Aguardando Pagamento
+          </TabsTrigger>
+          <TabsTrigger value="fluxo-caixa" className="gap-1.5">
+            <Wallet className="w-4 h-4" /> Fluxo de Caixa
           </TabsTrigger>
         </TabsList>
 
@@ -748,6 +752,10 @@ const Financeiro = () => {
 
         <TabsContent value="aguardando-pagamento">
           <PaymentOrdersTracker />
+        </TabsContent>
+
+        <TabsContent value="fluxo-caixa">
+          <FluxoDeCaixa />
         </TabsContent>
       </Tabs>
     </div>
