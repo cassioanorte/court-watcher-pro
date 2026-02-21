@@ -231,7 +231,7 @@ const Financeiro = () => {
             </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
             className="bg-card rounded-lg p-5 shadow-card border">
@@ -239,6 +239,9 @@ const Financeiro = () => {
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
                 <p className="text-xl font-bold text-foreground mt-1 font-display">{kpi.value}</p>
+                {"subtitle" in kpi && kpi.subtitle && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.subtitle}</p>
+                )}
               </div>
               <div className={`w-10 h-10 rounded-lg ${kpi.bgColor} flex items-center justify-center`}>
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
