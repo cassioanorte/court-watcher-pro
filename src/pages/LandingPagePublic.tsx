@@ -62,6 +62,15 @@ const ensureQuizSection = (sections: typeof DEFAULT_SECTIONS, quizEnabled?: bool
   return sections;
 };
 
+// Helper to lighten a hex color
+function lightenHex(hex: string, amount: number): string {
+  const c = hex.replace("#", "");
+  const r = Math.min(255, parseInt(c.substring(0, 2), 16) + amount);
+  const g = Math.min(255, parseInt(c.substring(2, 4), 16) + amount);
+  const b = Math.min(255, parseInt(c.substring(4, 6), 16) + amount);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 // ── Section renderers per template ──
 
 const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
