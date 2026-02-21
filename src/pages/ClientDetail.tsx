@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, Scale, Clock, ChevronDown, FileText, Plus, Pencil, X, Save, User, CreditCard, MapPin, Globe, Archive } from "lucide-react";
 import NewProcessModal from "@/components/NewProcessModal";
+import CaseAppointments from "@/components/CaseAppointments";
 
 const sourceLabels: Record<string, string> = {
   TJRS_1G: "TJRS - 1º Grau",
