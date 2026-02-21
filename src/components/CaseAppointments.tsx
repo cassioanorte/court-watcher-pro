@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil } from "lucide-react";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -146,9 +146,11 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     const msg = buildNotificationMessage(savedAppointment, clientInfo.full_name, !!editingId);
     const url = `https://wa.me/${normalized}?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank");
-    setShowNotifyDialog(false);
-    setEditingId(null);
+    setWhatsappSent(true);
   };
+
+  const [emailSent, setEmailSent] = useState(false);
+  const [whatsappSent, setWhatsappSent] = useState(false);
 
   const handleSendEmail = async () => {
     if (!clientInfo?.email || !savedAppointment) return;
@@ -171,8 +173,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({ title: "E-mail enviado com sucesso!" });
-      setShowNotifyDialog(false);
-      setEditingId(null);
+      setEmailSent(true);
     } catch (err: any) {
       toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
     } finally {
@@ -519,7 +520,14 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       )}
 
       {/* Notification dialog */}
-      <Dialog open={showNotifyDialog} onOpenChange={(open) => { setShowNotifyDialog(open); if (!open) setEditingId(null); }}>
+      <Dialog open={showNotifyDialog} onOpenChange={(open) => { 
+        if (!open) { 
+          setShowNotifyDialog(false); 
+          setEditingId(null); 
+          setEmailSent(false); 
+          setWhatsappSent(false); 
+        } 
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -559,26 +567,34 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                 {clientInfo.phone && normalizePhone(clientInfo.phone) && (
                   <button
                     onClick={handleWhatsApp}
-                    className="w-full h-10 rounded-lg bg-[#25D366] text-white text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                    disabled={whatsappSent}
+                    className={`w-full h-10 rounded-lg text-white text-sm font-semibold transition-opacity inline-flex items-center justify-center gap-2 ${
+                      whatsappSent ? "bg-green-600 opacity-80" : "bg-[#25D366] hover:opacity-90"
+                    }`}
                   >
-                    <MessageCircle className="w-4 h-4" /> Enviar via WhatsApp
+                    {whatsappSent ? <Check className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
+                    {whatsappSent ? "WhatsApp enviado ✓" : "Enviar via WhatsApp"}
                   </button>
                 )}
                 {clientInfo.email && (
                   <button
                     onClick={handleSendEmail}
-                    disabled={sendingEmail}
-                    className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                    disabled={sendingEmail || emailSent}
+                    className={`w-full h-10 rounded-lg text-sm font-semibold transition-opacity inline-flex items-center justify-center gap-2 ${
+                      emailSent
+                        ? "bg-green-600 text-white opacity-80"
+                        : "gradient-accent text-accent-foreground hover:opacity-90 disabled:opacity-50"
+                    }`}
                   >
-                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                    {sendingEmail ? "Enviando..." : "Enviar por E-mail"}
+                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : emailSent ? <Check className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                    {sendingEmail ? "Enviando..." : emailSent ? "E-mail enviado ✓" : "Enviar por E-mail"}
                   </button>
                 )}
                 <button
-                  onClick={() => { setShowNotifyDialog(false); setEditingId(null); }}
+                  onClick={() => { setShowNotifyDialog(false); setEditingId(null); setEmailSent(false); setWhatsappSent(false); }}
                   className="w-full h-9 rounded-lg border text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Não notificar
+                  {emailSent || whatsappSent ? "Fechar" : "Não notificar"}
                 </button>
               </div>
             </div>
