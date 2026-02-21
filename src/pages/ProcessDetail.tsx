@@ -308,7 +308,7 @@ const ProcessDetail = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Back + header */}
       <div>
-        <Link to={backTo} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3">
+        <Link to={backTo} state={backTo.startsWith("/clientes/") || backTo.startsWith("/contatos/") ? { scrollToProcesses: true } : undefined} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3">
           <ArrowLeft className="w-4 h-4" /> {backLabel}
         </Link>
         <div className="flex items-start justify-between flex-wrap gap-4">

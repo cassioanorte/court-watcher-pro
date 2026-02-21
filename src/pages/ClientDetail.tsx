@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,8 @@ const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { tenantId } = useAuth();
   const { toast } = useToast();
+  const location = useLocation();
+  const processesRef = useRef<HTMLDivElement>(null);
   const [client, setClient] = useState<any>(null);
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,15 @@ const ClientDetail = () => {
     };
     load();
   }, [id]);
+
+  // Scroll to processes section when returning from a process page
+  useEffect(() => {
+    if (!loading && (location.state as any)?.scrollToProcesses && processesRef.current) {
+      setTimeout(() => {
+        processesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [loading, location.state]);
 
   const toggleCase = async (caseId: string) => {
     if (expandedCase === caseId) {
@@ -230,7 +241,7 @@ const ClientDetail = () => {
       )}
 
       {/* Processes - expandable */}
-      <div>
+      <div ref={processesRef}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-foreground">
             Processos Ativos ({cases.filter(c => !c.archived).length})
