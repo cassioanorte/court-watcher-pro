@@ -168,7 +168,7 @@ const Dashboard = () => {
 
       {/* Stat Cards with gradients */}
       <DashboardStatsCards
-        casesCount={casesCount}
+        agentsCount={agentsCount}
         clientsCount={clientsCount}
         appointmentsCount={appointmentsCount}
         loading={loading}
