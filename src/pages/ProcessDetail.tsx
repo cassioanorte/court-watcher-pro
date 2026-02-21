@@ -71,6 +71,7 @@ const ProcessDetail = () => {
         setCaseData(caseRes.data);
         setCaseSummary(caseRes.data.case_summary || "");
         setNextStep(caseRes.data.next_step || "");
+        setNextStepResponsibleId(caseRes.data.next_step_responsible_id || null);
       }
       if (movRes.data) setMovements(movRes.data);
       if (msgRes.data) setMessages(msgRes.data);
