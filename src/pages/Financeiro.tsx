@@ -199,6 +199,7 @@ const Financeiro = () => {
     { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10" },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
     { label: "Margem de Lucro", value: `${profitMargin.toFixed(1)}%`, icon: Target, color: "text-accent", bgColor: "bg-accent/10" },
+    { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
   ];
 
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
