@@ -96,21 +96,24 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
   const refreshData = async (id: string) => {
     const { data: apt } = await supabase
       .from("appointments")
-      .select("id, title, description, start_at, end_at, case_id")
+      .select("id, title, description, start_at, end_at, case_id, client_user_id")
       .eq("id", id)
       .single();
     if (!apt) return;
     let caseInfo: { client_user_id: string | null; process_number: string } | null = null;
     let clientName: string | null = null;
+    // Determine client: appointment-level client_user_id takes priority, then case-level
+    const effectiveClientId = apt.client_user_id || null;
     if (apt.case_id) {
       const { data: c } = await supabase.from("cases").select("id, client_user_id, process_number").eq("id", apt.case_id).single();
       if (c) {
         caseInfo = { client_user_id: c.client_user_id, process_number: c.process_number };
-        if (c.client_user_id) {
-          const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", c.client_user_id).single();
-          clientName = p?.full_name || null;
-        }
       }
+    }
+    const clientIdToResolve = effectiveClientId || caseInfo?.client_user_id || null;
+    if (clientIdToResolve) {
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", clientIdToResolve).single();
+      clientName = p?.full_name || null;
     }
     setData({
       id: apt.id,
@@ -119,7 +122,7 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
       startAt: apt.start_at,
       endAt: apt.end_at,
       caseId: apt.case_id,
-      clientUserId: caseInfo?.client_user_id || null,
+      clientUserId: clientIdToResolve,
       clientName,
       processNumber: caseInfo?.process_number || null,
     });
@@ -175,22 +178,14 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
   const handleLinkClient = async () => {
     if (!data || !selectedClientId) return;
     setSaving(true);
-    if (data.caseId) {
-      // If there's already a linked case, update the case's client
-      const { error } = await supabase.from("cases").update({ client_user_id: selectedClientId }).eq("id", data.caseId);
-      if (error) {
-        toast({ title: "Erro ao vincular cliente", variant: "destructive" });
-      } else {
-        toast({ title: "Cliente vinculado!" });
-        setLinkingClient(false);
-        await refreshData(data.id);
-      }
+    // Always persist client_user_id on the appointment itself
+    const { error } = await supabase.from("appointments").update({ client_user_id: selectedClientId }).eq("id", data.id);
+    if (error) {
+      toast({ title: "Erro ao vincular cliente", variant: "destructive" });
     } else {
-      // No case linked — just store the client name locally for display
-      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", selectedClientId).single();
-      setData(prev => prev ? { ...prev, clientUserId: selectedClientId, clientName: profile?.full_name || "Cliente" } : prev);
       toast({ title: "Cliente vinculado!" });
       setLinkingClient(false);
+      await refreshData(data.id);
     }
     setSaving(false);
   };
@@ -212,9 +207,15 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
   const handleUnlinkClient = async () => {
     if (!data) return;
     if (!confirm("Desvincular o cliente deste compromisso?")) return;
-    // Only clear the client reference from the appointment view, NOT from the case record
-    setData(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
-    toast({ title: "Cliente desvinculado do compromisso!" });
+    setSaving(true);
+    const { error } = await supabase.from("appointments").update({ client_user_id: null }).eq("id", data.id);
+    if (error) {
+      toast({ title: "Erro ao desvincular", variant: "destructive" });
+    } else {
+      setData(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
+      toast({ title: "Cliente desvinculado do compromisso!" });
+    }
+    setSaving(false);
   };
 
   const startLinkCase = () => {
