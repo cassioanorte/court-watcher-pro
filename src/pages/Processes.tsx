@@ -37,7 +37,7 @@ const Processes = () => {
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editProcess, setEditProcess] = useState<Tables<"cases"> | null>(null);
-  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", parties: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [staff, setStaff] = useState<{ user_id: string; full_name: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -126,6 +126,7 @@ const Processes = () => {
       process_number: p.process_number,
       source: p.source,
       subject: p.subject || "",
+      parties: (p as any).parties || "",
       case_summary: p.case_summary || "",
       client_user_id: p.client_user_id || "",
       responsible_user_id: p.responsible_user_id || "",
@@ -145,6 +146,7 @@ const Processes = () => {
         process_number: editForm.process_number,
         source: editForm.source,
         subject: editForm.subject || null,
+        parties: editForm.parties || null,
         case_summary: editForm.case_summary || null,
         client_user_id: editForm.client_user_id || null,
         responsible_user_id: editForm.responsible_user_id || null,
@@ -452,6 +454,11 @@ const Processes = () => {
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assunto</label>
                 <input type="text" value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))} placeholder="Ex: Indenização por danos morais" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Partes Envolvidas</label>
+                <input type="text" value={editForm.parties} onChange={(e) => setEditForm(f => ({ ...f, parties: e.target.value }))} placeholder="Ex: João da Silva | Maria Souza" className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/40" />
+                <p className="text-[10px] text-muted-foreground mt-1">Use "|" para separar Autor e Réu</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resumo do caso</label>
