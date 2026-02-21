@@ -172,6 +172,7 @@ const calcComponents: Record<string, React.FC> = {
   heranca: HerancaCalc,
   sucessor: SucessorCalc,
   distrato_imovel: DistratoImovelCalc,
+  espaco_locaticio: EspacoLocaticioCalc,
   dano_moral: DanoMoralCalc,
   cobranca_indevida: CobrancaIndevidaCalc,
   revisao_bancaria: RevisaoBancariaCalc,
