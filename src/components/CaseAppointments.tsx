@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "Reunião presencial",
     description: "",
@@ -76,7 +77,6 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     fetchAppointments();
   }, [caseId]);
 
-  // Fetch client info from case
   const fetchClientInfo = async (): Promise<ClientInfo | null> => {
     const { data: caseData } = await supabase
       .from("cases")
@@ -111,7 +111,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     return null;
   };
 
-  const buildNotificationMessage = (data: NonNullable<typeof savedAppointment>, clientName?: string): string => {
+  const buildNotificationMessage = (data: NonNullable<typeof savedAppointment>, clientName?: string, isUpdate?: boolean): string => {
     const dateFormatted = new Date(`${data.date}T00:00:00`).toLocaleDateString("pt-BR", {
       weekday: "long",
       day: "2-digit",
@@ -120,7 +120,9 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     });
 
     let msg = `Olá${clientName ? `, ${clientName}` : ""}! 👋\n\n`;
-    msg += `Seu atendimento foi agendado:\n\n`;
+    msg += isUpdate
+      ? `Seu atendimento foi *atualizado*:\n\n`
+      : `Seu atendimento foi agendado:\n\n`;
     msg += `📋 *Tipo:* ${data.title}\n`;
     msg += `📅 *Data:* ${dateFormatted}\n`;
     msg += `🕐 *Horário:* ${data.startTime} às ${data.endTime}\n`;
@@ -141,10 +143,11 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       toast({ title: "Número inválido", description: "O telefone do cliente não é um celular válido.", variant: "destructive" });
       return;
     }
-    const msg = buildNotificationMessage(savedAppointment, clientInfo.full_name);
+    const msg = buildNotificationMessage(savedAppointment, clientInfo.full_name, !!editingId);
     const url = `https://wa.me/${normalized}?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank");
     setShowNotifyDialog(false);
+    setEditingId(null);
   };
 
   const handleSendEmail = async () => {
@@ -162,16 +165,63 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
           description: savedAppointment.description || null,
           videoLink: savedAppointment.videoLink,
           tenantId,
+          isUpdate: !!editingId,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({ title: "E-mail enviado com sucesso!" });
       setShowNotifyDialog(false);
+      setEditingId(null);
     } catch (err: any) {
       toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const resetForm = () => {
+    setForm({ title: "Reunião presencial", description: "", date: "", startTime: "09:00", endTime: "10:00" });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (a: Appointment) => {
+    const startDate = new Date(a.start_at);
+    const endDate = new Date(a.end_at);
+    setForm({
+      title: a.title,
+      description: a.description || "",
+      date: startDate.toISOString().slice(0, 10),
+      startTime: startDate.toTimeString().slice(0, 5),
+      endTime: endDate.toTimeString().slice(0, 5),
+    });
+    setEditingId(a.id);
+    setShowForm(true);
+  };
+
+  const openNotifyDialog = async (appointmentId: string) => {
+    const a = appointments.find((x) => x.id === appointmentId);
+    if (!a) return;
+    const startDate = new Date(a.start_at);
+    const endDate = new Date(a.end_at);
+    const videoLink = a.title === "Videochamada" ? generateJitsiLink(a.id) : null;
+
+    const client = await fetchClientInfo();
+    if (client && (client.phone || client.email)) {
+      setClientInfo(client);
+      setSavedAppointment({
+        title: a.title,
+        description: a.description || "",
+        date: startDate.toISOString().slice(0, 10),
+        startTime: startDate.toTimeString().slice(0, 5),
+        endTime: endDate.toTimeString().slice(0, 5),
+        videoLink,
+      });
+      setEditingId(appointmentId);
+      setShowNotifyDialog(true);
+    } else {
+      toast({ title: "Cliente sem contato", description: "O cliente não possui telefone ou e-mail cadastrado.", variant: "destructive" });
     }
   };
 
@@ -183,53 +233,100 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     const start_at = `${form.date}T${form.startTime}:00`;
     const end_at = `${form.date}T${form.endTime}:00`;
 
-    const { data: inserted, error } = await supabase.from("appointments").insert({
-      title: form.title,
-      description: form.description || null,
-      start_at,
-      end_at,
-      case_id: caseId,
-      tenant_id: tenantId,
-      user_id: user.id,
-    }).select("id").single();
+    if (editingId) {
+      // Update existing
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          title: form.title,
+          description: form.description || null,
+          start_at,
+          end_at,
+        })
+        .eq("id", editingId);
 
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      if (error) {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Atendimento atualizado!" });
+
+        const videoLink = form.title === "Videochamada" ? generateJitsiLink(editingId) : null;
+
+        await supabase.from("case_activities").insert({
+          case_id: caseId,
+          tenant_id: tenantId,
+          user_id: user.id,
+          action_type: "appointment_updated",
+          description: `Atendimento atualizado: ${form.title}`,
+          metadata: { start_at, end_at, type: form.title, video_link: videoLink },
+        });
+
+        // Ask to notify
+        const client = await fetchClientInfo();
+        if (client && (client.phone || client.email)) {
+          setClientInfo(client);
+          setSavedAppointment({
+            title: form.title,
+            description: form.description,
+            date: form.date,
+            startTime: form.startTime,
+            endTime: form.endTime,
+            videoLink,
+          });
+          setShowNotifyDialog(true);
+        }
+
+        setShowForm(false);
+        setForm({ title: "Reunião presencial", description: "", date: "", startTime: "09:00", endTime: "10:00" });
+        fetchAppointments();
+      }
     } else {
-      toast({ title: "Atendimento registrado!" });
-
-      const videoLink = form.title === "Videochamada" && inserted?.id
-        ? generateJitsiLink(inserted.id)
-        : null;
-
-      // Log activity
-      await supabase.from("case_activities").insert({
+      // Insert new
+      const { data: inserted, error } = await supabase.from("appointments").insert({
+        title: form.title,
+        description: form.description || null,
+        start_at,
+        end_at,
         case_id: caseId,
         tenant_id: tenantId,
         user_id: user.id,
-        action_type: "appointment_created",
-        description: `Atendimento registrado: ${form.title}`,
-        metadata: { start_at, end_at, type: form.title, video_link: videoLink },
-      });
+      }).select("id").single();
 
-      // Prepare notification dialog
-      const client = await fetchClientInfo();
-      if (client && (client.phone || client.email)) {
-        setClientInfo(client);
-        setSavedAppointment({
-          title: form.title,
-          description: form.description,
-          date: form.date,
-          startTime: form.startTime,
-          endTime: form.endTime,
-          videoLink,
+      if (error) {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Atendimento registrado!" });
+
+        const videoLink = form.title === "Videochamada" && inserted?.id
+          ? generateJitsiLink(inserted.id)
+          : null;
+
+        await supabase.from("case_activities").insert({
+          case_id: caseId,
+          tenant_id: tenantId,
+          user_id: user.id,
+          action_type: "appointment_created",
+          description: `Atendimento registrado: ${form.title}`,
+          metadata: { start_at, end_at, type: form.title, video_link: videoLink },
         });
-        setShowNotifyDialog(true);
-      }
 
-      setShowForm(false);
-      setForm({ title: "Reunião presencial", description: "", date: "", startTime: "09:00", endTime: "10:00" });
-      fetchAppointments();
+        const client = await fetchClientInfo();
+        if (client && (client.phone || client.email)) {
+          setClientInfo(client);
+          setSavedAppointment({
+            title: form.title,
+            description: form.description,
+            date: form.date,
+            startTime: form.startTime,
+            endTime: form.endTime,
+            videoLink,
+          });
+          setShowNotifyDialog(true);
+        }
+
+        resetForm();
+        fetchAppointments();
+      }
     }
     setSaving(false);
   };
@@ -259,16 +356,21 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
           <Calendar className="w-3.5 h-3.5 text-accent" /> Atendimentos ({appointments.length})
         </h3>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="inline-flex items-center gap-1 text-[10px] text-accent hover:underline font-medium"
         >
           {showForm ? <><X className="w-3 h-3" /> Cancelar</> : <><Plus className="w-3 h-3" /> Novo</>}
         </button>
       </div>
 
-      {/* New appointment form */}
+      {/* Form (create / edit) */}
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-muted/50 rounded-lg p-3 space-y-3 border">
+          {editingId && (
+            <p className="text-[10px] text-accent font-semibold uppercase tracking-wide flex items-center gap-1">
+              <Pencil className="w-3 h-3" /> Editando atendimento
+            </p>
+          )}
           <div>
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Tipo</label>
             <div className="flex flex-wrap gap-2 mt-1">
@@ -345,7 +447,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
             disabled={saving}
             className="w-full h-8 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
           >
-            <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Registrar Atendimento"}
+            <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : editingId ? "Salvar Alterações" : "Registrar Atendimento"}
           </button>
         </form>
       )}
@@ -366,6 +468,22 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                     <p className="text-[10px] text-accent mt-1 flex items-center gap-1">
                       <Clock className="w-3 h-3" /> {formatDateTime(a.start_at)}
                     </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => startEdit(a)}
+                      title="Editar"
+                      className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => openNotifyDialog(a.id)}
+                      title="Notificar cliente"
+                      className="p-1.5 rounded-md hover:bg-accent/10 transition-colors text-accent"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );
@@ -401,7 +519,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       )}
 
       {/* Notification dialog */}
-      <Dialog open={showNotifyDialog} onOpenChange={setShowNotifyDialog}>
+      <Dialog open={showNotifyDialog} onOpenChange={(open) => { setShowNotifyDialog(open); if (!open) setEditingId(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -414,7 +532,6 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
 
           {clientInfo && savedAppointment && (
             <div className="space-y-4">
-              {/* Appointment summary */}
               <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-xs">
                 <p><span className="font-medium text-muted-foreground">Tipo:</span> {savedAppointment.title}</p>
                 <p><span className="font-medium text-muted-foreground">Data:</span> {new Date(`${savedAppointment.date}T00:00:00`).toLocaleDateString("pt-BR")} — {savedAppointment.startTime} às {savedAppointment.endTime}</p>
@@ -432,14 +549,12 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                 )}
               </div>
 
-              {/* Client info */}
               <div className="text-xs space-y-1">
                 <p className="font-medium text-foreground">Cliente: {clientInfo.full_name}</p>
                 {clientInfo.phone && <p className="text-muted-foreground">📱 {clientInfo.phone}</p>}
                 {clientInfo.email && <p className="text-muted-foreground">✉️ {clientInfo.email}</p>}
               </div>
 
-              {/* Action buttons */}
               <div className="flex flex-col gap-2">
                 {clientInfo.phone && normalizePhone(clientInfo.phone) && (
                   <button
@@ -460,7 +575,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                   </button>
                 )}
                 <button
-                  onClick={() => setShowNotifyDialog(false)}
+                  onClick={() => { setShowNotifyDialog(false); setEditingId(null); }}
                   className="w-full h-9 rounded-lg border text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Não notificar
