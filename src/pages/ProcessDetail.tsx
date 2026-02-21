@@ -499,6 +499,14 @@ const ProcessDetail = () => {
                 {caseData.archived ? "Desarquivar" : "Arquivar"}
               </button>
             )}
+            {isLawyer && (
+              <button
+                onClick={openEditModal}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border hover:bg-muted transition-colors text-muted-foreground"
+              >
+                <Pencil className="w-3 h-3" /> Editar
+              </button>
+            )}
           </div>
         </div>
       </div>
