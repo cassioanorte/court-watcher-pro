@@ -48,8 +48,11 @@ const Processes = () => {
   const [deleteAllConfirm, setDeleteAllConfirm] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"ativos" | "arquivados">("ativos");
-  const { tenantId } = useAuth();
+  const [accessControlCase, setAccessControlCase] = useState<{ id: string; process_number: string } | null>(null);
+  const { tenantId, role } = useAuth();
   const { toast } = useToast();
+
+  const isOwner = role === "owner" || role === "superadmin";
 
   const fetchProcesses = async () => {
     if (!tenantId) return;
