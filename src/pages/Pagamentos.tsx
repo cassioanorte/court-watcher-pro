@@ -383,8 +383,20 @@ const Pagamentos = () => {
     const costs = parseFloat(String(editForm.court_costs)) || 0;
     const soc = parseFloat(String(editForm.social_security)) || 0;
     const tax = parseFloat(String(editForm.income_tax)) || 0;
-    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+    const taxP = parseFloat(String(editForm.tax_percent)) || 0;
+    const ownership = editForm.ownership_type || "cliente";
+
+    let officeCalc: number;
+    let clientCalc: number;
+
+    if (ownership === "escritorio") {
+      const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((gross - taxAmount) * 100) / 100;
+      clientCalc = 0;
+    } else {
+      officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+      clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+    }
 
     const updates = {
       type: editForm.type,
@@ -408,6 +420,9 @@ const Pagamentos = () => {
       document_name: editForm.document_name || null,
       ai_extracted: editForm.ai_extracted || false,
       ai_raw_data: editForm.ai_raw_data || null,
+      ownership_type: ownership,
+      fee_type: editForm.fee_type || "contratuais",
+      tax_percent: taxP,
     };
 
     const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
