@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Save, Eye, Plus, Trash2, Sparkles, ChevronUp, ChevronDown, EyeOff, GripVertical, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Eye, Plus, Trash2, Sparkles, ChevronUp, ChevronDown, EyeOff, GripVertical, Loader2, Upload, X, Palette } from "lucide-react";
 import QuizEditor from "@/components/landing/QuizEditor";
 import type { QuizConfig } from "@/components/landing/QuizSection";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "@/hooks/use-toast";
 
 interface LPContent {
