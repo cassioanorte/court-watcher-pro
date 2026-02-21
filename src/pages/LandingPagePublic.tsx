@@ -157,87 +157,122 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
 };
 
 const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
-  hero: ({ content }) => (
-    <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white py-28 px-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')] opacity-40" />
-      <div className="max-w-4xl mx-auto text-center relative z-10">
-        <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">{content.heroTitle}</h1>
-        <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">{content.heroSubtitle}</p>
-        {content.heroCtaText && (
-          <a href={content.heroCtaLink || "#contato"} className="inline-block bg-white text-indigo-600 font-bold px-10 py-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
-            {content.heroCtaText}
-          </a>
-        )}
-      </div>
-    </section>
-  ),
-  about: ({ content }) => content.aboutText ? (
-    <section className="py-20 px-6">
-      <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl font-extrabold mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{content.aboutTitle}</h2>
-        <p className="text-gray-600 text-lg leading-relaxed">{content.aboutText}</p>
-      </div>
-    </section>
-  ) : null,
-  services: ({ content }) => content.services.length > 0 ? (
-    <section className="py-20 px-6 bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-5xl mx-auto">
-        <h2 className="text-3xl font-extrabold mb-12 text-center">Áreas de Atuação</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {content.services.map((svc, i) => (
-            <div key={i} className="bg-white p-8 rounded-2xl shadow-md border hover:shadow-lg transition-shadow hover:-translate-y-1">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg mb-4">{i + 1}</div>
-              <h3 className="text-lg font-bold mb-2">{svc.title}</h3>
-              <p className="text-gray-600 text-sm">{svc.description}</p>
-            </div>
-          ))}
+  hero: ({ content }) => {
+    const b = content.branding;
+    const bgStyle = b?.primaryColor
+      ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 40)}, ${b.accentColor || lightenHex(b.primaryColor, 80)})` }
+      : undefined;
+    const textStyle = b?.textColor ? { color: b.textColor } : undefined;
+    const subStyle = b?.textColor ? { color: `${b.textColor}cc` } : undefined;
+    const btnStyle = b?.primaryColor
+      ? { backgroundColor: '#fff', color: b.primaryColor }
+      : undefined;
+    const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
+    return (
+      <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white py-28 px-6 relative overflow-hidden" style={bgStyle}>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')] opacity-40" />
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          {b?.logoUrl && (
+            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
+          )}
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-4 leading-tight" style={textStyle}>{content.heroTitle}</h1>
+          <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
+          {content.heroCtaText && (
+            <a href={content.heroCtaLink || "#contato"} className="inline-block bg-white text-indigo-600 font-bold px-10 py-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5" style={btnStyle}>
+              {content.heroCtaText}
+            </a>
+          )}
         </div>
-      </div>
-    </section>
-  ) : null,
+      </section>
+    );
+  },
+  about: ({ content }) => {
+    const b = content.branding;
+    const titleStyle = b?.primaryColor ? { color: b.primaryColor } : undefined;
+    return content.aboutText ? (
+      <section className="py-20 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-extrabold mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" style={titleStyle ? { ...titleStyle, backgroundImage: 'none', WebkitTextFillColor: 'unset' } : undefined}>{content.aboutTitle}</h2>
+          <p className="text-gray-600 text-lg leading-relaxed">{content.aboutText}</p>
+        </div>
+      </section>
+    ) : null;
+  },
+  services: ({ content }) => {
+    const b = content.branding;
+    const numStyle = b?.primaryColor ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 40)})` } : undefined;
+    return content.services.length > 0 ? (
+      <section className="py-20 px-6" style={b?.secondaryColor ? { backgroundColor: b.secondaryColor } : { backgroundColor: '#f8fafc' }}>
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-extrabold mb-12 text-center">Áreas de Atuação</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {content.services.map((svc, i) => (
+              <div key={i} className="bg-white p-8 rounded-2xl shadow-md border hover:shadow-lg transition-shadow hover:-translate-y-1">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg mb-4" style={numStyle}>{i + 1}</div>
+                <h3 className="text-lg font-bold mb-2">{svc.title}</h3>
+                <p className="text-gray-600 text-sm">{svc.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    ) : null;
+  },
   testimonials: ({ content }) => content.testimonials.length > 0 ? (
     <section className="py-20 px-6">
       <div className="max-w-4xl mx-auto">
         <h2 className="text-3xl font-extrabold mb-12 text-center">O que dizem nossos clientes</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {content.testimonials.map((t, i) => (
-            <div key={i} className="bg-gradient-to-br from-indigo-50 to-purple-50 p-8 rounded-2xl">
+            <div key={i} className="p-8 rounded-2xl" style={{ backgroundColor: content.branding?.secondaryColor || '#eef2ff' }}>
               <p className="text-gray-700 italic text-lg mb-4">"{t.text}"</p>
-              <p className="font-bold text-indigo-600">{t.name}</p>
+              <p className="font-bold" style={{ color: content.branding?.primaryColor || '#4f46e5' }}>{t.name}</p>
             </div>
           ))}
         </div>
       </div>
     </section>
   ) : null,
-  contact: ({ content }) => (
-    <section id="contato" className="py-20 px-6 bg-gradient-to-br from-indigo-600 to-purple-600 text-white">
-      <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl font-extrabold mb-8">{content.contactTitle}</h2>
-        <div className="flex flex-wrap justify-center gap-8">
-          {content.contactPhone && <a href={`tel:${content.contactPhone}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"><Phone className="w-5 h-5" /> {content.contactPhone}</a>}
-          {content.contactEmail && <a href={`mailto:${content.contactEmail}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"><Mail className="w-5 h-5" /> {content.contactEmail}</a>}
-          {content.contactAddress && <span className="flex items-center gap-2 text-white/80"><MapPin className="w-5 h-5" /> {content.contactAddress}</span>}
+  contact: ({ content }) => {
+    const b = content.branding;
+    const bgStyle = b?.primaryColor ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 40)})`, color: b.textColor || '#fff' } : undefined;
+    return (
+      <section id="contato" className="py-20 px-6 bg-gradient-to-br from-indigo-600 to-purple-600 text-white" style={bgStyle}>
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-extrabold mb-8">{content.contactTitle}</h2>
+          <div className="flex flex-wrap justify-center gap-8">
+            {content.contactPhone && <a href={`tel:${content.contactPhone}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"><Phone className="w-5 h-5" /> {content.contactPhone}</a>}
+            {content.contactEmail && <a href={`mailto:${content.contactEmail}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"><Mail className="w-5 h-5" /> {content.contactEmail}</a>}
+            {content.contactAddress && <span className="flex items-center gap-2 text-white/80"><MapPin className="w-5 h-5" /> {content.contactAddress}</span>}
+          </div>
         </div>
-      </div>
-    </section>
-  ),
+      </section>
+    );
+  },
 };
 
 const minimalSections: Record<string, React.FC<{ content: LPContent }>> = {
-  hero: ({ content }) => (
-    <section className="py-32 px-6 border-b">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-5xl md:text-6xl font-light mb-6 leading-tight">{content.heroTitle}</h1>
-        <p className="text-xl text-gray-500 mb-10">{content.heroSubtitle}</p>
-        {content.heroCtaText && (
-          <a href={content.heroCtaLink || "#contato"} className="inline-block border-2 border-gray-900 text-gray-900 font-medium px-8 py-3 hover:bg-gray-900 hover:text-white transition-colors">
-            {content.heroCtaText}
-          </a>
-        )}
-      </div>
-    </section>
-  ),
+  hero: ({ content }) => {
+    const b = content.branding;
+    const borderStyle = b?.primaryColor ? { borderColor: b.primaryColor, color: b.primaryColor } : undefined;
+    const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
+    return (
+      <section className="py-32 px-6 border-b">
+        <div className="max-w-3xl mx-auto">
+          {b?.logoUrl && (
+            <img src={b.logoUrl} alt="Logo" className="h-12 mb-8 object-contain" style={{ filter: logoFilter }} />
+          )}
+          <h1 className="text-5xl md:text-6xl font-light mb-6 leading-tight">{content.heroTitle}</h1>
+          <p className="text-xl text-gray-500 mb-10">{content.heroSubtitle}</p>
+          {content.heroCtaText && (
+            <a href={content.heroCtaLink || "#contato"} className="inline-block border-2 border-gray-900 text-gray-900 font-medium px-8 py-3 hover:bg-gray-900 hover:text-white transition-colors" style={borderStyle}>
+              {content.heroCtaText}
+            </a>
+          )}
+        </div>
+      </section>
+    );
+  },
   about: ({ content }) => content.aboutText ? (
     <section className="py-20 px-6 border-b">
       <div className="max-w-3xl mx-auto">
@@ -253,7 +288,7 @@ const minimalSections: Record<string, React.FC<{ content: LPContent }>> = {
         <div className="space-y-8">
           {content.services.map((svc, i) => (
             <div key={i} className="flex gap-6">
-              <span className="text-3xl font-light text-gray-300">{String(i + 1).padStart(2, "0")}</span>
+              <span className="text-3xl font-light" style={{ color: content.branding?.primaryColor || '#d1d5db' }}>{String(i + 1).padStart(2, "0")}</span>
               <div>
                 <h3 className="text-lg font-medium mb-1">{svc.title}</h3>
                 <p className="text-gray-500 text-sm">{svc.description}</p>
