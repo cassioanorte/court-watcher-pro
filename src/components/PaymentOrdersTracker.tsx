@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
 import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
+import { createCashFlowEntriesOnSacado, removeCashFlowEntriesOnUnsacado } from "@/lib/cashFlowAutoEntries";
 
 interface PaymentOrder {
   id: string;
@@ -88,15 +89,34 @@ const PaymentOrdersTracker = () => {
     const newStatus = currentStatus === "sacado" ? "aguardando" : "sacado";
     const { error } = await supabase.from("payment_orders" as any).update({ status: newStatus }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar"); return; }
+    const order = orders.find(o => o.id === id);
+    if (order && tenantId && user?.id) {
+      if (newStatus === "sacado") {
+        const result = await createCashFlowEntriesOnSacado(order as any, tenantId, user.id);
+        if (!result.success) toast.error("Erro ao lançar no caixa: " + result.error);
+      } else {
+        await removeCashFlowEntriesOnUnsacado(id, order.process_number, order.beneficiary_name, order.type, tenantId);
+      }
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
-    toast.success(newStatus === "sacado" ? "Marcado como pago" : "Marcado como pendente");
+    toast.success(newStatus === "sacado" ? "Marcado como pago — lançado no caixa" : "Revertido — lançamentos removidos do caixa");
   };
 
   const updateStatus = async (id: string, newStatus: string) => {
+    const order = orders.find(o => o.id === id);
+    const oldStatus = order?.status;
     const { error } = await supabase.from("payment_orders" as any).update({ status: newStatus }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar"); return; }
+    if (order && tenantId && user?.id) {
+      if (newStatus === "sacado" && oldStatus !== "sacado") {
+        const result = await createCashFlowEntriesOnSacado(order as any, tenantId, user.id);
+        if (!result.success) toast.error("Erro ao lançar no caixa: " + result.error);
+      } else if (oldStatus === "sacado" && newStatus !== "sacado") {
+        await removeCashFlowEntriesOnUnsacado(id, order.process_number, order.beneficiary_name, order.type, tenantId);
+      }
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
-    toast.success("Status atualizado");
+    toast.success(newStatus === "sacado" ? "Pago — lançado no caixa" : "Status atualizado");
   };
 
   const startEdit = (o: PaymentOrder) => {
