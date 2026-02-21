@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ContatoDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState((location.state as any)?.scrollToProcesses ? "processos" : "cadastro");
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [contact, setContact] = useState<any>(null);
