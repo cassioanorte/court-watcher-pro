@@ -31,6 +31,7 @@ interface CaseOption {
   id: string;
   process_number: string;
   subject: string | null;
+  client_user_id: string | null;
 }
 
 const typeOptions = [
