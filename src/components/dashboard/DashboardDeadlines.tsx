@@ -323,17 +323,11 @@ const DashboardDeadlines = () => {
   };
 
   const handleUnlinkClient = async () => {
-    if (!selectedDeadline || !selectedDeadline.caseId) return;
-    if (!confirm("Desvincular o cliente deste processo?")) return;
-    setSaving(true);
-    const { error } = await supabase.from("cases").update({ client_user_id: null }).eq("id", selectedDeadline.caseId);
-    if (error) {
-      toast({ title: "Erro ao desvincular", variant: "destructive" });
-    } else {
-      toast({ title: "Cliente desvinculado!" });
-      await refreshSelectedDeadline(selectedDeadline.id);
-    }
-    setSaving(false);
+    if (!selectedDeadline) return;
+    if (!confirm("Desvincular o cliente deste compromisso?")) return;
+    // Only clear the client reference from the appointment view, NOT from the case record
+    setSelectedDeadline(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
+    toast({ title: "Cliente desvinculado do compromisso!" });
   };
 
   const overdueCount = deadlines.filter((d) => d.overdue).length;

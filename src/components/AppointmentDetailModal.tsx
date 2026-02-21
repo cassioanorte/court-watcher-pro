@@ -210,17 +210,11 @@ const AppointmentDetailModal = ({ appointment, onClose, onUpdated }: Props) => {
   };
 
   const handleUnlinkClient = async () => {
-    if (!data || !data.caseId) return;
-    if (!confirm("Desvincular o cliente deste processo?")) return;
-    setSaving(true);
-    const { error } = await supabase.from("cases").update({ client_user_id: null }).eq("id", data.caseId);
-    if (error) {
-      toast({ title: "Erro ao desvincular", variant: "destructive" });
-    } else {
-      toast({ title: "Cliente desvinculado!" });
-      await refreshData(data.id);
-    }
-    setSaving(false);
+    if (!data) return;
+    if (!confirm("Desvincular o cliente deste compromisso?")) return;
+    // Only clear the client reference from the appointment view, NOT from the case record
+    setData(prev => prev ? { ...prev, clientUserId: null, clientName: null } : prev);
+    toast({ title: "Cliente desvinculado do compromisso!" });
   };
 
   const startLinkCase = () => {
