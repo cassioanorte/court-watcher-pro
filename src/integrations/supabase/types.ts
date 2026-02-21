@@ -1184,6 +1184,66 @@ export type Database = {
           },
         ]
       }
+      task_assignments: {
+        Row: {
+          assigned_by: string
+          assigned_to: string
+          case_id: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          parties: string | null
+          process_number: string | null
+          task_description: string
+          tenant_id: string
+        }
+        Insert: {
+          assigned_by: string
+          assigned_to: string
+          case_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          parties?: string | null
+          process_number?: string | null
+          task_description: string
+          tenant_id: string
+        }
+        Update: {
+          assigned_by?: string
+          assigned_to?: string
+          case_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          parties?: string | null
+          process_number?: string | null
+          task_description?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           ai_credits_limit: number
