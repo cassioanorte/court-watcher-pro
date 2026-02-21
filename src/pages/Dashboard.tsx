@@ -237,9 +237,15 @@ const Dashboard = () => {
                 <Badge variant="secondary" className="text-xs">{todayPubs.length}</Badge>
               )}
             </div>
-            <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
-              <Link to="/publicacoes">Ver todas <ArrowRight className="w-4 h-4" /></Link>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={refreshPubs} disabled={refreshingPubs} className="text-muted-foreground text-xs h-7 px-2 gap-1">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshingPubs ? "animate-spin" : ""}`} />
+                {refreshingPubs ? "Verificando..." : "Atualizar"}
+              </Button>
+              <Button variant="ghost" size="sm" asChild className="gap-1 text-muted-foreground">
+                <Link to="/publicacoes">Ver todas <ArrowRight className="w-4 h-4" /></Link>
+              </Button>
+            </div>
           </div>
           {todayPubs.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhuma publicação hoje</p>
