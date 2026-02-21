@@ -496,8 +496,16 @@ const Pagamentos = () => {
                           <StIcon className="w-3 h-3" /> {st.label}
                         </span>
                       </td>
-                      <td className="p-3">
-                        {o.document_url && <FileText className="w-4 h-4 text-muted-foreground" />}
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                          {o.document_url && <FileText className="w-4 h-4 text-muted-foreground" />}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelected(o); startEdit(o); }}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteOrder(o.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
