@@ -958,6 +958,111 @@ export type Database = {
           },
         ]
       }
+      payment_orders: {
+        Row: {
+          ai_extracted: boolean | null
+          ai_raw_data: Json | null
+          beneficiary_cpf: string | null
+          beneficiary_name: string | null
+          case_id: string | null
+          client_amount: number | null
+          court: string | null
+          court_costs: number | null
+          created_at: string
+          created_by: string
+          document_name: string | null
+          document_url: string | null
+          entity: string | null
+          expected_payment_date: string | null
+          gross_amount: number | null
+          id: string
+          income_tax: number | null
+          notes: string | null
+          office_amount: number | null
+          office_fees_percent: number | null
+          process_number: string | null
+          reference_date: string | null
+          social_security: number | null
+          status: string
+          tenant_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          ai_extracted?: boolean | null
+          ai_raw_data?: Json | null
+          beneficiary_cpf?: string | null
+          beneficiary_name?: string | null
+          case_id?: string | null
+          client_amount?: number | null
+          court?: string | null
+          court_costs?: number | null
+          created_at?: string
+          created_by: string
+          document_name?: string | null
+          document_url?: string | null
+          entity?: string | null
+          expected_payment_date?: string | null
+          gross_amount?: number | null
+          id?: string
+          income_tax?: number | null
+          notes?: string | null
+          office_amount?: number | null
+          office_fees_percent?: number | null
+          process_number?: string | null
+          reference_date?: string | null
+          social_security?: number | null
+          status?: string
+          tenant_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_extracted?: boolean | null
+          ai_raw_data?: Json | null
+          beneficiary_cpf?: string | null
+          beneficiary_name?: string | null
+          case_id?: string | null
+          client_amount?: number | null
+          court?: string | null
+          court_costs?: number | null
+          created_at?: string
+          created_by?: string
+          document_name?: string | null
+          document_url?: string | null
+          entity?: string | null
+          expected_payment_date?: string | null
+          gross_amount?: number | null
+          id?: string
+          income_tax?: number | null
+          notes?: string | null
+          office_amount?: number | null
+          office_fees_percent?: number | null
+          process_number?: string | null
+          reference_date?: string | null
+          social_security?: number | null
+          status?: string
+          tenant_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_orders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
