@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase } from "lucide-react";
+import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase, Pencil, Save } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,6 +67,8 @@ const Pagamentos = () => {
   const [selected, setSelected] = useState<PaymentOrder | null>(null);
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<PaymentOrder>>({});
 
   // Form state
   const [formType, setFormType] = useState("rpv");
@@ -346,10 +348,62 @@ const Pagamentos = () => {
   };
 
   const deleteOrder = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este RPV/Precatório?")) return;
     await supabase.from("payment_orders" as any).delete().eq("id", id);
     setOrders(prev => prev.filter(o => o.id !== id));
     setSelected(null);
     toast.success("Registro excluído");
+  };
+
+  const startEdit = (order: PaymentOrder) => {
+    setEditing(true);
+    setEditForm({ ...order });
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditForm({});
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.id) return;
+    const gross = parseFloat(String(editForm.gross_amount)) || 0;
+    const feeP = parseFloat(String(editForm.office_fees_percent)) || 0;
+    const costs = parseFloat(String(editForm.court_costs)) || 0;
+    const soc = parseFloat(String(editForm.social_security)) || 0;
+    const tax = parseFloat(String(editForm.income_tax)) || 0;
+    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
+    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+
+    const updates = {
+      type: editForm.type,
+      beneficiary_name: editForm.beneficiary_name || null,
+      beneficiary_cpf: editForm.beneficiary_cpf || null,
+      process_number: editForm.process_number || null,
+      court: editForm.court || null,
+      entity: editForm.entity || null,
+      gross_amount: gross,
+      office_fees_percent: feeP,
+      office_amount: officeCalc,
+      client_amount: clientCalc,
+      court_costs: costs,
+      social_security: soc,
+      income_tax: tax,
+      expected_payment_date: editForm.expected_payment_date || null,
+      reference_date: editForm.reference_date || null,
+      notes: editForm.notes || null,
+      case_id: editForm.case_id || null,
+    };
+
+    const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
+    if (error) { toast.error("Erro ao salvar"); return; }
+
+    const updated = { ...editForm, ...updates, office_amount: officeCalc, client_amount: clientCalc } as PaymentOrder;
+    setOrders(prev => prev.map(o => o.id === editForm.id ? { ...o, ...updated } : o));
+    setSelected(updated);
+    setEditing(false);
+    setEditForm({});
+    toast.success("Registro atualizado!");
   };
 
   const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
@@ -420,7 +474,7 @@ const Pagamentos = () => {
                   <th className="p-3 font-medium text-right">Escritório</th>
                   <th className="p-3 font-medium text-right">Cliente</th>
                   <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium"></th>
+                  <th className="p-3 font-medium text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -442,8 +496,16 @@ const Pagamentos = () => {
                           <StIcon className="w-3 h-3" /> {st.label}
                         </span>
                       </td>
-                      <td className="p-3">
-                        {o.document_url && <FileText className="w-4 h-4 text-muted-foreground" />}
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                          {o.document_url && <FileText className="w-4 h-4 text-muted-foreground" />}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSelected(o); startEdit(o); }}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteOrder(o.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -596,7 +658,7 @@ const Pagamentos = () => {
       </Dialog>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); cancelEdit(); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -604,7 +666,7 @@ const Pagamentos = () => {
               {selected?.beneficiary_name || "Pagamento Judicial"}
             </DialogTitle>
           </DialogHeader>
-          {selected && (
+          {selected && !editing && (
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-muted/30 rounded-lg p-3">
@@ -670,8 +732,106 @@ const Pagamentos = () => {
                     </a>
                   </Button>
                 )}
-                <Button variant="destructive" size="sm" className="gap-1 ml-auto" onClick={() => deleteOrder(selected.id)}>
+                <Button variant="outline" size="sm" className="gap-1 ml-auto" onClick={() => startEdit(selected)}>
+                  <Pencil className="w-4 h-4" /> Editar
+                </Button>
+                <Button variant="destructive" size="sm" className="gap-1" onClick={() => deleteOrder(selected.id)}>
                   <Trash2 className="w-4 h-4" /> Excluir
+                </Button>
+              </div>
+            </div>
+          )}
+          {selected && editing && (
+            <div className="space-y-3 mt-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
+                  <Select value={editForm.type || "rpv"} onValueChange={v => setEditForm(f => ({ ...f, type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rpv">RPV</SelectItem>
+                      <SelectItem value="precatorio">Precatório</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Vincular Processo</label>
+                  <Select value={editForm.case_id || "none"} onValueChange={v => setEditForm(f => ({ ...f, case_id: v === "none" ? null : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {cases.map(c => <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Beneficiário</label>
+                  <Input value={editForm.beneficiary_name || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
+                  <Input value={editForm.beneficiary_cpf || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_cpf: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
+                <Input value={editForm.process_number || ""} onChange={e => setEditForm(f => ({ ...f, process_number: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Vara/Tribunal</label>
+                  <Input value={editForm.court || ""} onChange={e => setEditForm(f => ({ ...f, court: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Entidade Devedora</label>
+                  <Input value={editForm.entity || ""} onChange={e => setEditForm(f => ({ ...f, entity: e.target.value }))} />
+                </div>
+              </div>
+              <hr className="border-border" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valores</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Valor Bruto (R$)</label>
+                  <Input type="number" step="0.01" value={editForm.gross_amount ?? ""} onChange={e => setEditForm(f => ({ ...f, gross_amount: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
+                  <Input type="number" step="0.1" value={editForm.office_fees_percent ?? ""} onChange={e => setEditForm(f => ({ ...f, office_fees_percent: parseFloat(e.target.value) || 0 }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
+                  <Input type="number" step="0.01" value={editForm.court_costs ?? ""} onChange={e => setEditForm(f => ({ ...f, court_costs: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
+                  <Input type="number" step="0.01" value={editForm.social_security ?? ""} onChange={e => setEditForm(f => ({ ...f, social_security: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
+                  <Input type="number" step="0.01" value={editForm.income_tax ?? ""} onChange={e => setEditForm(f => ({ ...f, income_tax: parseFloat(e.target.value) || 0 }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Data Base Cálculo</label>
+                  <Input type="date" value={editForm.reference_date || ""} onChange={e => setEditForm(f => ({ ...f, reference_date: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Previsão Pagamento</label>
+                  <Input type="date" value={editForm.expected_payment_date || ""} onChange={e => setEditForm(f => ({ ...f, expected_payment_date: e.target.value }))} />
+                </div>
+              </div>
+              <Textarea placeholder="Observações" value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={cancelEdit} className="gap-1">
+                  <X className="w-4 h-4" /> Cancelar
+                </Button>
+                <Button size="sm" onClick={saveEdit} className="gap-1">
+                  <Save className="w-4 h-4" /> Salvar
                 </Button>
               </div>
             </div>
