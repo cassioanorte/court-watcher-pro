@@ -124,26 +124,42 @@ const AdminLayout = () => {
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
+        <div className="px-2 py-4 border-t border-sidebar-border space-y-1">
           {role === "superadmin" && (
-            <Link to="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all">
-              <Shield className="w-4 h-4" />
-              Painel Super Admin
+            <Link to="/admin" onClick={() => setSidebarOpen(false)} title={sidebarCollapsed ? "Painel Super Admin" : undefined} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all", sidebarCollapsed && "justify-center px-2")}>
+              <Shield className="w-4 h-4 shrink-0" />
+              {!sidebarCollapsed && "Painel Super Admin"}
             </Link>
           )}
-          <Link to="/configuracoes" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all">
-            <Settings className="w-4 h-4" />
-            Configurações
+          <Link to="/configuracoes" onClick={() => setSidebarOpen(false)} title={sidebarCollapsed ? "Configurações" : undefined} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all", sidebarCollapsed && "justify-center px-2")}>
+            <Settings className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && "Configurações"}
           </Link>
+          {/* Collapse toggle - desktop only */}
+          <button
+            onClick={() => {
+              setSidebarCollapsed(prev => {
+                const next = !prev;
+                localStorage.setItem("sidebar-collapsed", String(next));
+                return next;
+              });
+            }}
+            title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            className={cn("hidden lg:flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 w-full transition-all", sidebarCollapsed && "justify-center px-2")}
+          >
+            {sidebarCollapsed ? <Menu className="w-4 h-4 shrink-0" /> : <X className="w-4 h-4 shrink-0" />}
+            {!sidebarCollapsed && "Recolher menu"}
+          </button>
           <button
             onClick={async () => {
               await supabase.auth.signOut();
               window.location.href = "/auth";
             }}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10 w-full transition-all"
+            className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10 w-full transition-all", sidebarCollapsed && "justify-center px-2")}
+            title={sidebarCollapsed ? "Sair" : undefined}
           >
-            <LogOut className="w-4 h-4" />
-            Sair
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && "Sair"}
           </button>
         </div>
       </aside>
