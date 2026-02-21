@@ -86,8 +86,13 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
   }, [fetchDistributions, fetchStaff]);
 
   const handleSubmit = async () => {
-    if (!tenantId || !userId || !formOrderId || !formLawyerId || !formAmount) {
+    if (!tenantId || !userId || !formOrderId || !formLawyerId) {
       toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+    const parsedAmount = parseFloat(formAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Informe um valor válido maior que zero");
       return;
     }
     const selectedStaff = staff.find(s => s.user_id === formLawyerId);
@@ -97,7 +102,7 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       payment_order_id: formOrderId,
       lawyer_user_id: formLawyerId,
       lawyer_name: selectedStaff?.full_name || "—",
-      amount: parseFloat(formAmount) || 0,
+      amount: parsedAmount,
       description: formDescription || null,
       paid_at: formPaidAt || null,
       created_by: userId,
