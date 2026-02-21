@@ -65,20 +65,32 @@ const ensureQuizSection = (sections: typeof DEFAULT_SECTIONS, quizEnabled?: bool
 // ── Section renderers per template ──
 
 const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
-  hero: ({ content }) => (
-    <section className="bg-gradient-to-br from-slate-900 to-slate-700 text-white py-24 px-6">
-      <div className="max-w-4xl mx-auto text-center">
-        <Scale className="w-12 h-12 mx-auto mb-6 text-amber-400" />
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">{content.heroTitle}</h1>
-        <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto">{content.heroSubtitle}</p>
-        {content.heroCtaText && (
-          <a href={content.heroCtaLink || "#contato"} className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors">
-            {content.heroCtaText}
-          </a>
-        )}
-      </div>
-    </section>
-  ),
+  hero: ({ content }) => {
+    const b = content.branding;
+    const bgStyle = b?.primaryColor ? { background: `linear-gradient(135deg, ${b.primaryColor}, ${lightenHex(b.primaryColor, 30)})` } : undefined;
+    const textStyle = b?.textColor ? { color: b.textColor } : undefined;
+    const subStyle = b?.textColor ? { color: `${b.textColor}99` } : undefined;
+    const btnStyle = b?.accentColor ? { backgroundColor: b.accentColor, color: b.textColor || '#fff' } : undefined;
+    const logoFilter = b?.logoUrl ? `hue-rotate(${b.logoHue ?? 0}deg) brightness(${b.logoBrightness ?? 100}%) saturate(${b.logoSaturate ?? 100}%) invert(${b.logoInvert ?? 0}%)` : undefined;
+    return (
+      <section className="bg-gradient-to-br from-slate-900 to-slate-700 text-white py-24 px-6" style={bgStyle}>
+        <div className="max-w-4xl mx-auto text-center">
+          {b?.logoUrl ? (
+            <img src={b.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" style={{ filter: logoFilter }} />
+          ) : (
+            <Scale className="w-12 h-12 mx-auto mb-6 text-amber-400" style={b?.accentColor ? { color: b.accentColor } : undefined} />
+          )}
+          <h1 className="text-4xl md:text-5xl font-bold mb-4" style={textStyle}>{content.heroTitle}</h1>
+          <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto" style={subStyle}>{content.heroSubtitle}</p>
+          {content.heroCtaText && (
+            <a href={content.heroCtaLink || "#contato"} className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors" style={btnStyle}>
+              {content.heroCtaText}
+            </a>
+          )}
+        </div>
+      </section>
+    );
+  },
   about: ({ content }) => content.aboutText ? (
     <section className="py-16 px-6">
       <div className="max-w-4xl mx-auto">
