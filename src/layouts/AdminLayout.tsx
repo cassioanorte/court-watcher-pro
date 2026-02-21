@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
@@ -21,6 +21,7 @@ const navItems = [
   { to: "/pagamentos", icon: Banknote, label: "Pagamentos" },
   { to: "/landing-pages", icon: Globe, label: "Landing Pages" },
   { to: "/agentes-ia", icon: Bot, label: "Agentes de IA" },
+  { to: "/calculadoras", icon: Calculator, label: "Calculadoras" },
 ];
 
 const AdminLayout = () => {
