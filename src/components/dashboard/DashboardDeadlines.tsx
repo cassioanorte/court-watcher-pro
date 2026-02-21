@@ -223,6 +223,44 @@ const DashboardDeadlines = () => {
     }
   };
 
+  const refreshSelectedDeadline = async (deadlineId: string) => {
+    await load();
+    // Re-fetch the updated deadline to keep modal open with fresh data
+    if (!tenantId) return;
+    const { data: apt } = await supabase
+      .from("appointments")
+      .select("id, title, description, start_at, end_at, case_id, lead_id")
+      .eq("id", deadlineId)
+      .single();
+    if (!apt) return;
+    let caseInfo: { client_user_id: string | null; process_number: string } | null = null;
+    let clientName: string | null = null;
+    if (apt.case_id) {
+      const { data: c } = await supabase.from("cases").select("id, client_user_id, process_number").eq("id", apt.case_id).single();
+      if (c) {
+        caseInfo = { client_user_id: c.client_user_id, process_number: c.process_number };
+        if (c.client_user_id) {
+          const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", c.client_user_id).single();
+          clientName = p?.full_name || null;
+        }
+      }
+    }
+    setSelectedDeadline({
+      id: apt.id,
+      title: apt.title,
+      description: apt.description,
+      due: apt.start_at,
+      endAt: apt.end_at,
+      type: "appointment",
+      link: apt.case_id ? `/processos/${apt.case_id}` : "/agenda",
+      overdue: new Date(apt.start_at) < new Date(),
+      caseId: apt.case_id,
+      clientUserId: caseInfo?.client_user_id || null,
+      clientName,
+      processNumber: caseInfo?.process_number || null,
+    });
+  };
+
   const handleLinkCase = async () => {
     if (!selectedDeadline || !selectedCaseId) return;
     setSaving(true);
@@ -232,8 +270,7 @@ const DashboardDeadlines = () => {
     } else {
       toast({ title: "Processo vinculado!" });
       setLinkingCase(false);
-      setSelectedDeadline(null);
-      load();
+      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
@@ -247,8 +284,7 @@ const DashboardDeadlines = () => {
     } else {
       toast({ title: "Cliente vinculado!" });
       setLinkingClient(false);
-      setSelectedDeadline(null);
-      load();
+      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
@@ -274,8 +310,7 @@ const DashboardDeadlines = () => {
       toast({ title: "Erro ao desvincular", variant: "destructive" });
     } else {
       toast({ title: "Processo desvinculado!" });
-      setSelectedDeadline(null);
-      load();
+      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
@@ -289,8 +324,7 @@ const DashboardDeadlines = () => {
       toast({ title: "Erro ao desvincular", variant: "destructive" });
     } else {
       toast({ title: "Cliente desvinculado!" });
-      setSelectedDeadline(null);
-      load();
+      await refreshSelectedDeadline(selectedDeadline.id);
     }
     setSaving(false);
   };
