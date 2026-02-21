@@ -150,6 +150,9 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     setEditingId(null);
   };
 
+  const [emailSent, setEmailSent] = useState(false);
+  const [whatsappSent, setWhatsappSent] = useState(false);
+
   const handleSendEmail = async () => {
     if (!clientInfo?.email || !savedAppointment) return;
     setSendingEmail(true);
@@ -171,8 +174,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({ title: "E-mail enviado com sucesso!" });
-      setShowNotifyDialog(false);
-      setEditingId(null);
+      setEmailSent(true);
     } catch (err: any) {
       toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
     } finally {

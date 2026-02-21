@@ -5,7 +5,7 @@ import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Map IMAP host to SMTP host
@@ -13,7 +13,7 @@ function getSmtpHost(imapHost: string): string {
   const map: Record<string, string> = {
     "imap.gmail.com": "smtp.gmail.com",
     "imap.mail.yahoo.com": "smtp.mail.yahoo.com",
-    "outlook.office365.com": "smtp.office365.com",
+    "outlook.office365.com": "smtp-mail.outlook.com",
     "imap-mail.outlook.com": "smtp-mail.outlook.com",
     "imap.zoho.com": "smtp.zoho.com",
     "imap.uol.com.br": "smtp.uol.com.br",
@@ -21,6 +21,17 @@ function getSmtpHost(imapHost: string): string {
     "imap.locaweb.com.br": "email-ssl.com.br",
   };
   return map[imapHost] || imapHost.replace(/^imap\./, "smtp.");
+}
+
+// Determine connection config based on SMTP host
+function getSmtpConfig(smtpHost: string) {
+  // Gmail, Zoho: implicit TLS on port 465
+  if (smtpHost.includes("gmail") || smtpHost.includes("zoho")) {
+    return { port: 465, tls: true };
+  }
+  // Outlook/Hotmail, Yahoo, and most others: STARTTLS on port 587
+  // For denomailer, tls: false means start plain then upgrade via STARTTLS
+  return { port: 587, tls: false };
 }
 
 serve(async (req) => {
@@ -42,7 +53,7 @@ serve(async (req) => {
     if (authError || !user) throw new Error("Não autenticado");
 
     const body = await req.json();
-    const { clientEmail, clientName, appointmentTitle, appointmentDate, startTime, endTime, description, videoLink, tenantId } = body;
+    const { clientEmail, clientName, appointmentTitle, appointmentDate, startTime, endTime, description, videoLink, tenantId, isUpdate } = body;
 
     if (!clientEmail || !tenantId) throw new Error("E-mail do cliente e tenant_id são obrigatórios");
 
@@ -60,6 +71,9 @@ serve(async (req) => {
     }
 
     const smtpHost = getSmtpHost(creds.imap_host);
+    const smtpConfig = getSmtpConfig(smtpHost);
+
+    console.log(`SMTP config: host=${smtpHost}, port=${smtpConfig.port}, tls=${smtpConfig.tls}`);
 
     // Get tenant name for email branding
     const { data: tenant } = await supabase
@@ -78,11 +92,13 @@ serve(async (req) => {
       year: "numeric",
     });
 
+    const actionText = isUpdate ? "atualizado" : "agendado";
+
     let htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333;">Agendamento de Atendimento</h2>
+        <h2 style="color: #333;">Atendimento ${actionText}</h2>
         <p>Olá${clientName ? `, ${clientName}` : ""},</p>
-        <p>Informamos que um atendimento foi agendado para você:</p>
+        <p>Informamos que um atendimento foi ${actionText} para você:</p>
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; color: #555;">Tipo</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${appointmentTitle}</td></tr>
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; color: #555;">Data</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${dateFormatted}</td></tr>
@@ -95,14 +111,11 @@ serve(async (req) => {
     `;
 
     // Send email via SMTP
-    const useImplicitTLS = smtpHost.includes("gmail") || smtpHost.includes("zoho");
-    const smtpPort = useImplicitTLS ? 465 : 587;
-
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
-        port: smtpPort,
-        tls: useImplicitTLS,
+        port: smtpConfig.port,
+        tls: smtpConfig.tls,
         auth: {
           username: creds.imap_user,
           password: creds.imap_password,
@@ -113,12 +126,14 @@ serve(async (req) => {
     await client.send({
       from: creds.imap_user,
       to: clientEmail,
-      subject: `Agendamento: ${appointmentTitle} - ${dateFormatted}`,
+      subject: `${isUpdate ? "Atualização: " : "Agendamento: "}${appointmentTitle} - ${dateFormatted}`,
       content: "auto",
       html: htmlBody,
     });
 
     await client.close();
+
+    console.log(`Email sent successfully to ${clientEmail}`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
