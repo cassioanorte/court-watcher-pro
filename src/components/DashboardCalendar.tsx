@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { toast } from "sonner";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, MessageSquare, Mail } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -30,16 +31,26 @@ interface CaseOption {
   subject: string | null;
 }
 
+const typeOptions = [
+  { value: "Reunião presencial", icon: Users },
+  { value: "Videochamada", icon: Video },
+  { value: "Ligação", icon: Phone },
+  { value: "Audiência", icon: CalendarIcon },
+  { value: "Consulta", icon: FileText },
+];
+
 const DashboardCalendar = () => {
   const { tenantId, user } = useAuth();
+  const { isConnected: googleConnected, connect: connectGoogle, createMeetEvent, loading: googleLoading } = useGoogleCalendar();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
 
   const [form, setForm] = useState({
-    title: "",
+    title: "Reunião presencial",
     description: "",
     start_time: "09:00",
     end_time: "10:00",
@@ -66,6 +77,11 @@ const DashboardCalendar = () => {
 
   const daysWithAppointments = appointments.map((a) => startOfDay(new Date(a.start_at)));
 
+  const generateJitsiLink = (appointmentId: string): string => {
+    const roomName = `atendimento-${appointmentId.slice(0, 8)}`;
+    return `https://meet.jit.si/${roomName}`;
+  };
+
   const handleCreate = async () => {
     if (!form.title || !tenantId || !user?.id) return;
 
@@ -88,8 +104,36 @@ const DashboardCalendar = () => {
       return;
     }
 
+    // Generate video link if Videochamada
+    let videoLink: string | null = null;
+    if (form.title === "Videochamada" && data?.id) {
+      if (videoPlatform === "google_meet" && googleConnected) {
+        try {
+          const result = await createMeetEvent({
+            title: form.title,
+            description: form.description,
+            start_at,
+            end_at,
+          });
+          videoLink = result?.meet_link || null;
+        } catch {
+          videoLink = generateJitsiLink(data.id);
+          toast.error("Falha no Google Meet, usando Jitsi");
+        }
+      } else {
+        videoLink = generateJitsiLink(data.id);
+      }
+
+      // Update description with video link
+      if (videoLink) {
+        const updatedDesc = `${form.description || ""}\n\n🔗 Link da videochamada: ${videoLink}`.trim();
+        await supabase.from("appointments").update({ description: updatedDesc }).eq("id", data.id);
+        data.description = updatedDesc;
+      }
+    }
+
     setAppointments((prev) => [...prev, data]);
-    setForm({ title: "", description: "", start_time: "09:00", end_time: "10:00", case_id: "" });
+    setForm({ title: "Reunião presencial", description: "", start_time: "09:00", end_time: "10:00", case_id: "" });
     setShowNewModal(false);
     toast.success("Compromisso adicionado!");
   };
@@ -102,6 +146,11 @@ const DashboardCalendar = () => {
     }
     setAppointments((prev) => prev.filter((a) => a.id !== id));
     toast.success("Compromisso removido");
+  };
+
+  const getTypeIcon = (title: string) => {
+    const found = typeOptions.find((t) => t.value === title);
+    return found ? found.icon : CalendarIcon;
   };
 
   return (
@@ -213,10 +262,77 @@ const DashboardCalendar = () => {
             <DialogTitle>Novo Compromisso</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Type selection */}
             <div>
-              <label className="text-sm font-medium text-foreground">Título *</label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ex: Audiência inicial" />
+              <label className="text-sm font-medium text-foreground">Tipo *</label>
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {typeOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, title: opt.value })}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                        form.title === opt.value
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "bg-background text-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" /> {opt.value}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Video platform picker */}
+            {form.title === "Videochamada" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Plataforma de vídeo</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVideoPlatform("jitsi")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                      videoPlatform === "jitsi"
+                        ? "bg-accent text-accent-foreground border-accent"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    )}
+                  >
+                    <Video className="w-3.5 h-3.5" /> Jitsi Meet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (googleConnected) {
+                        setVideoPlatform("google_meet");
+                      } else {
+                        connectGoogle();
+                      }
+                    }}
+                    disabled={googleLoading}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                      videoPlatform === "google_meet" && googleConnected
+                        ? "bg-accent text-accent-foreground border-accent"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    )}
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    {googleConnected ? "Google Meet" : googleLoading ? "Conectando..." : "Conectar Google Meet"}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {videoPlatform === "jitsi"
+                    ? "Link do Jitsi será gerado automaticamente"
+                    : "Evento criado no Google Calendar com link do Meet"}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium text-foreground">Descrição</label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Detalhes do compromisso" rows={2} />
