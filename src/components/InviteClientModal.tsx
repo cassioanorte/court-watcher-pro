@@ -184,6 +184,7 @@ const InviteClientModal = ({ open, onClose, onSuccess }: InviteClientModalProps)
                   multiple
                   label="Arraste documentos aqui ou clique para anexar"
                   compact
+                />
               </div>
             </div>
 
