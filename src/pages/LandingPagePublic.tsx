@@ -129,7 +129,7 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
         <h2 className="text-3xl font-bold mb-10 text-center">Depoimentos</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {content.testimonials.map((t, i) => (
-            <div key={i} className="bg-slate-50 p-6 rounded-xl border-l-4 border-amber-500">
+            <div key={i} className="bg-slate-50 p-6 rounded-xl border-l-4" style={{ borderColor: content.branding?.accentColor || '#f59e0b' }}>
               <p className="text-gray-600 italic mb-3">"{t.text}"</p>
               <p className="font-semibold text-sm">{t.name}</p>
             </div>
@@ -138,18 +138,22 @@ const classicSections: Record<string, React.FC<{ content: LPContent }>> = {
       </div>
     </section>
   ) : null,
-  contact: ({ content }) => (
-    <section id="contato" className="py-16 px-6 bg-slate-900 text-white">
-      <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-8">{content.contactTitle}</h2>
-        <div className="flex flex-wrap justify-center gap-8">
-          {content.contactPhone && <a href={`tel:${content.contactPhone}`} className="flex items-center gap-2 text-slate-300 hover:text-amber-400 transition-colors"><Phone className="w-5 h-5" /> {content.contactPhone}</a>}
-          {content.contactEmail && <a href={`mailto:${content.contactEmail}`} className="flex items-center gap-2 text-slate-300 hover:text-amber-400 transition-colors"><Mail className="w-5 h-5" /> {content.contactEmail}</a>}
-          {content.contactAddress && <span className="flex items-center gap-2 text-slate-300"><MapPin className="w-5 h-5" /> {content.contactAddress}</span>}
+  contact: ({ content }) => {
+    const b = content.branding;
+    const bgStyle = b?.primaryColor ? { backgroundColor: b.primaryColor, color: b.textColor || '#fff' } : undefined;
+    return (
+      <section id="contato" className="py-16 px-6 bg-slate-900 text-white" style={bgStyle}>
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-8">{content.contactTitle}</h2>
+          <div className="flex flex-wrap justify-center gap-8">
+            {content.contactPhone && <a href={`tel:${content.contactPhone}`} className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity"><Phone className="w-5 h-5" /> {content.contactPhone}</a>}
+            {content.contactEmail && <a href={`mailto:${content.contactEmail}`} className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity"><Mail className="w-5 h-5" /> {content.contactEmail}</a>}
+            {content.contactAddress && <span className="flex items-center gap-2 opacity-80"><MapPin className="w-5 h-5" /> {content.contactAddress}</span>}
+          </div>
         </div>
-      </div>
-    </section>
-  ),
+      </section>
+    );
+  },
 };
 
 const modernSections: Record<string, React.FC<{ content: LPContent }>> = {
