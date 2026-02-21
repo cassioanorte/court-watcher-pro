@@ -126,6 +126,30 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [fetchTodayMovements]);
 
+  const refreshPubs = useCallback(async () => {
+    if (!tenantId) return;
+    setRefreshingPubs(true);
+    try {
+      await supabase.functions.invoke("poll-email-imap", {
+        body: { tenant_id: tenantId },
+      });
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await supabase
+        .from("dje_publications")
+        .select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url")
+        .eq("tenant_id", tenantId)
+        .eq("publication_date", today)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setTodayPubs((data || []) as Publication[]);
+      toast.success("Publicações atualizadas");
+    } catch (err) {
+      toast.error("Erro ao atualizar publicações");
+    } finally {
+      setRefreshingPubs(false);
+    }
+  }, [tenantId]);
+
   const handlePubClick = async (pub: Publication) => {
     setSelectedPub(pub);
     if (!pub.read) {
