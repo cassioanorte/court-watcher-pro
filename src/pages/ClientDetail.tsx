@@ -320,7 +320,7 @@ const ClientDetail = () => {
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Movimentações</h3>
-                              <Link to={`/processos/${c.id}`} className="text-[10px] text-accent hover:underline">
+                              <Link to={`/processos/${c.id}`} state={{ from: `/clientes/${id}` }} className="text-[10px] text-accent hover:underline">
                                 Ver processo completo →
                               </Link>
                             </div>
@@ -378,6 +378,7 @@ const ClientDetail = () => {
               <Link
                 key={c.id}
                 to={`/processos/${c.id}`}
+                state={{ from: `/clientes/${id}` }}
                 className="block bg-card rounded-lg border p-4 shadow-card opacity-70 hover:opacity-100 transition-opacity"
               >
                 <p className="text-sm font-mono text-foreground">{c.process_number}</p>

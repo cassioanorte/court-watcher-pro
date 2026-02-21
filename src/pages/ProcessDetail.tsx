@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,9 @@ import CaseAppointments from "@/components/CaseAppointments";
 
 const ProcessDetail = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const backTo = (location.state as any)?.from || "/processos";
+  const backLabel = backTo === "/processos" ? "Voltar" : "Voltar ao cliente";
   const { toast } = useToast();
   const { tenantId, role, user } = useAuth();
   const [caseData, setCaseData] = useState<any>(null);
@@ -305,8 +308,8 @@ const ProcessDetail = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Back + header */}
       <div>
-        <Link to="/processos" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3">
-          <ArrowLeft className="w-4 h-4" /> Voltar
+        <Link to={backTo} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3">
+          <ArrowLeft className="w-4 h-4" /> {backLabel}
         </Link>
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
