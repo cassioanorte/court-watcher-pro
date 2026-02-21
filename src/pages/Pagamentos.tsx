@@ -658,7 +658,7 @@ const Pagamentos = () => {
       </Dialog>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); cancelEdit(); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -666,7 +666,7 @@ const Pagamentos = () => {
               {selected?.beneficiary_name || "Pagamento Judicial"}
             </DialogTitle>
           </DialogHeader>
-          {selected && (
+          {selected && !editing && (
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-muted/30 rounded-lg p-3">
@@ -732,8 +732,106 @@ const Pagamentos = () => {
                     </a>
                   </Button>
                 )}
-                <Button variant="destructive" size="sm" className="gap-1 ml-auto" onClick={() => deleteOrder(selected.id)}>
+                <Button variant="outline" size="sm" className="gap-1 ml-auto" onClick={() => startEdit(selected)}>
+                  <Pencil className="w-4 h-4" /> Editar
+                </Button>
+                <Button variant="destructive" size="sm" className="gap-1" onClick={() => deleteOrder(selected.id)}>
                   <Trash2 className="w-4 h-4" /> Excluir
+                </Button>
+              </div>
+            </div>
+          )}
+          {selected && editing && (
+            <div className="space-y-3 mt-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
+                  <Select value={editForm.type || "rpv"} onValueChange={v => setEditForm(f => ({ ...f, type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rpv">RPV</SelectItem>
+                      <SelectItem value="precatorio">Precatório</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Vincular Processo</label>
+                  <Select value={editForm.case_id || "none"} onValueChange={v => setEditForm(f => ({ ...f, case_id: v === "none" ? null : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {cases.map(c => <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Beneficiário</label>
+                  <Input value={editForm.beneficiary_name || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
+                  <Input value={editForm.beneficiary_cpf || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_cpf: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
+                <Input value={editForm.process_number || ""} onChange={e => setEditForm(f => ({ ...f, process_number: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Vara/Tribunal</label>
+                  <Input value={editForm.court || ""} onChange={e => setEditForm(f => ({ ...f, court: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Entidade Devedora</label>
+                  <Input value={editForm.entity || ""} onChange={e => setEditForm(f => ({ ...f, entity: e.target.value }))} />
+                </div>
+              </div>
+              <hr className="border-border" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valores</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Valor Bruto (R$)</label>
+                  <Input type="number" step="0.01" value={editForm.gross_amount ?? ""} onChange={e => setEditForm(f => ({ ...f, gross_amount: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Honorários (%)</label>
+                  <Input type="number" step="0.1" value={editForm.office_fees_percent ?? ""} onChange={e => setEditForm(f => ({ ...f, office_fees_percent: parseFloat(e.target.value) || 0 }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Custas</label>
+                  <Input type="number" step="0.01" value={editForm.court_costs ?? ""} onChange={e => setEditForm(f => ({ ...f, court_costs: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">INSS</label>
+                  <Input type="number" step="0.01" value={editForm.social_security ?? ""} onChange={e => setEditForm(f => ({ ...f, social_security: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">IR</label>
+                  <Input type="number" step="0.01" value={editForm.income_tax ?? ""} onChange={e => setEditForm(f => ({ ...f, income_tax: parseFloat(e.target.value) || 0 }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Data Base Cálculo</label>
+                  <Input type="date" value={editForm.reference_date || ""} onChange={e => setEditForm(f => ({ ...f, reference_date: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Previsão Pagamento</label>
+                  <Input type="date" value={editForm.expected_payment_date || ""} onChange={e => setEditForm(f => ({ ...f, expected_payment_date: e.target.value }))} />
+                </div>
+              </div>
+              <Textarea placeholder="Observações" value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={cancelEdit} className="gap-1">
+                  <X className="w-4 h-4" /> Cancelar
+                </Button>
+                <Button size="sm" onClick={saveEdit} className="gap-1">
+                  <Save className="w-4 h-4" /> Salvar
                 </Button>
               </div>
             </div>
