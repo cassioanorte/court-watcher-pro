@@ -251,6 +251,9 @@ const Pagamentos = () => {
       ai_extracted: formAiExtracted,
       ai_raw_data: formAiRaw,
       notes: formNotes || null,
+      ownership_type: formOwnership,
+      fee_type: formFeeType,
+      tax_percent: parseFloat(formTaxPercent) || 0,
     });
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
@@ -284,6 +287,9 @@ const Pagamentos = () => {
     setFormDocName("");
     setFormAiExtracted(false);
     setFormAiRaw(null);
+    setFormOwnership("cliente");
+    setFormFeeType("contratuais");
+    setFormTaxPercent("10.9");
     setShowNew(false);
   };
 
