@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.generate-quiz]
 verify_jwt = false
+
+[functions.extract-payment-data]
+verify_jwt = false
