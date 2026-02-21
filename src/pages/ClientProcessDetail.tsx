@@ -476,7 +476,6 @@ const ClientProcessDetail = () => {
                 </button>
               </div>
 
-              {/* Upload button */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -484,17 +483,20 @@ const ClientProcessDetail = () => {
                 onChange={handleFileUpload}
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt"
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full flex items-center justify-center gap-2 bg-card rounded-xl border border-dashed border-accent/40 p-4 text-sm font-medium text-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
-              >
-                {uploading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</>
-                ) : (
-                  <><Upload className="w-4 h-4" /> Enviar documento</>
-                )}
-              </button>
+              <FileDropZone
+                onFile={(f) => {
+                  const dt = new DataTransfer();
+                  dt.items.add(f);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.files = dt.files;
+                    fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                }}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.txt"
+                loading={uploading}
+                loadingText="Enviando..."
+                label="Arraste ou clique para enviar documento"
+              />
 
               {documents.length === 0 && !uploading ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento disponível.</p>

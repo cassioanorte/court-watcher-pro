@@ -792,10 +792,21 @@ const ContatoDetail = () => {
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleOfficeUpload} />
               <input ref={extractFileRef} type="file" className="hidden" accept=".pdf,image/*" onChange={handleExtractFromFile} />
               <div className="flex gap-2">
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                  className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-primary/40 p-3 text-sm font-medium text-primary hover:bg-primary/5 transition-colors disabled:opacity-50">
-                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Upload className="w-4 h-4" /> Anexar arquivo</>}
-                </button>
+                <FileDropZone
+                  onFile={(f) => {
+                    const dt = new DataTransfer();
+                    dt.items.add(f);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.files = dt.files;
+                      fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                  }}
+                  loading={uploading}
+                  loadingText="Enviando..."
+                  label="Arraste ou clique para anexar arquivo"
+                  compact
+                  className="flex-1"
+                />
                 <button onClick={() => extractFileRef.current?.click()} disabled={extractingExternal}
                   className="flex-1 flex items-center justify-center gap-2 bg-card rounded-lg border border-dashed border-accent/40 p-3 text-sm font-medium text-accent hover:bg-accent/5 transition-colors disabled:opacity-50">
                   {extractingExternal ? <><Loader2 className="w-4 h-4 animate-spin" /> Extraindo...</> : <><Sparkles className="w-4 h-4" /> Extrair dados de arquivo</>}

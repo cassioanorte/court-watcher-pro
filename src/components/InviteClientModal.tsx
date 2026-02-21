@@ -174,15 +174,17 @@ const InviteClientModal = ({ open, onClose, onSuccess }: InviteClientModalProps)
                     </button>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-dashed text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                >
-                  <Upload className="w-4 h-4" /> Anexar documento
-                </button>
                 <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-              </div>
+                <FileDropZone
+                  onFiles={(files) => {
+                    setAttachments(prev => [...prev, ...files]);
+                  }}
+                  onFile={(f) => setAttachments(prev => [...prev, f])}
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  multiple
+                  label="Arraste documentos aqui ou clique para anexar"
+                  compact
+                />
             </div>
 
             <button type="submit" disabled={loading} className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
