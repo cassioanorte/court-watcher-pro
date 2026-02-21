@@ -174,6 +174,9 @@ const Dashboard = () => {
         loading={loading}
       />
 
+      {/* Task Notifications */}
+      <DashboardTaskNotifications />
+
       {/* Charts + Pipeline row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardCasesChart />
