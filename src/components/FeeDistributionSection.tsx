@@ -102,7 +102,7 @@ export const FeeDistributionSection = ({ orders, tenantId, userId, fmt }: Props)
       payment_order_id: formOrderId,
       lawyer_user_id: formLawyerId,
       lawyer_name: selectedStaff?.full_name || "—",
-      amount: parseFloat(formAmount) || 0,
+      amount: parsedAmount,
       description: formDescription || null,
       paid_at: formPaidAt || null,
       created_by: userId,
