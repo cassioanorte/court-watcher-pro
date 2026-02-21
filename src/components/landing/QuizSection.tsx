@@ -177,7 +177,7 @@ const QuizSection = ({ quiz, whatsappNumber, tenantId, variant = "classic", bran
               <span>{Math.round((currentStep / totalQuestions) * 100)}%</span>
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className={`h-full ${s.progress} rounded-full transition-all duration-500`} style={{ width: `${(currentStep / totalQuestions) * 100}%` }} />
+              <div className={`h-full ${s.progress} rounded-full transition-all duration-500`} style={{ width: `${(currentStep / totalQuestions) * 100}%`, ...(brandingProgressStyle || {}) }} />
             </div>
           </div>
         )}
