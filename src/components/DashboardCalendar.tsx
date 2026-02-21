@@ -11,10 +11,10 @@ import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { toast } from "sonner";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2, Pencil, X, Save, ExternalLink } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Plus, Trash2, CalendarIcon, Clock, Video, Copy, LinkIcon, Phone, Users, FileText, Link2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import AppointmentDetailModal, { type AppointmentDetail } from "@/components/AppointmentDetailModal";
 
 interface Appointment {
   id: string;
@@ -51,10 +51,7 @@ const DashboardCalendar = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
-  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", description: "", date: "", startTime: "", endTime: "" });
-  const [saving, setSaving] = useState(false);
+  const [selectedApptDetail, setSelectedApptDetail] = useState<AppointmentDetail | null>(null);
 
   const [form, setForm] = useState({
     title: "Reunião presencial",
@@ -64,64 +61,50 @@ const DashboardCalendar = () => {
     case_id: "",
   });
 
-  const openDetail = (appt: Appointment) => {
-    setSelectedAppt(appt);
-    setEditing(false);
-    setEditForm({
+  const loadAppointments = async () => {
+    if (!tenantId) return;
+    const [apptRes, casesRes] = await Promise.all([
+      supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color").eq("tenant_id", tenantId),
+      supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+    ]);
+    setAppointments(apptRes.data || []);
+    setCases(casesRes.data || []);
+    setLoading(false);
+  };
+
+  const openDetail = async (appt: Appointment) => {
+    // Build AppointmentDetail with case/client info
+    let clientUserId: string | null = null;
+    let clientName: string | null = null;
+    let processNumber: string | null = null;
+
+    if (appt.case_id) {
+      const caseData = cases.find(c => c.id === appt.case_id);
+      if (caseData) {
+        processNumber = caseData.process_number;
+        clientUserId = caseData.client_user_id;
+        if (clientUserId) {
+          const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", clientUserId).single();
+          clientName = p?.full_name || null;
+        }
+      }
+    }
+
+    setSelectedApptDetail({
+      id: appt.id,
       title: appt.title,
-      description: appt.description || "",
-      date: format(new Date(appt.start_at), "yyyy-MM-dd"),
-      startTime: format(new Date(appt.start_at), "HH:mm"),
-      endTime: format(new Date(appt.end_at), "HH:mm"),
+      description: appt.description,
+      startAt: appt.start_at,
+      endAt: appt.end_at,
+      caseId: appt.case_id,
+      clientUserId,
+      clientName,
+      processNumber,
     });
   };
 
-  const handleSaveEdit = async () => {
-    if (!selectedAppt) return;
-    setSaving(true);
-    const start_at = `${editForm.date}T${editForm.startTime}:00`;
-    const end_at = `${editForm.date}T${editForm.endTime}:00`;
-    const { error } = await supabase.from("appointments").update({
-      title: editForm.title,
-      description: editForm.description || null,
-      start_at,
-      end_at,
-    }).eq("id", selectedAppt.id);
-    setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar");
-      return;
-    }
-    setAppointments((prev) => prev.map((a) => a.id === selectedAppt.id ? { ...a, title: editForm.title, description: editForm.description || null, start_at, end_at } : a));
-    setSelectedAppt({ ...selectedAppt, title: editForm.title, description: editForm.description || null, start_at, end_at });
-    setEditing(false);
-    toast.success("Compromisso atualizado!");
-  };
-
-  const handleDeleteFromModal = async () => {
-    if (!selectedAppt) return;
-    const { error } = await supabase.from("appointments").delete().eq("id", selectedAppt.id);
-    if (error) {
-      toast.error("Erro ao excluir");
-      return;
-    }
-    setAppointments((prev) => prev.filter((a) => a.id !== selectedAppt.id));
-    setSelectedAppt(null);
-    toast.success("Compromisso removido");
-  };
-
   useEffect(() => {
-    if (!tenantId) return;
-    const load = async () => {
-      const [apptRes, casesRes] = await Promise.all([
-        supabase.from("appointments").select("id, title, description, start_at, end_at, case_id, lead_id, color").eq("tenant_id", tenantId),
-        supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
-      ]);
-      setAppointments(apptRes.data || []);
-      setCases(casesRes.data || []);
-      setLoading(false);
-    };
-    load();
+    loadAppointments();
   }, [tenantId]);
 
   const dayAppointments = appointments
@@ -157,17 +140,11 @@ const DashboardCalendar = () => {
       return;
     }
 
-    // Generate video link if Videochamada
     let videoLink: string | null = null;
     if (form.title === "Videochamada" && data?.id) {
       if (videoPlatform === "google_meet" && googleConnected) {
         try {
-          const result = await createMeetEvent({
-            title: form.title,
-            description: form.description,
-            start_at,
-            end_at,
-          });
+          const result = await createMeetEvent({ title: form.title, description: form.description, start_at, end_at });
           videoLink = result?.meet_link || null;
         } catch {
           videoLink = generateJitsiLink(data.id);
@@ -177,7 +154,6 @@ const DashboardCalendar = () => {
         videoLink = generateJitsiLink(data.id);
       }
 
-      // Update description with video link
       if (videoLink) {
         const updatedDesc = `${form.description || ""}\n\n🔗 Link da videochamada: ${videoLink}`.trim();
         await supabase.from("appointments").update({ description: updatedDesc }).eq("id", data.id);
@@ -218,7 +194,6 @@ const DashboardCalendar = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-0 md:gap-4">
-        {/* Calendar */}
         <div className="p-3 flex justify-center">
           <Calendar
             mode="single"
@@ -231,7 +206,6 @@ const DashboardCalendar = () => {
           />
         </div>
 
-        {/* Day appointments */}
         <div className="border-t md:border-t-0 md:border-l px-5 py-4 min-h-[200px]">
           <p className="text-sm font-medium text-muted-foreground mb-3">
             {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
@@ -310,7 +284,6 @@ const DashboardCalendar = () => {
             <DialogTitle>Novo Compromisso</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Type selection */}
             <div>
               <label className="text-sm font-medium text-foreground">Tipo *</label>
               <div className="flex flex-wrap gap-2 mt-1.5">
@@ -335,7 +308,6 @@ const DashboardCalendar = () => {
               </div>
             </div>
 
-            {/* Video platform picker */}
             {form.title === "Videochamada" && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Plataforma de vídeo</label>
@@ -422,155 +394,12 @@ const DashboardCalendar = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Appointment Detail Dialog */}
-      <Dialog open={!!selectedAppt} onOpenChange={(open) => { if (!open) { setSelectedAppt(null); setEditing(false); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {(() => { const Icon = getTypeIcon(selectedAppt?.title || ""); return <Icon className="w-5 h-5 text-accent" />; })()}
-              {editing ? "Editar Compromisso" : "Detalhes do Compromisso"}
-            </DialogTitle>
-            <DialogDescription>
-              {editing ? "Edite as informações abaixo" : "Visualize ou edite este compromisso"}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedAppt && !editing && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Tipo</p>
-                <p className="text-sm text-foreground font-medium mt-0.5">{selectedAppt.title}</p>
-              </div>
-              {selectedAppt.description && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Descrição</p>
-                  <p className="text-sm text-foreground mt-0.5 whitespace-pre-wrap">{selectedAppt.description}</p>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Data</p>
-                  <p className="text-sm text-foreground mt-0.5">
-                    {new Date(selectedAppt.start_at).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Horário</p>
-                  <p className="text-sm text-foreground mt-0.5 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-accent" />
-                    {format(new Date(selectedAppt.start_at), "HH:mm")} — {format(new Date(selectedAppt.end_at), "HH:mm")}
-                  </p>
-                </div>
-              </div>
-              {selectedAppt.case_id && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processo vinculado</p>
-                  <Link to={`/processos/${selectedAppt.case_id}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {cases.find((c) => c.id === selectedAppt.case_id)?.process_number || "Ver processo"} →
-                  </Link>
-                </div>
-              )}
-              {(() => {
-                const linkedCase = selectedAppt.case_id ? cases.find((c) => c.id === selectedAppt.case_id) : null;
-                const clientUserId = linkedCase?.client_user_id;
-                if (!clientUserId) return null;
-                return (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Cliente vinculado</p>
-                    <Link to={`/contatos/${clientUserId}`} className="text-sm text-accent hover:underline mt-0.5 inline-flex items-center gap-1">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Ver cliente →
-                    </Link>
-                  </div>
-                );
-              })()}
-              <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => setEditing(true)}>
-                  <Pencil className="w-3.5 h-3.5" /> Editar
-                </Button>
-                <Button size="sm" variant="destructive" className="gap-1.5" onClick={handleDeleteFromModal}>
-                  <Trash2 className="w-3.5 h-3.5" /> Excluir
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {selectedAppt && editing && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Tipo</label>
-                <div className="flex flex-wrap gap-2 mt-1.5">
-                  {typeOptions.map((opt) => {
-                    const Icon = opt.icon;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setEditForm({ ...editForm, title: opt.value })}
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
-                          editForm.title === opt.value
-                            ? "bg-accent text-accent-foreground border-accent"
-                            : "bg-background text-foreground border-border hover:bg-muted"
-                        )}
-                      >
-                        <Icon className="w-3.5 h-3.5" /> {opt.value}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Descrição</label>
-                <textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  rows={2}
-                  className="w-full mt-1 rounded-md border bg-background px-3 py-2 text-sm resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Data</label>
-                  <input
-                    type="date"
-                    value={editForm.date}
-                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                    className="w-full mt-1 h-9 rounded-md border bg-background px-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Início</label>
-                  <input
-                    type="time"
-                    value={editForm.startTime}
-                    onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                    className="w-full mt-1 h-9 rounded-md border bg-background px-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Fim</label>
-                  <input
-                    type="time"
-                    value={editForm.endTime}
-                    onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                    className="w-full mt-1 h-9 rounded-md border bg-background px-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => setEditing(false)}>
-                  <X className="w-3.5 h-3.5" /> Cancelar
-                </Button>
-                <Button size="sm" className="flex-1 gap-1.5" onClick={handleSaveEdit} disabled={saving}>
-                  <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Shared Appointment Detail Modal */}
+      <AppointmentDetailModal
+        appointment={selectedApptDetail}
+        onClose={() => setSelectedApptDetail(null)}
+        onUpdated={loadAppointments}
+      />
     </div>
   );
 };

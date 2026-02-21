@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import AppointmentDetailModal, { type AppointmentDetail } from "@/components/AppointmentDetailModal";
 
 type Appointment = {
   id: string;
@@ -51,6 +52,9 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     startTime: "09:00",
     endTime: "10:00",
   });
+
+  // Detail modal state
+  const [selectedApptDetail, setSelectedApptDetail] = useState<AppointmentDetail | null>(null);
 
   // Notification dialog state
   const [showNotifyDialog, setShowNotifyDialog] = useState(false);
@@ -229,6 +233,27 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     }
   };
 
+  const openDetailModal = async (a: Appointment) => {
+    // Build detail with case info
+    const { data: caseData } = await supabase.from("cases").select("id, process_number, client_user_id").eq("id", caseId).single();
+    let clientName: string | null = null;
+    if (caseData?.client_user_id) {
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("user_id", caseData.client_user_id).single();
+      clientName = p?.full_name || null;
+    }
+    setSelectedApptDetail({
+      id: a.id,
+      title: a.title,
+      description: a.description,
+      startAt: a.start_at,
+      endAt: a.end_at,
+      caseId: caseId,
+      clientUserId: caseData?.client_user_id || null,
+      clientName,
+      processNumber: caseData?.process_number || null,
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !form.date || !form.title) return;
@@ -238,15 +263,9 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
     const end_at = `${form.date}T${form.endTime}:00`;
 
     if (editingId) {
-      // Update existing
       const { error } = await supabase
         .from("appointments")
-        .update({
-          title: form.title,
-          description: form.description || null,
-          start_at,
-          end_at,
-        })
+        .update({ title: form.title, description: form.description || null, start_at, end_at })
         .eq("id", editingId);
 
       if (error) {
@@ -258,12 +277,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
         if (form.title === "Videochamada") {
           if (videoPlatform === "google_meet" && googleConnected) {
             try {
-              const result = await createMeetEvent({
-                title: form.title,
-                description: form.description,
-                start_at: start_at,
-                end_at: end_at,
-              });
+              const result = await createMeetEvent({ title: form.title, description: form.description, start_at, end_at });
               videoLink = result?.meet_link || null;
             } catch {
               videoLink = generateJitsiLink(editingId);
@@ -283,7 +297,6 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
           metadata: { start_at, end_at, type: form.title, video_link: videoLink },
         });
 
-        // Ask to notify
         const client = await fetchClientInfo();
         if (client && (client.phone || client.email)) {
           setClientInfo(client);
@@ -303,7 +316,6 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
         fetchAppointments();
       }
     } else {
-      // Insert new
       const { data: inserted, error } = await supabase.from("appointments").insert({
         title: form.title,
         description: form.description || null,
@@ -323,12 +335,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
         if (form.title === "Videochamada" && inserted?.id) {
           if (videoPlatform === "google_meet" && googleConnected) {
             try {
-              const result = await createMeetEvent({
-                title: form.title,
-                description: form.description,
-                start_at: start_at,
-                end_at: end_at,
-              });
+              const result = await createMeetEvent({ title: form.title, description: form.description, start_at, end_at });
               videoLink = result?.meet_link || null;
             } catch {
               videoLink = generateJitsiLink(inserted.id);
@@ -536,7 +543,11 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
             {upcoming.map((a) => {
               const Icon = getTypeIcon(a.title);
               return (
-                <div key={a.id} className="flex items-start gap-2.5 bg-accent/5 border border-accent/20 rounded-lg px-3 py-2">
+                <div
+                  key={a.id}
+                  className="flex items-start gap-2.5 bg-accent/5 border border-accent/20 rounded-lg px-3 py-2 cursor-pointer hover:bg-accent/10 transition-colors"
+                  onClick={() => openDetailModal(a)}
+                >
                   <Icon className="w-4 h-4 text-accent mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{a.title}</p>
@@ -545,7 +556,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                       <Clock className="w-3 h-3" /> {formatDateTime(a.start_at)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
+                  <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => startEdit(a)}
                       title="Editar"
@@ -592,7 +603,11 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
             {past.map((a) => {
               const Icon = getTypeIcon(a.title);
               return (
-                <div key={a.id} className="flex items-start gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors group">
+                <div
+                  key={a.id}
+                  className="flex items-start gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors group cursor-pointer"
+                  onClick={() => openDetailModal(a)}
+                >
                   <Icon className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">{a.title}</p>
@@ -600,7 +615,8 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
                   </div>
                   <span className="text-[10px] text-muted-foreground shrink-0">{formatDateTime(a.start_at)}</span>
                   <button
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       const { error } = await supabase.from("appointments").delete().eq("id", a.id);
                       if (error) {
                         toast({ title: "Erro ao excluir", variant: "destructive" });
@@ -624,6 +640,13 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       {appointments.length === 0 && !showForm && (
         <p className="text-xs text-muted-foreground py-2">Nenhum atendimento registrado.</p>
       )}
+
+      {/* Shared Appointment Detail Modal */}
+      <AppointmentDetailModal
+        appointment={selectedApptDetail}
+        onClose={() => setSelectedApptDetail(null)}
+        onUpdated={fetchAppointments}
+      />
 
       {/* Notification dialog */}
       <Dialog open={showNotifyDialog} onOpenChange={(open) => { 
