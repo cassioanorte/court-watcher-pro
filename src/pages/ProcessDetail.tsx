@@ -11,6 +11,19 @@ import SubstabelecimentoSection from "@/components/SubstabelecimentoSection";
 import CaseActivityLog from "@/components/CaseActivityLog";
 import CaseAppointments from "@/components/CaseAppointments";
 
+type ProcessSource = Database["public"]["Enums"]["process_source"];
+
+const allSourceLabels: Record<string, string> = {
+  TJRS_1G: "TJRS - 1º Grau", TJRS_2G: "TJRS - 2º Grau",
+  TRF4_JFRS: "TRF4 - JFRS", TRF4_JFSC: "TRF4 - JFSC", TRF4_JFPR: "TRF4 - JFPR",
+  TST: "TST", TSE: "TSE", STJ: "STJ", STM: "STM",
+  TRF1: "TRF1", TRF2: "TRF2", TRF3: "TRF3", TRF4: "TRF4", TRF5: "TRF5", TRF6: "TRF6",
+  TRT1: "TRT1", TRT2: "TRT2", TRT3: "TRT3", TRT4: "TRT4", TRT5: "TRT5", TRT6: "TRT6",
+  TRT7: "TRT7", TRT8: "TRT8", TRT9: "TRT9", TRT10: "TRT10", TRT11: "TRT11", TRT12: "TRT12",
+  TRT13: "TRT13", TRT14: "TRT14", TRT15: "TRT15", TRT16: "TRT16", TRT17: "TRT17", TRT18: "TRT18",
+  TRT19: "TRT19", TRT20: "TRT20", TRT21: "TRT21", TRT22: "TRT22", TRT23: "TRT23", TRT24: "TRT24",
+};
+
 const ProcessDetail = () => {
   const { id } = useParams();
   const location = useLocation();
