@@ -125,7 +125,7 @@ function htmlToCleanText(html: string): string {
   return text.trim();
 }
 
-async function processMailbox(serviceClient: any, cred: any) {
+async function processMailbox(serviceClient: any, cred: any, lookbackDays: number, startTime: number, maxRuntimeMs: number) {
   const client = new ImapFlow({
     host: cred.imap_host,
     port: cred.imap_port,
@@ -143,16 +143,17 @@ async function processMailbox(serviceClient: any, cred: any) {
   let totalInserted = 0;
   let emailsScanned = 0;
   let errors = 0;
+  let timedOut = false;
 
   try {
     await client.connect();
-    console.log('IMAP connected successfully');
+    console.log(`IMAP connected (lookback: ${lookbackDays} days)`);
 
     const senders: string[] = cred.senders || [];
     
-    // Search for emails from last 30 days
+    // Search for emails from lookback period
     const since = new Date();
-    since.setDate(since.getDate() - 30);
+    since.setDate(since.getDate() - lookbackDays);
 
     // Try each folder
     for (const folder of FOLDERS_TO_CHECK) {
