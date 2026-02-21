@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import SubstabelecimentoSection from "@/components/SubstabelecimentoSection";
+import CaseActivityLog from "@/components/CaseActivityLog";
 
 const ProcessDetail = () => {
   const { id } = useParams();
@@ -17,7 +19,7 @@ const ProcessDetail = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"timeline" | "documentos" | "mensagens">("timeline");
+  const [activeTab, setActiveTab] = useState<"timeline" | "documentos" | "mensagens" | "substabelecimento" | "historico">("timeline");
 
   // Editable fields
   const [editingSummary, setEditingSummary] = useState(false);
@@ -291,6 +293,10 @@ const ProcessDetail = () => {
     { key: "timeline" as const, label: "Timeline", icon: RefreshCw },
     { key: "documentos" as const, label: "Documentos", icon: FileText },
     { key: "mensagens" as const, label: "Mensagens", icon: MessageSquare },
+    ...(isLawyer ? [
+      { key: "substabelecimento" as const, label: "Substabelecimento", icon: UserCheck },
+      { key: "historico" as const, label: "Histórico", icon: History },
+    ] : []),
   ];
 
   return (
@@ -735,6 +741,17 @@ const ProcessDetail = () => {
             </div>
           </div>
         </div>
+      )}
+      {activeTab === "substabelecimento" && isLawyer && (
+        <SubstabelecimentoSection
+          caseId={id!}
+          responsibleUserId={caseData.responsible_user_id}
+          onResponsibleChanged={(newId) => setCaseData((prev: any) => ({ ...prev, responsible_user_id: newId }))}
+        />
+      )}
+
+      {activeTab === "historico" && isLawyer && (
+        <CaseActivityLog caseId={id!} />
       )}
     </div>
   );
