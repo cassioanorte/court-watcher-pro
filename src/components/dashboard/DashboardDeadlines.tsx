@@ -102,7 +102,7 @@ const DashboardDeadlines = () => {
 
       {deadlines.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">
-          Nenhum prazo nos próximos 7 dias 🎉
+          Nenhum compromisso nos próximos 7 dias 🎉
         </p>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto">
