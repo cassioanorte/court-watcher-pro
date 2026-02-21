@@ -363,27 +363,40 @@ function parseEmailContent(content: string, source: string, tenantId: string): a
 }
 
 /**
+ * Extract OAB numbers from a specific section of text.
+ * Returns only unique OAB digit strings found in the section.
+ */
+function extractOabsFromSection(sectionText: string): string[] {
+  const oabRegex = /OAB\s*\/?\s*([A-Z]{2})\s*[.\s]*(\d[\d.]+)/gi;
+  const found: string[] = [];
+  let match;
+  while ((match = oabRegex.exec(sectionText)) !== null) {
+    const digits = match[2].replace(/[^0-9]/g, '');
+    if (digits && !found.includes(digits)) {
+      found.push(digits);
+    }
+  }
+  return found;
+}
+
+/**
  * Detect if a section is an OAB index/header section
  * (lists lawyers and process numbers but no actual content)
  */
 function isOabIndexSection(text: string): boolean {
-  // Check for explicit OAB index markers
   if (/NESTE\s+E-?MAIL\s+\d+\s+PROCESSOS?\b/i.test(text) && text.length < 1000) return true;
   if (/PROCESSOS?\s+EST[ÃA]O?\s+LISTADOS?/i.test(text) && text.length < 1000) return true;
   if (/ESTE\s+E-?MAIL\s+CONT[ÉE]M\s+AS\s+INTIMA[ÇC][ÕO]ES/i.test(text) && text.length < 1000) return true;
   
-  // Check if section is mostly OAB references (index listing)
   const oabMatches = text.match(/OAB\s*\/?\s*[A-Z]{2}\s*\d+/gi);
   const procMatches = text.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g);
   
-  // If many OAB references relative to text length, it's an index
   if (oabMatches && oabMatches.length >= 2 && text.length < 1500) return true;
   
-  // If it has process numbers but mostly just lists them (short text per process)
   if (procMatches && procMatches.length > 3) {
     const textWithoutProcs = text.replace(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g, '').trim();
     const avgCharsPerProc = textWithoutProcs.length / procMatches.length;
-    if (avgCharsPerProc < 100) return true; // Very little content per process = index
+    if (avgCharsPerProc < 100) return true;
   }
 
   return false;
