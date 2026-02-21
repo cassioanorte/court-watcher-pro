@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check } from "lucide-react";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import { Calendar, Clock, Plus, X, Save, Phone, Video, Users, FileText, Send, Mail, MessageCircle, ExternalLink, Loader2, Pencil, Check, Link2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,11 +37,13 @@ const typeOptions = [
 const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: string }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isConnected: googleConnected, connect: connectGoogle, createMeetEvent, loading: googleLoading } = useGoogleCalendar();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [videoPlatform, setVideoPlatform] = useState<"jitsi" | "google_meet">(googleConnected ? "google_meet" : "jitsi");
   const [form, setForm] = useState({
     title: "Reunião presencial",
     description: "",
@@ -251,7 +254,25 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       } else {
         toast({ title: "Atendimento atualizado!" });
 
-        const videoLink = form.title === "Videochamada" ? generateJitsiLink(editingId) : null;
+        let videoLink: string | null = null;
+        if (form.title === "Videochamada") {
+          if (videoPlatform === "google_meet" && googleConnected) {
+            try {
+              const result = await createMeetEvent({
+                title: form.title,
+                description: form.description,
+                start_at: start_at,
+                end_at: end_at,
+              });
+              videoLink = result?.meet_link || null;
+            } catch {
+              videoLink = generateJitsiLink(editingId);
+              toast({ title: "Falha no Google Meet, usando Jitsi", variant: "destructive" });
+            }
+          } else {
+            videoLink = generateJitsiLink(editingId);
+          }
+        }
 
         await supabase.from("case_activities").insert({
           case_id: caseId,
@@ -298,9 +319,25 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
       } else {
         toast({ title: "Atendimento registrado!" });
 
-        const videoLink = form.title === "Videochamada" && inserted?.id
-          ? generateJitsiLink(inserted.id)
-          : null;
+        let videoLink: string | null = null;
+        if (form.title === "Videochamada" && inserted?.id) {
+          if (videoPlatform === "google_meet" && googleConnected) {
+            try {
+              const result = await createMeetEvent({
+                title: form.title,
+                description: form.description,
+                start_at: start_at,
+                end_at: end_at,
+              });
+              videoLink = result?.meet_link || null;
+            } catch {
+              videoLink = generateJitsiLink(inserted.id);
+              toast({ title: "Falha no Google Meet, usando Jitsi", variant: "destructive" });
+            }
+          } else {
+            videoLink = generateJitsiLink(inserted.id);
+          }
+        }
 
         await supabase.from("case_activities").insert({
           case_id: caseId,
@@ -396,9 +433,47 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
           </div>
 
           {form.title === "Videochamada" && (
-            <p className="text-[10px] text-accent flex items-center gap-1">
-              <Video className="w-3 h-3" /> Link do Jitsi Meet será gerado automaticamente
-            </p>
+            <div className="space-y-2">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Plataforma</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVideoPlatform("jitsi")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    videoPlatform === "jitsi"
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" /> Jitsi Meet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (googleConnected) {
+                      setVideoPlatform("google_meet");
+                    } else {
+                      connectGoogle();
+                    }
+                  }}
+                  disabled={googleLoading}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    videoPlatform === "google_meet" && googleConnected
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  {googleConnected ? "Google Meet" : googleLoading ? "Conectando..." : "Conectar Google Meet"}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Video className="w-3 h-3" />
+                {videoPlatform === "jitsi"
+                  ? "Link do Jitsi Meet será gerado automaticamente"
+                  : "Evento será criado no Google Calendar com link do Meet"}
+              </p>
+            </div>
           )}
 
           <div className="grid grid-cols-3 gap-2">

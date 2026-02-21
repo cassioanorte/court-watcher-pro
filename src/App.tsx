@@ -41,6 +41,7 @@ import LandingPagePublic from "./pages/LandingPagePublic";
 import Pagamentos from "./pages/Pagamentos";
 import AgentesIA from "./pages/AgentesIA";
 import Calculadoras from "./pages/Calculadoras";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -103,6 +104,7 @@ const App = () => (
             <Route path="/extrair-texto" element={<ExtrairTexto />} />
             <Route path="/lead-form" element={<LeadCapture />} />
             <Route path="/lp/:slug" element={<LandingPagePublic />} />
+            <Route path="/google-calendar-callback" element={<GoogleCalendarCallback />} />
 
             {/* Admin / Staff routes */}
             <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
