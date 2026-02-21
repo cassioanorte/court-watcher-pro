@@ -31,6 +31,7 @@ const ProcessDetail = () => {
   const [caseSummary, setCaseSummary] = useState("");
   const [nextStep, setNextStep] = useState("");
   const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
+  const [nextStepDueDate, setNextStepDueDate] = useState<string>("");
   const [savingSummary, setSavingSummary] = useState(false);
   const [savingNextStep, setSavingNextStep] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
@@ -150,18 +151,33 @@ const ProcessDetail = () => {
       setEditingNextStep(false);
       toast({ title: "Próximo passo salvo!" });
 
-      // Send notification to the assigned responsible
-      if (nextStepResponsibleId && nextStepResponsibleId !== user?.id) {
-        const responsibleName = teamMembers.find(m => m.user_id === nextStepResponsibleId)?.full_name || "";
-        await supabase.from("notifications").insert({
-          user_id: nextStepResponsibleId,
-          title: `Nova tarefa atribuída: ${nextStep}`,
-          body: `Você foi designado como responsável no processo ${caseData.process_number}${caseData.parties ? ` (${caseData.parties})` : ""}. Tarefa: ${nextStep}`,
+      // Create task assignment record
+      if (nextStepResponsibleId && tenantId) {
+        await supabase.from("task_assignments" as any).insert({
+          tenant_id: tenantId,
           case_id: id,
+          assigned_by: user?.id,
+          assigned_to: nextStepResponsibleId,
+          task_description: nextStep,
+          process_number: caseData.process_number,
+          parties: caseData.parties || null,
+          due_date: nextStepDueDate || null,
         });
+
+        // Also send a notification popup
+        if (nextStepResponsibleId !== user?.id) {
+          const dueDateText = nextStepDueDate ? ` | Prazo: ${new Date(nextStepDueDate + "T12:00:00").toLocaleDateString("pt-BR")}` : "";
+          await supabase.from("notifications").insert({
+            user_id: nextStepResponsibleId,
+            title: `Nova tarefa: ${nextStep}`,
+            body: `Processo ${caseData.process_number}${caseData.parties ? ` (${caseData.parties})` : ""}${dueDateText}`,
+            case_id: id,
+          });
+        }
       }
     }
     setSavingNextStep(false);
+    setNextStepDueDate("");
   };
 
   const handleSendMessage = async () => {
@@ -464,11 +480,20 @@ const ProcessDetail = () => {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Prazo</label>
+                <input
+                  type="date"
+                  value={nextStepDueDate}
+                  onChange={(e) => setNextStepDueDate(e.target.value)}
+                  className="w-full mt-1 h-9 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
               <div className="flex gap-2">
                 <button onClick={handleSaveNextStep} disabled={savingNextStep} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg gradient-accent text-accent-foreground text-xs font-semibold disabled:opacity-50">
                   {savingNextStep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Salvar
                 </button>
-                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); setNextStepResponsibleId(caseData.next_step_responsible_id || null); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
+                <button onClick={() => { setEditingNextStep(false); setNextStep(caseData.next_step || ""); setNextStepResponsibleId(caseData.next_step_responsible_id || null); setNextStepDueDate(""); }} className="px-3 py-1.5 rounded-lg border text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
               </div>
             </div>
           ) : (
