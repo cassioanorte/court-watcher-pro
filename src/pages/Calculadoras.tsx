@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 import CorrecaoMonetariaCalc from "@/components/calculadoras/CorrecaoMonetariaCalc";
 import FacilCalc from "@/components/calculadoras/FacilCalc";
+import CompletoCalc from "@/components/calculadoras/CompletoCalc";
 import JurosMoratoriosCalc from "@/components/calculadoras/JurosMoratoriosCalc";
 import ParcelamentoCalc from "@/components/calculadoras/ParcelamentoCalc";
 import TempoContribuicaoCalc from "@/components/calculadoras/TempoContribuicaoCalc";
@@ -71,6 +72,7 @@ const categorias: Categoria[] = [
     id: "generalistas", label: "Generalistas", icon: FileText,
     calculadoras: [
       { id: "facil", name: "Fácil", description: "Calculadora ágil e descomplicada para cálculos de atualização e juros.", icon: Zap },
+      { id: "completo", name: "Completo", description: "Calculadora versátil: faça cálculos com índices e juros variados.", icon: FileText },
       { id: "correcao_monetaria", name: "Correção Monetária", description: "Atualize valores com INPC, IPCA, SELIC e outros índices oficiais.", icon: Percent },
       { id: "juros_moratorios", name: "Juros Moratórios", description: "Calcule juros simples e compostos sobre valores em atraso.", icon: Clock },
       { id: "parcelamento_916", name: "Parcelamento Art. 916 CPC", description: "Calcule o parcelamento: 30% de entrada + 6 parcelas com juros de 1% am.", icon: FileText },
@@ -158,6 +160,7 @@ const categorias: Categoria[] = [
 
 const calcComponents: Record<string, React.FC> = {
   facil: FacilCalc,
+  completo: CompletoCalc,
   correcao_monetaria: CorrecaoMonetariaCalc,
   juros_moratorios: JurosMoratoriosCalc,
   parcelamento_916: ParcelamentoCalc,
