@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink } from "lucide-react";
+import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw } from "lucide-react";
 import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 interface Publication {
   id: string;
