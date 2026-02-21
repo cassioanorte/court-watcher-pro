@@ -600,7 +600,32 @@ const ContatoDetail = () => {
                   <Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground ml-3">Clique ou arraste uma imagem</span>
+              <div className="flex items-center gap-2 ml-3">
+                <span className="text-xs text-muted-foreground">Clique ou arraste uma imagem</span>
+                {contact.avatar_url && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!confirm("Excluir foto de perfil?")) return;
+                      setUploadingAvatar(true);
+                      try {
+                        const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("user_id", id);
+                        if (error) throw error;
+                        setContact((prev: any) => ({ ...prev, avatar_url: null }));
+                        toast({ title: "Foto removida!" });
+                      } catch (err: any) {
+                        toast({ title: "Erro", description: err.message, variant: "destructive" });
+                      } finally {
+                        setUploadingAvatar(false);
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Excluir foto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Contact info */}
