@@ -533,6 +533,11 @@ const Pagamentos = () => {
               <CheckCircle2 className="w-3 h-3" /> Dados extraídos por IA
             </Badge>
           )}
+          {!formAiExtracted && formDocName && !uploading && !extracting && (
+            <Badge variant="secondary" className="text-xs gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Dados extraídos do PDF
+            </Badge>
+          )}
 
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-2">
