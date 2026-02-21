@@ -399,9 +399,47 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
           </div>
 
           {form.title === "Videochamada" && (
-            <p className="text-[10px] text-accent flex items-center gap-1">
-              <Video className="w-3 h-3" /> Link do Jitsi Meet será gerado automaticamente
-            </p>
+            <div className="space-y-2">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Plataforma</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVideoPlatform("jitsi")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    videoPlatform === "jitsi"
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" /> Jitsi Meet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (googleConnected) {
+                      setVideoPlatform("google_meet");
+                    } else {
+                      connectGoogle();
+                    }
+                  }}
+                  disabled={googleLoading}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    videoPlatform === "google_meet" && googleConnected
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  {googleConnected ? "Google Meet" : googleLoading ? "Conectando..." : "Conectar Google Meet"}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Video className="w-3 h-3" />
+                {videoPlatform === "jitsi"
+                  ? "Link do Jitsi Meet será gerado automaticamente"
+                  : "Evento será criado no Google Calendar com link do Meet"}
+              </p>
+            </div>
           )}
 
           <div className="grid grid-cols-3 gap-2">
