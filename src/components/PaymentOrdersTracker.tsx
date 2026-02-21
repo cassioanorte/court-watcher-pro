@@ -12,6 +12,7 @@ import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
+import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
 
 interface PaymentOrder {
   id: string;
@@ -121,60 +122,40 @@ const PaymentOrdersTracker = () => {
 
     setExtracting(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let pdfText = "";
-      const textDecoder = new TextDecoder("latin1");
-      const rawStr = textDecoder.decode(bytes);
-      const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-      let match;
-      while ((match = streamRegex.exec(rawStr)) !== null) {
-        const content = match[1];
-        const textParts = content.match(/\(([^)]*)\)/g);
-        if (textParts) pdfText += textParts.map(p => p.slice(1, -1)).join(" ") + "\n";
-        const tjParts = content.match(/\[(.*?)\]\s*TJ/g);
-        if (tjParts) { tjParts.forEach(tj => { const parts = tj.match(/\(([^)]*)\)/g); if (parts) pdfText += parts.map(p => p.slice(1, -1)).join("") + " "; }); pdfText += "\n"; }
-      }
-      const asciiLines = rawStr.split("\n").filter(line => { const readable = line.replace(/[^\x20-\x7E\xC0-\xFF]/g, "").trim(); return readable.length > 10 && !line.includes("stream") && !line.includes("endobj"); });
-      if (asciiLines.length > 0) pdfText += "\n" + asciiLines.join("\n");
+      const pdfText = await extractTextFromPdf(file);
+      if (pdfText.trim().length < 20) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
 
-      if (pdfText.trim().length < 30) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
+      const parsed = parseRpvText(pdfText);
+      const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-payment-data`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ text: pdfText.slice(0, 8000), file_name: file.name }),
-      });
-      const body = await response.json();
-      if (!response.ok) { toast.error(body?.error || `Erro ${response.status}`); setExtracting(false); setUploading(false); return; }
-
-      if (body?.data) {
-        const d = body.data;
+      if (hasData) {
         setEditForm(f => ({
           ...f,
-          ...(d.type && { type: d.type }),
-          ...(d.gross_amount && { gross_amount: d.gross_amount }),
-          ...(d.office_fees_percent && { office_fees_percent: d.office_fees_percent }),
-          ...(d.court_costs && { court_costs: d.court_costs }),
-          ...(d.social_security && { social_security: d.social_security }),
-          ...(d.income_tax && { income_tax: d.income_tax }),
-          ...(d.beneficiary_name && { beneficiary_name: d.beneficiary_name }),
-          ...(d.beneficiary_cpf && { beneficiary_cpf: d.beneficiary_cpf }),
-          ...(d.process_number && { process_number: d.process_number }),
-          ...(d.court && { court: d.court }),
-          ...(d.entity && { entity: d.entity }),
-          ...(d.reference_date && { reference_date: d.reference_date }),
-          ...(d.expected_payment_date && { expected_payment_date: d.expected_payment_date }),
-          ai_extracted: true,
-          ai_raw_data: d,
+          ...(parsed.type && { type: parsed.type }),
+          ...(parsed.gross_amount && { gross_amount: parsed.gross_amount }),
+          ...(parsed.office_fees_percent && { office_fees_percent: parsed.office_fees_percent }),
+          ...(parsed.court_costs && { court_costs: parsed.court_costs }),
+          ...(parsed.social_security && { social_security: parsed.social_security }),
+          ...(parsed.income_tax && { income_tax: parsed.income_tax }),
+          ...(parsed.beneficiary_name && { beneficiary_name: parsed.beneficiary_name }),
+          ...(parsed.beneficiary_cpf && { beneficiary_cpf: parsed.beneficiary_cpf }),
+          ...(parsed.process_number && { process_number: parsed.process_number }),
+          ...(parsed.court && { court: parsed.court }),
+          ...(parsed.entity && { entity: parsed.entity }),
+          ...(parsed.reference_date && { reference_date: parsed.reference_date }),
+          ...(parsed.expected_payment_date && { expected_payment_date: parsed.expected_payment_date }),
+          ai_extracted: false,
         }));
-        if (d.process_number && cases.length > 0) {
-          const cleanNum = d.process_number.replace(/\D/g, "");
+        if (parsed.process_number && cases.length > 0) {
+          const cleanNum = parsed.process_number.replace(/\D/g, "");
           const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
           if (matchedCase) setEditForm(f => ({ ...f, case_id: matchedCase.id }));
         }
         toast.success("Dados extraídos e atualizados!");
+      } else {
+        toast.info("Poucos dados encontrados. Edite manualmente.");
       }
-    } catch (err) { toast.info("Não foi possível extrair dados. Edite manualmente."); }
+    } catch (err) { toast.info("Não foi possível ler o PDF. Edite manualmente."); }
     setExtracting(false);
     setUploading(false);
   };
