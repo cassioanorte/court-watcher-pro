@@ -157,12 +157,17 @@ const Financeiro = () => {
   const totalRevenue = confirmed.filter((t) => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
   const totalExpense = confirmed.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
   const profit = totalRevenue - totalExpense;
-  const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
   // Payment orders totals
   const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
   const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
   const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
+
+  // IR a pagar — 10,9% sobre honorários do escritório (office_amount)
+  const TAX_RATE = 0.109;
+  const totalIrAPagar = activeOrders
+    .filter(o => o.status !== "sacado")
+    .reduce((s, o) => s + (Number(o.office_amount) || 0) * TAX_RATE, 0);
 
   // === RPV DASHBOARD DATA ===
   // Status breakdown
