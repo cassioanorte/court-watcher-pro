@@ -182,6 +182,12 @@ async function processMailbox(serviceClient: any, cred: any, lookbackDays: numbe
             });
 
             for await (const msg of messages) {
+              // Time guard
+              if (Date.now() - startTime > maxRuntimeMs) {
+                console.log('⏱️ Time limit reached during email processing');
+                timedOut = true;
+                break;
+              }
               emailsScanned++;
               
               try {
