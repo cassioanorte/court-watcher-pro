@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase, Pencil, Save } from "lucide-react";
+import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase, Pencil, Save, Users, ArrowDownRight } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
+import { FeeDistributionSection } from "@/components/FeeDistributionSection";
 
 
 
@@ -130,6 +131,7 @@ const Pagamentos = () => {
   }, [fetchOrders, fetchCases]);
 
   // Auto-calculate when gross or fee% changes
+  // IR applies only on office fees (honorários), NOT on gross amount
   useEffect(() => {
     const gross = parseFloat(formGross) || 0;
     const feeP = parseFloat(formFeePercent) || 0;
@@ -139,14 +141,18 @@ const Pagamentos = () => {
     const taxP = parseFloat(formTaxPercent) || 0;
 
     if (formOwnership === "escritorio") {
-      // 100% do escritório, sem divisão com cliente
+      // 100% do escritório - IR sobre o valor total (que é todo honorário)
       const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
       setFormOffice(gross > 0 ? (gross - taxAmount).toString() : "");
       setFormClient("0");
     } else {
-      const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-      const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
-      setFormOffice(officeCalc > 0 ? officeCalc.toString() : "");
+      // Cliente paga o bruto dos honorários sem desconto de IR
+      // IR incide somente sobre os honorários do advogado
+      const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
+      const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
+      const officeNet = Math.round((officeGross - officeTax) * 100) / 100;
+      const clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
+      setFormOffice(officeNet > 0 ? officeNet.toString() : "");
       setFormClient(clientCalc > 0 ? clientCalc.toString() : "");
     }
   }, [formGross, formFeePercent, formCourtCosts, formSocSec, formTax, formOwnership, formTaxPercent]);
@@ -390,12 +396,16 @@ const Pagamentos = () => {
     let clientCalc: number;
 
     if (ownership === "escritorio") {
+      // 100% escritório - IR sobre o total
       const taxAmount = Math.round(gross * taxP / 100 * 100) / 100;
       officeCalc = Math.round((gross - taxAmount) * 100) / 100;
       clientCalc = 0;
     } else {
-      officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-      clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+      // IR applies only on office fees (honorários)
+      const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
+      const officeTax = Math.round(officeGross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((officeGross - officeTax) * 100) / 100;
+      clientCalc = Math.round((gross - officeGross - costs - soc - tax) * 100) / 100;
     }
 
     const updates = {
@@ -437,13 +447,19 @@ const Pagamentos = () => {
 
   const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
 
-  const totals = orders.filter(o => o.status !== "cancelado").reduce(
-    (acc, o) => ({
-      gross: acc.gross + (o.gross_amount || 0),
-      office: acc.office + (o.office_amount || 0),
-      client: acc.client + (o.client_amount || 0),
-    }),
-    { gross: 0, office: 0, client: 0 }
+  const activeOrders = orders.filter(o => o.status !== "cancelado");
+  const totals = activeOrders.reduce(
+    (acc, o) => {
+      const officeGross = o.ownership_type === "escritorio" ? o.gross_amount : Math.round(o.gross_amount * (o.office_fees_percent || 0) / 100 * 100) / 100;
+      const ir = Math.round(officeGross * (o.tax_percent || 0) / 100 * 100) / 100;
+      return {
+        gross: acc.gross + (o.gross_amount || 0),
+        office: acc.office + (o.office_amount || 0),
+        client: acc.client + (o.client_amount || 0),
+        ir: acc.ir + ir,
+      };
+    },
+    { gross: 0, office: 0, client: 0, ir: 0 }
   );
 
   const getCasePn = (caseId: string | null) => {
@@ -466,16 +482,20 @@ const Pagamentos = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl border p-4">
           <p className="text-xs text-muted-foreground mb-1">Valor Bruto Total</p>
           <p className="text-xl font-bold text-foreground">{fmt(totals.gross)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-xl border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Honorários (Escritório)</p>
-          <p className="text-xl font-bold text-accent">{fmt(totals.office)}</p>
+          <p className="text-xs text-muted-foreground mb-1">IR s/ Honorários</p>
+          <p className="text-xl font-bold text-destructive/80">{fmt(totals.ir)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl border p-4">
+          <p className="text-xs text-muted-foreground mb-1">Honorários Líquidos</p>
+          <p className="text-xl font-bold text-accent">{fmt(totals.office)}</p>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-xl border p-4">
           <p className="text-xs text-muted-foreground mb-1">Valor do Cliente</p>
           <p className="text-xl font-bold text-foreground">{fmt(totals.client)}</p>
         </motion.div>
@@ -500,28 +520,28 @@ const Pagamentos = () => {
                    <th className="p-3 font-medium">Beneficiário</th>
                    <th className="p-3 font-medium">Processo</th>
                    <th className="p-3 font-medium text-right">Bruto</th>
-                   <th className="p-3 font-medium text-right">Imposto</th>
-                   <th className="p-3 font-medium text-right">Líquido</th>
-                   <th className="p-3 font-medium text-right">Escritório</th>
+                   <th className="p-3 font-medium text-right">IR s/ Hon.</th>
+                   <th className="p-3 font-medium text-right">Escritório Líq.</th>
                    <th className="p-3 font-medium text-right">Cliente</th>
                    <th className="p-3 font-medium">Status</th>
                    <th className="p-3 font-medium text-right">Ações</th>
                  </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => {
-                  const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
-                  const StIcon = st.icon;
-                  return (
-                    <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelected(o)}>
-                      <td className="p-3">
-                        <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
-                      </td>
-                      <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
-                      <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</td>
+               </thead>
+               <tbody>
+                 {orders.map((o) => {
+                   const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
+                   const StIcon = st.icon;
+                   const officeGross = o.ownership_type === "escritorio" ? o.gross_amount : Math.round(o.gross_amount * (o.office_fees_percent || 0) / 100 * 100) / 100;
+                   const irAmount = Math.round(officeGross * (o.tax_percent || 0) / 100 * 100) / 100;
+                   return (
+                     <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelected(o)}>
+                       <td className="p-3">
+                         <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
+                       </td>
+                       <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
+                       <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</td>
                        <td className="p-3 text-right text-foreground">{fmt(o.gross_amount)}</td>
-                       <td className="p-3 text-right text-muted-foreground">{fmt(Math.round(o.gross_amount * (o.tax_percent || 0) / 100 * 100) / 100)} <span className="text-xs">({o.tax_percent ?? 10.9}%)</span></td>
-                       <td className="p-3 text-right text-foreground font-medium">{fmt(Math.round((o.gross_amount - o.gross_amount * (o.tax_percent || 0) / 100) * 100) / 100)}</td>
+                       <td className="p-3 text-right text-destructive/80 text-xs">{fmt(irAmount)} <span className="text-[10px]">({o.tax_percent ?? 10.9}%)</span></td>
                        <td className="p-3 text-right text-accent font-medium">{fmt(o.office_amount)}</td>
                        <td className="p-3 text-right text-foreground">{fmt(o.client_amount)}</td>
                       <td className="p-3">
@@ -548,6 +568,14 @@ const Pagamentos = () => {
           </div>
         </div>
       )}
+
+      {/* Fee Distribution / Cash Flow Section */}
+      <FeeDistributionSection 
+        orders={orders} 
+        tenantId={tenantId} 
+        userId={user?.id || ""} 
+        fmt={fmt} 
+      />
 
       {/* New Record Dialog */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
