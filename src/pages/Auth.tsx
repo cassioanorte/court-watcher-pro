@@ -65,7 +65,7 @@ const Auth = () => {
       {/* Hero Section */}
       <div
         className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
-        style={{ backgroundColor: '#171b36' }}
+        style={{ background: 'radial-gradient(ellipse at center, #0F1C40, #0B1633, #081229)' }}
       >
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
