@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import lexLogo from "@/assets/lex-imperium-logo.png";
+import lexLogo from "@/assets/lex-imperium-logo-white.png";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -101,8 +101,8 @@ const Auth = () => {
           <img
             src={lexLogo}
             alt="LEX IMPERIUM"
-            className="w-48 h-48 lg:w-64 lg:h-64 object-contain mx-auto mb-6 drop-shadow-2xl"
-            style={{ mixBlendMode: 'lighten' }}
+            className="w-56 h-56 lg:w-72 lg:h-72 object-contain mx-auto mb-6 drop-shadow-2xl"
+            style={{ filter: 'invert(1) hue-rotate(180deg)', mixBlendMode: 'screen' }}
           />
           <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(43 72% 52%)' }}>
             LEX IMPERIUM
