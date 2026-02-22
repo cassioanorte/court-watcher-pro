@@ -63,11 +63,14 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
-      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: 'linear-gradient(160deg, hsl(232 35% 13%), hsl(232 35% 15%), hsl(232 35% 12%))' }}>
-        {/* Radial glow behind logo */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, hsl(42 85% 55% / 0.08) 0%, transparent 70%)' }} />
-        </div>
+      <div
+        className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: `url(${lexLogo})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {[...Array(20)].map((_, i) => (
@@ -91,26 +94,6 @@ const Auth = () => {
             />
           ))}
         </div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10 text-center"
-        >
-          <img
-            src={lexLogo}
-            alt="LEX IMPERIUM"
-            className="w-72 h-72 lg:w-96 lg:h-96 object-contain mx-auto -mb-4"
-            style={{ mixBlendMode: 'screen' }}
-          />
-          <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(42 85% 55%)' }}>
-            LEX IMPERIUM
-          </h1>
-          <p className="mt-3 text-sm lg:text-base tracking-widest uppercase font-body" style={{ color: 'hsl(40 20% 70%)' }}>
-            O poder do direito em suas mãos.
-          </p>
-        </motion.div>
       </div>
 
       {/* Form Section */}
