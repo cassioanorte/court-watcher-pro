@@ -63,11 +63,14 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
-      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: '#161a33' }}>
-        {/* Radial glow behind logo */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, hsl(42 85% 55% / 0.08) 0%, transparent 70%)' }} />
-        </div>
+      <div
+        className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: `url(${lexLogo})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {[...Array(20)].map((_, i) => (
@@ -91,20 +94,6 @@ const Auth = () => {
             />
           ))}
         </div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10 w-full h-full flex items-center justify-center"
-          style={{
-            backgroundImage: `url(${lexLogo})`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            minHeight: '400px',
-          }}
-        />
       </div>
 
       {/* Form Section */}
