@@ -72,9 +72,11 @@ const ClientAuth = () => {
         className="w-full max-w-sm"
       >
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center mx-auto mb-3">
-            <Scale className="w-6 h-6 text-accent-foreground" />
-          </div>
+          <img
+            src={logoUrl || defaultLogo}
+            alt={tenantName}
+            className="h-16 mx-auto mb-4 object-contain"
+          />
           <h1 className="text-xl font-bold text-foreground font-display">Área do Cliente</h1>
           <p className="text-sm text-muted-foreground mt-1">Acompanhe seus processos</p>
         </div>
