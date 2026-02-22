@@ -101,7 +101,7 @@ const Auth = () => {
           <img
             src={lexLogo}
             alt="LEX IMPERIUM"
-            className="w-56 h-56 lg:w-72 lg:h-72 object-contain mx-auto mb-6"
+            className="w-72 h-72 lg:w-96 lg:h-96 object-contain mx-auto mb-6"
             style={{ mixBlendMode: 'screen' }}
           />
           <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(43 72% 52%)' }}>
