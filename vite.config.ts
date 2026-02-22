@@ -29,15 +29,20 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           {
-            src: "pwa-icon-192.png",
+            src: "pwa-icon-192.png?v=7",
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "pwa-icon-512.png",
+            src: "pwa-icon-512.png?v=7",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
+          },
+          {
+            src: "lex-imperium-logo.png?v=7",
+            sizes: "any",
+            type: "image/png",
           },
         ],
       },
@@ -45,6 +50,9 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ].filter(Boolean),
