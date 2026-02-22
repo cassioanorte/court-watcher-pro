@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent, Landmark, Car, Wheat } from "lucide-react";
+import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent, Landmark, Car, Wheat, Printer } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { printReport } from "@/lib/printReport";
 
 import CorrecaoMonetariaCalc from "@/components/calculadoras/CorrecaoMonetariaCalc";
 import FacilCalc from "@/components/calculadoras/FacilCalc";
@@ -275,12 +276,32 @@ export default function Calculadoras() {
       <Dialog open={!!openCalc} onOpenChange={open => !open && setOpenCalc(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {openCalc && <openCalc.icon className="w-5 h-5 text-accent" />}
-              {openCalc?.name}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                {openCalc && <openCalc.icon className="w-5 h-5 text-accent" />}
+                {openCalc?.name}
+              </DialogTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-7"
+                onClick={() => {
+                  const printArea = document.getElementById("calc-print-area");
+                  if (!printArea) return;
+                  printReport({
+                    title: openCalc?.name || "Cálculo Jurídico",
+                    subtitle: openCalc?.description,
+                    content: printArea.innerHTML,
+                  });
+                }}
+              >
+                <Printer className="w-3.5 h-3.5" /> Imprimir
+              </Button>
+            </div>
           </DialogHeader>
-          {CalcComponent && <CalcComponent />}
+          <div id="calc-print-area">
+            {CalcComponent && <CalcComponent />}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
