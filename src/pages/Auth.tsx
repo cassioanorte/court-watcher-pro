@@ -70,7 +70,7 @@ const Auth = () => {
           backgroundSize: '60%',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-          backgroundColor: 'hsl(232 35% 15%)',
+          backgroundColor: '#151933',
         }}
       >
         {/* Subtle particle dots */}
