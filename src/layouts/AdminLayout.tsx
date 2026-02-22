@@ -71,9 +71,9 @@ const AdminLayout = () => {
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
           {!sidebarCollapsed && (
             <>
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container" style={logoBg ? { backgroundColor: logoBg } : undefined}>
                 {tenantLogo ? (
-                  <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
+                  <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" style={logoFilter ? { filter: logoFilter } : undefined} />
                 ) : (
                   <Scale className="w-5 h-5 text-accent-foreground" />
                 )}
@@ -85,9 +85,9 @@ const AdminLayout = () => {
             </>
           )}
           {sidebarCollapsed && (
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container mx-auto">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0 logo-bg-container mx-auto" style={logoBg ? { backgroundColor: logoBg } : undefined}>
               {tenantLogo ? (
-                <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" />
+                <img src={tenantLogo} alt="Logo" className="w-full h-full object-contain logo-img" style={logoFilter ? { filter: logoFilter } : undefined} />
               ) : (
                 <Scale className="w-5 h-5 text-accent-foreground" />
               )}
