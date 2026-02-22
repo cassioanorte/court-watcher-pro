@@ -6,7 +6,7 @@
   "background_color": "#0B1C2D",
   "display": "standalone",
   "start_url": "/",
-  "id": "/v5",
+  "id": "/v6",
   "icons": [
     {
       "src": "/pwa-icon-192.png",
