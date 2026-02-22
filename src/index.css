@@ -11,62 +11,62 @@
 @layer base {
   /* Dark padrão – Azul Imperial (original) */
   :root, .dark-imperial {
-    --background: 224 40% 10%;
-    --foreground: 40 20% 92%;
+    --background: 228 45% 11%;
+    --foreground: 42 25% 93%;
 
-    --card: 224 38% 13%;
-    --card-foreground: 40 20% 92%;
+    --card: 228 42% 14%;
+    --card-foreground: 42 25% 93%;
 
-    --popover: 224 38% 13%;
-    --popover-foreground: 40 20% 92%;
+    --popover: 228 42% 14%;
+    --popover-foreground: 42 25% 93%;
 
-    --primary: 40 76% 48%;
-    --primary-foreground: 224 40% 8%;
+    --primary: 42 85% 55%;
+    --primary-foreground: 228 50% 8%;
 
-    --secondary: 224 28% 16%;
-    --secondary-foreground: 40 15% 85%;
+    --secondary: 228 30% 17%;
+    --secondary-foreground: 42 18% 85%;
 
-    --muted: 224 24% 15%;
-    --muted-foreground: 224 12% 55%;
+    --muted: 228 26% 16%;
+    --muted-foreground: 228 14% 55%;
 
-    --accent: 40 76% 48%;
-    --accent-foreground: 224 40% 8%;
+    --accent: 42 85% 55%;
+    --accent-foreground: 228 50% 8%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 224 24% 18%;
-    --input: 224 24% 18%;
-    --ring: 40 76% 48%;
+    --border: 228 26% 19%;
+    --input: 228 26% 19%;
+    --ring: 42 85% 55%;
 
     --radius: 0.625rem;
 
-    --sidebar-background: 224 42% 12%;
-    --sidebar-foreground: 40 15% 82%;
-    --sidebar-primary: 40 76% 48%;
-    --sidebar-primary-foreground: 224 40% 8%;
-    --sidebar-accent: 224 32% 18%;
-    --sidebar-accent-foreground: 40 15% 90%;
-    --sidebar-border: 224 30% 16%;
-    --sidebar-ring: 40 76% 48%;
+    --sidebar-background: 228 48% 12%;
+    --sidebar-foreground: 42 18% 82%;
+    --sidebar-primary: 42 85% 55%;
+    --sidebar-primary-foreground: 228 50% 8%;
+    --sidebar-accent: 228 34% 19%;
+    --sidebar-accent-foreground: 42 18% 90%;
+    --sidebar-border: 228 32% 17%;
+    --sidebar-ring: 42 85% 55%;
 
     /* Custom tokens */
     --success: 152 60% 42%;
     --success-foreground: 0 0% 100%;
-    --warning: 40 92% 50%;
-    --warning-foreground: 40 90% 10%;
+    --warning: 42 92% 55%;
+    --warning-foreground: 42 90% 10%;
     --info: 210 80% 55%;
     --info-foreground: 0 0% 100%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(224 42% 12%), hsl(224 35% 20%));
-    --gradient-accent: linear-gradient(135deg, hsl(40 76% 48%), hsl(36 82% 38%));
-    --gradient-hero: linear-gradient(160deg, hsl(224 44% 9%), hsl(224 40% 14%), hsl(224 44% 8%));
+    --gradient-primary: linear-gradient(135deg, hsl(228 48% 12%), hsl(228 38% 20%));
+    --gradient-accent: linear-gradient(135deg, hsl(42 85% 55%), hsl(38 88% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(228 48% 9%), hsl(228 44% 14%), hsl(228 48% 8%));
 
-    --shadow-sm: 0 1px 3px hsl(224 30% 5% / 0.3);
-    --shadow-md: 0 4px 12px hsl(224 30% 5% / 0.4);
-    --shadow-lg: 0 8px 30px hsl(224 30% 5% / 0.5);
-    --shadow-accent: 0 4px 20px hsl(40 76% 48% / 0.25);
-    --shadow-gold-glow: 0 0 30px hsl(40 76% 48% / 0.15);
+    --shadow-sm: 0 1px 3px hsl(228 35% 5% / 0.3);
+    --shadow-md: 0 4px 12px hsl(228 35% 5% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(228 35% 5% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(42 85% 55% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(42 85% 55% / 0.15);
 
     --font-display: 'Cinzel', serif;
     --font-body: 'Inter', sans-serif;
