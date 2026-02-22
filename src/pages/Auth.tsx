@@ -64,13 +64,12 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
       <div
-        className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
-        style={{ backgroundColor: '#1C2541' }}
+        className="relative lg:flex-1 flex items-center justify-center overflow-hidden bg-card"
       >
       </div>
 
       {/* Form Section */}
-      <div className="lg:w-[480px] flex items-center justify-center p-6 lg:p-12 bg-card">
+      <div className="lg:w-[480px] flex items-center justify-center p-6 lg:p-12" style={{ backgroundColor: '#1C2541' }}>
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
