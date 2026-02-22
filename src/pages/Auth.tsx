@@ -63,10 +63,10 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
-      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: 'linear-gradient(160deg, hsl(210 45% 6%), hsl(210 40% 10%), hsl(210 35% 5%))' }}>
+      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: 'linear-gradient(160deg, hsl(232 35% 13%), hsl(232 35% 15%), hsl(232 35% 12%))' }}>
         {/* Radial glow behind logo */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, hsl(43 72% 52% / 0.08) 0%, transparent 70%)' }} />
+          <div className="w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, hsl(42 85% 55% / 0.08) 0%, transparent 70%)' }} />
         </div>
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -75,7 +75,7 @@ const Auth = () => {
               key={i}
               className="absolute w-1 h-1 rounded-full"
               style={{
-                background: `hsl(43 72% ${50 + Math.random() * 20}% / ${0.2 + Math.random() * 0.3})`,
+                background: `hsl(42 85% ${50 + Math.random() * 20}% / ${0.2 + Math.random() * 0.3})`,
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
               }}
@@ -104,7 +104,7 @@ const Auth = () => {
             className="w-72 h-72 lg:w-96 lg:h-96 object-contain mx-auto -mb-4"
             style={{ mixBlendMode: 'screen' }}
           />
-          <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(43 72% 52%)' }}>
+          <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(42 85% 55%)' }}>
             LEX IMPERIUM
           </h1>
           <p className="mt-3 text-sm lg:text-base tracking-widest uppercase font-body" style={{ color: 'hsl(40 20% 70%)' }}>
