@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import lexLogo from "@/assets/lex-imperium-logo-white.png";
+import lexLogo from "@/assets/lex-imperium-logo-nobg.png";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -66,6 +66,7 @@ const Auth = () => {
       <div
         className="relative lg:flex-1 flex items-center justify-center overflow-hidden bg-card"
       >
+        <img src={lexLogo} alt="Lex Imperium" className="w-80 max-w-[70%]" />
       </div>
 
       {/* Form Section */}
