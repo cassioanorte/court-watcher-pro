@@ -69,7 +69,7 @@ const Auth = () => {
           backgroundImage: `url(${lexLogo})`,
           backgroundSize: '60%',
           backgroundPosition: 'center',
-        }}
+          backgroundRepeat: 'no-repeat',
       >
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
