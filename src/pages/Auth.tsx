@@ -63,7 +63,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
-      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: '#1a1e38' }}>
+      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: '#161a33' }}>
         {/* Radial glow behind logo */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, hsl(42 85% 55% / 0.08) 0%, transparent 70%)' }} />
