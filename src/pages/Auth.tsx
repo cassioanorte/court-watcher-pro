@@ -96,14 +96,15 @@ const Auth = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10 text-center"
-        >
-          <img
-            src={lexLogo}
-            alt="LEX IMPERIUM"
-            className="w-[500px] lg:w-[600px] object-contain mx-auto"
-          />
-        </motion.div>
+          className="relative z-10 w-full h-full flex items-center justify-center"
+          style={{
+            backgroundImage: `url(${lexLogo})`,
+            backgroundSize: 'contain',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            minHeight: '400px',
+          }}
+        />
       </div>
 
       {/* Form Section */}
