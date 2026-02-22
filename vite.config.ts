@@ -18,10 +18,10 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "pwa-icon-192.png", "pwa-icon-512.png"],
+      includeAssets: ["lex-imperium-logo.png", "pwa-icon-192.png", "pwa-icon-512.png"],
       manifest: {
-        name: "Portal Jurídico",
-        short_name: "Portal",
+        name: "LEX IMPERIUM",
+        short_name: "LEX IMPERIUM",
         description: "Sistema de gestão jurídica inteligente",
         theme_color: "#1e3a5f",
         background_color: "#ffffff",
