@@ -144,8 +144,12 @@ export function useThemeLoader() {
     if (!tenantId) return;
 
     const load = async () => {
-      // Don't apply inline theme if in light mode
-      if (document.documentElement.classList.contains("light")) return;
+      const root = document.documentElement;
+      // Don't apply inline theme if in light mode OR a non-default dark variant is active
+      if (root.classList.contains("light")) return;
+      const hasDarkVariant = ["dark-midnight", "dark-charcoal", "dark-obsidian", "dark-forest", "dark-wine", "dark-ocean", "dark-warm"]
+        .some(c => root.classList.contains(c));
+      if (hasDarkVariant) return;
 
       const { data } = await supabase.from("tenants").select("theme_colors, primary_color").eq("id", tenantId).single();
       if (data?.theme_colors && Object.keys(data.theme_colors as object).length > 0) {
