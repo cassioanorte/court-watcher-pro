@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 
 export type ColorMode = "dark" | "light";
-export type LightVariant = "clean" | "slate" | "cream" | "contrast";
+export type LightVariant = "clean" | "slate" | "cream" | "contrast" | "noir" | "royal" | "executive" | "navy";
 
-const LIGHT_CLASSES = ["light", "light-clean", "light-slate", "light-cream", "light-contrast"] as const;
+const LIGHT_CLASSES = [
+  "light", "light-clean", "light-slate", "light-cream", "light-contrast",
+  "light-noir", "light-royal", "light-executive", "light-navy",
+] as const;
 
 function clearInlineThemeVars() {
   const el = document.documentElement;
@@ -22,14 +25,23 @@ function clearInlineThemeVars() {
 
 function applyLightVariant(variant: LightVariant) {
   const root = document.documentElement;
-  // Remove all light classes first
   LIGHT_CLASSES.forEach((c) => root.classList.remove(c));
-  // Add the right ones
   root.classList.add("light");
   if (variant !== "clean") {
     root.classList.add(`light-${variant}`);
   }
 }
+
+export const LIGHT_VARIANT_OPTIONS: { key: LightVariant; label: string; desc: string }[] = [
+  { key: "clean", label: "Branco Limpo", desc: "Fundo branco puro, moderno" },
+  { key: "slate", label: "Cinza Azulado", desc: "Tom azulado elegante" },
+  { key: "cream", label: "Creme Premium", desc: "Tom quente e acolhedor" },
+  { key: "contrast", label: "Contraste Alto", desc: "Preto no branco, máxima legibilidade" },
+  { key: "noir", label: "Noir Elegante", desc: "Sidebar preta + fundo branco" },
+  { key: "royal", label: "Azul Royal", desc: "Sidebar azul forte + fundo branco" },
+  { key: "executive", label: "Executivo", desc: "Sidebar preta + fundo cinza suave" },
+  { key: "navy", label: "Navy & Creme", desc: "Sidebar azul forte + fundo creme" },
+];
 
 export function useColorMode() {
   const [mode, setMode] = useState<ColorMode>(() => {
