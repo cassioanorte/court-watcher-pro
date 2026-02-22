@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   DollarSign, TrendingUp, TrendingDown, PiggyBank, Plus, Trash2, X, Save,
   ArrowUpRight, ArrowDownRight, BarChart3, Target, Calendar, Banknote, Clock,
-  CheckCircle2, AlertTriangle, Users, Briefcase, Scale, Wallet, Receipt
+  CheckCircle2, AlertTriangle, Users, Briefcase, Scale, Wallet, Receipt, Printer
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Pagamentos from "@/pages/Pagamentos";
@@ -24,6 +24,7 @@ import {
   AreaChart, Area, PieChart, Pie, Cell, Legend
 } from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, differenceInDays } from "date-fns";
+import { printFinancialSummary, printRpvReport, printCashFlowReport, printFeeDistributionReport } from "@/lib/financialReports";
 import { ptBR } from "date-fns/locale";
 
 interface Transaction {
@@ -322,9 +323,34 @@ const Financeiro = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1">Visão completa da saúde financeira do escritório</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
+          <p className="text-sm text-muted-foreground mt-1">Visão completa da saúde financeira do escritório</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select onValueChange={(val) => {
+            if (val === "geral") printFinancialSummary(transactions, paymentOrders, feeDistributions);
+            if (val === "rpv-todos") printRpvReport(paymentOrders, feeDistributions, "all");
+            if (val === "rpv-sacados") printRpvReport(paymentOrders, feeDistributions, "sacado");
+            if (val === "rpv-pendentes") printRpvReport(paymentOrders, feeDistributions, "pending");
+            if (val === "fluxo") printCashFlowReport(transactions, feeDistributions);
+            if (val === "rateios") printFeeDistributionReport(feeDistributions, paymentOrders);
+          }}>
+            <SelectTrigger className="w-auto h-8 text-xs gap-1.5">
+              <Printer className="w-3.5 h-3.5" />
+              <SelectValue placeholder="Imprimir Relatório" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="geral">📊 Relatório Financeiro Geral</SelectItem>
+              <SelectItem value="fluxo">💰 Fluxo de Caixa</SelectItem>
+              <SelectItem value="rpv-todos">📋 RPVs/Precatórios — Todos</SelectItem>
+              <SelectItem value="rpv-sacados">✅ RPVs/Precatórios — Sacados</SelectItem>
+              <SelectItem value="rpv-pendentes">⏳ RPVs/Precatórios — Pendentes</SelectItem>
+              <SelectItem value="rateios">👥 Distribuição de Honorários</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs defaultValue="visao-geral" className="w-full">
