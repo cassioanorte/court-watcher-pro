@@ -101,15 +101,8 @@ const Auth = () => {
           <img
             src={lexLogo}
             alt="LEX IMPERIUM"
-            className="w-72 h-72 lg:w-96 lg:h-96 object-contain mx-auto -mb-4"
-            style={{ mixBlendMode: 'screen' }}
+            className="w-[500px] lg:w-[600px] object-contain mx-auto"
           />
-          <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(42 85% 55%)' }}>
-            LEX IMPERIUM
-          </h1>
-          <p className="mt-3 text-sm lg:text-base tracking-widest uppercase font-body" style={{ color: 'hsl(40 20% 70%)' }}>
-            O poder do direito em suas mãos.
-          </p>
         </motion.div>
       </div>
 
