@@ -39,6 +39,7 @@ const AdminLayout = () => {
   const [logoFilter, setLogoFilter] = useState("");
   const [logoBg, setLogoBg] = useState("");
   useThemeLoader();
+  const { mode, toggle: toggleColorMode } = useColorMode();
 
   useEffect(() => {
     if (!tenantId) return;
