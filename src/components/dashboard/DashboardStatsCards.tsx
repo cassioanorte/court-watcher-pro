@@ -7,8 +7,6 @@ interface StatCard {
   value: number;
   icon: LucideIcon;
   link: string;
-  gradient: string;
-  iconBg: string;
 }
 
 interface Props {
@@ -20,30 +18,9 @@ interface Props {
 
 const DashboardStatsCards = ({ agentsCount, clientsCount, appointmentsCount, loading }: Props) => {
   const stats: StatCard[] = [
-    {
-      label: "Agentes de IA",
-      value: agentsCount,
-      icon: Bot,
-      link: "/agentes-ia",
-      gradient: "from-[hsl(260,50%,30%)] to-[hsl(260,45%,45%)]",
-      iconBg: "bg-accent/20",
-    },
-    {
-      label: "Contatos",
-      value: clientsCount,
-      icon: Users,
-      link: "/contatos",
-      gradient: "from-[hsl(152,60%,35%)] to-[hsl(152,50%,45%)]",
-      iconBg: "bg-[hsl(152,60%,42%)]/20",
-    },
-    {
-      label: "Compromissos da Semana",
-      value: appointmentsCount,
-      icon: CalendarDays,
-      link: "/agenda",
-      gradient: "from-[hsl(38,80%,45%)] to-[hsl(38,70%,55%)]",
-      iconBg: "bg-accent/20",
-    },
+    { label: "Agentes de IA", value: agentsCount, icon: Bot, link: "/agentes-ia" },
+    { label: "Contatos", value: clientsCount, icon: Users, link: "/contatos" },
+    { label: "Compromissos da Semana", value: appointmentsCount, icon: CalendarDays, link: "/agenda" },
   ];
 
   return (
@@ -57,20 +34,22 @@ const DashboardStatsCards = ({ agentsCount, clientsCount, appointmentsCount, loa
         >
           <Link
             to={stat.link}
-            className={`relative block overflow-hidden rounded-xl p-5 bg-gradient-to-br ${stat.gradient} text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300`}
+            className="relative block overflow-hidden rounded-xl p-5 bg-card border border-border shadow-card hover:shadow-gold-glow hover:border-primary/30 hover:scale-[1.02] transition-all duration-300 group"
           >
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/5 -translate-y-6 translate-x-6" />
-            <div className="absolute bottom-0 left-0 w-16 h-16 rounded-full bg-white/5 translate-y-4 -translate-x-4" />
+            {/* Subtle gold accent line at top */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-60 group-hover:opacity-100 transition-opacity" />
+            {/* Corner glow */}
+            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-primary/5 -translate-y-8 translate-x-8 group-hover:bg-primary/10 transition-colors" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
-                <div className={`w-11 h-11 rounded-lg ${stat.iconBg} backdrop-blur-sm flex items-center justify-center`}>
-                  <stat.icon className="w-5 h-5 text-white" />
+                <div className="w-11 h-11 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <stat.icon className="w-5 h-5 text-primary" />
                 </div>
               </div>
-              <p className="text-3xl font-bold tracking-tight font-display">
+              <p className="text-3xl font-bold tracking-tight font-display text-foreground">
                 {loading ? "–" : stat.value}
               </p>
-              <p className="text-xs text-white/70 mt-1 font-medium uppercase tracking-wide">
+              <p className="text-xs text-muted-foreground mt-1 font-medium uppercase tracking-wide">
                 {stat.label}
               </p>
             </div>
