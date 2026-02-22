@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon } from "lucide-react";
+import { useColorMode } from "@/hooks/useColorMode";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
@@ -38,6 +39,7 @@ const AdminLayout = () => {
   const [logoFilter, setLogoFilter] = useState("");
   const [logoBg, setLogoBg] = useState("");
   useThemeLoader();
+  const { mode, toggle: toggleColorMode } = useColorMode();
 
   useEffect(() => {
     if (!tenantId) return;
@@ -182,6 +184,13 @@ const AdminLayout = () => {
           </button>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleColorMode}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title={mode === "dark" ? "Tema claro" : "Tema escuro"}
+            >
+              {mode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <button className="relative text-muted-foreground hover:text-foreground transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />

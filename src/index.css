@@ -70,6 +70,55 @@
     --font-display: 'Cinzel', serif;
     --font-body: 'Inter', sans-serif;
   }
+
+  .light {
+    --background: 40 20% 96%;
+    --foreground: 210 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 30% 12%;
+
+    --primary: 43 72% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 92%;
+    --secondary-foreground: 210 20% 25%;
+
+    --muted: 210 12% 90%;
+    --muted-foreground: 210 10% 45%;
+
+    --accent: 43 72% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 85%;
+    --input: 210 15% 85%;
+    --ring: 43 72% 42%;
+
+    --sidebar-background: 210 25% 18%;
+    --sidebar-foreground: 40 15% 90%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 210 40% 8%;
+    --sidebar-accent: 210 20% 24%;
+    --sidebar-accent-foreground: 40 15% 92%;
+    --sidebar-border: 210 20% 22%;
+    --sidebar-ring: 43 72% 52%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(210 25% 18%), hsl(210 20% 26%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 42%), hsl(38 80% 35%));
+    --gradient-hero: linear-gradient(160deg, hsl(210 25% 18%), hsl(210 20% 22%), hsl(210 25% 16%));
+
+    --shadow-sm: 0 1px 3px hsl(210 15% 50% / 0.1);
+    --shadow-md: 0 4px 12px hsl(210 15% 50% / 0.12);
+    --shadow-lg: 0 8px 30px hsl(210 15% 50% / 0.15);
+    --shadow-accent: 0 4px 20px hsl(43 72% 42% / 0.2);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 42% / 0.1);
+  }
 }
 
 @layer base {
