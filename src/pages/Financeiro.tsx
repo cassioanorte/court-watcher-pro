@@ -73,6 +73,7 @@ interface FeeDistribution {
   lawyer_user_id: string;
   lawyer_name: string;
   amount: number;
+  paid_at: string | null;
 }
 
 const REVENUE_CATEGORIES = ["Honorários", "Consultoria", "Acordo", "Êxito", "Outros"];
@@ -124,7 +125,7 @@ const Financeiro = () => {
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
         supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, expected_payment_date, fee_type").eq("tenant_id", tenantId),
-        supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_user_id, lawyer_name, amount").eq("tenant_id", tenantId),
+        supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_user_id, lawyer_name, amount, paid_at").eq("tenant_id", tenantId),
       ]);
       setTransactions((txRes.data as Transaction[]) || []);
       setCases(casesRes.data || []);
