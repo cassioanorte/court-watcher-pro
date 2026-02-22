@@ -18,30 +18,8 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["app-icon-192.png", "app-icon-512.png", "lex-imperium-logo.png"],
-      manifest: {
-        name: "LEX IMPERIUM",
-        short_name: "LEX IMPERIUM",
-        description: "LEX IMPERIUM — O poder do direito em suas mãos",
-        theme_color: "#0B1C2D",
-        background_color: "#0B1C2D",
-        display: "standalone",
-        start_url: "/",
-        id: "/v2",
-        icons: [
-          {
-            src: "app-icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "app-icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
+      manifest: false,
+      injectManifest: undefined,
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
