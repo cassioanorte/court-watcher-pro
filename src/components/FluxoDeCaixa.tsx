@@ -213,6 +213,9 @@ const FluxoDeCaixa = () => {
           <TabsTrigger value="timeline" className="gap-1.5">
             <DollarSign className="w-4 h-4" /> RPVs Sacados
           </TabsTrigger>
+          <TabsTrigger value="rateios" className="gap-1.5">
+            <Users className="w-4 h-4" /> Rateios
+          </TabsTrigger>
           <TabsTrigger value="resumo" className="gap-1.5">
             <Calendar className="w-4 h-4" /> Resumo Mensal
           </TabsTrigger>
