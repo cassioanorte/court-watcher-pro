@@ -11,13 +11,13 @@
 @layer base {
   /* Dark padrão – Azul Imperial (original) */
   :root, .dark-imperial {
-    --background: 228 45% 11%;
+    --background: 232 35% 15%;
     --foreground: 42 25% 93%;
 
-    --card: 228 42% 14%;
+    --card: 232 33% 18%;
     --card-foreground: 42 25% 93%;
 
-    --popover: 228 42% 14%;
+    --popover: 232 33% 18%;
     --popover-foreground: 42 25% 93%;
 
     --primary: 42 85% 55%;
@@ -41,13 +41,13 @@
 
     --radius: 0.625rem;
 
-    --sidebar-background: 228 48% 12%;
+    --sidebar-background: 232 38% 14%;
     --sidebar-foreground: 42 18% 82%;
     --sidebar-primary: 42 85% 55%;
-    --sidebar-primary-foreground: 228 50% 8%;
-    --sidebar-accent: 228 34% 19%;
+    --sidebar-primary-foreground: 232 50% 8%;
+    --sidebar-accent: 232 30% 20%;
     --sidebar-accent-foreground: 42 18% 90%;
-    --sidebar-border: 228 32% 17%;
+    --sidebar-border: 232 28% 18%;
     --sidebar-ring: 42 85% 55%;
 
     /* Custom tokens */
@@ -58,9 +58,9 @@
     --info: 210 80% 55%;
     --info-foreground: 0 0% 100%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(228 48% 12%), hsl(228 38% 20%));
+    --gradient-primary: linear-gradient(135deg, hsl(232 38% 14%), hsl(232 32% 22%));
     --gradient-accent: linear-gradient(135deg, hsl(42 85% 55%), hsl(38 88% 42%));
-    --gradient-hero: linear-gradient(160deg, hsl(228 48% 9%), hsl(228 44% 14%), hsl(228 48% 8%));
+    --gradient-hero: linear-gradient(160deg, hsl(232 38% 12%), hsl(232 35% 16%), hsl(232 38% 11%));
 
     --shadow-sm: 0 1px 3px hsl(228 35% 5% / 0.3);
     --shadow-md: 0 4px 12px hsl(228 35% 5% / 0.4);
