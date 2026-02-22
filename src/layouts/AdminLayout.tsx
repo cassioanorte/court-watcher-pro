@@ -33,7 +33,7 @@ const AdminLayout = () => {
   const { tenantId, profile, role, user } = useAuth();
   // Realtime popup notifications for task assignments
   useTaskNotifications();
-  const [tenantName, setTenantName] = useState("Portal Jurídico");
+  const [tenantName, setTenantName] = useState("LEX IMPERIUM");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
   const [logoBg, setLogoBg] = useState("");
@@ -43,9 +43,9 @@ const AdminLayout = () => {
     if (!tenantId) return;
     supabase.from("tenants").select("name, logo_url, theme_colors").eq("id", tenantId).single().then(({ data }) => {
       if (data) {
-        setTenantName(data.name || "Portal Jurídico");
+        setTenantName(data.name || "LEX IMPERIUM");
         setTenantLogo(data.logo_url || null);
-        document.title = data.name || "Portal Jurídico";
+        document.title = data.name || "LEX IMPERIUM";
         const tc = data.theme_colors as unknown as Partial<ThemeColors> | null;
         const merged = { ...DEFAULT_THEME, ...tc };
         setLogoFilter(getLogoFilter(merged));
@@ -78,7 +78,7 @@ const AdminLayout = () => {
               </div>
               <div className="min-w-0 flex-1">
                 <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide truncate">{tenantName}</h1>
-                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Escritório</p>
+                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest font-display">Imperial</p>
               </div>
             </>
           )}
