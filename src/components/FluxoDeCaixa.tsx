@@ -411,6 +411,134 @@ const FluxoDeCaixa = () => {
           </div>
         </TabsContent>
 
+        {/* ===== RATEIOS TAB ===== */}
+        <TabsContent value="rateios">
+          <div className="space-y-4">
+            {(() => {
+              const byLawyer: Record<string, { name: string; total: number; count: number }> = {};
+              distributions.forEach(d => {
+                const key = d.lawyer_name;
+                if (!byLawyer[key]) byLawyer[key] = { name: d.lawyer_name, total: 0, count: 0 };
+                byLawyer[key].total += Number(d.amount);
+                byLawyer[key].count += 1;
+              });
+              const entries = Object.entries(byLawyer).sort(([, a], [, b]) => b.total - a.total);
+
+              if (entries.length === 0) {
+                return (
+                  <div className="bg-card rounded-lg border p-6 text-center">
+                    <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Nenhuma distribuição de honorários registrada</p>
+                    <p className="text-xs text-muted-foreground mt-1">Registre rateios na aba de RPV/Precatórios em Pagamentos</p>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-500" /> Resumo por Advogado
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {entries.map(([key, info]) => {
+                        const pct = totalDistributed > 0 ? (info.total / totalDistributed * 100) : 0;
+                        return (
+                          <div key={key} className="bg-card rounded-lg border p-4">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-medium text-foreground">{info.name}</p>
+                              <Badge variant="secondary" className="text-xs">{info.count}x</Badge>
+                            </div>
+                            <p className="text-lg font-bold text-blue-500">{fmt(info.total)}</p>
+                            <div className="mt-2">
+                              <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div className="h-full bg-blue-500/60 rounded-full" style={{ width: `${pct}%` }} />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mt-1">{pct.toFixed(1)}% do total distribuído</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-primary" /> Distribuições por RPV/Precatório
+                    </h3>
+                    <div className="space-y-3">
+                      {orders.filter(o => distributions.some(d => d.payment_order_id === o.id)).map(order => {
+                        const orderDists = distributions.filter(d => d.payment_order_id === order.id);
+                        const orderTotal = orderDists.reduce((s, d) => s + Number(d.amount), 0);
+                        const available = Number(order.office_amount) - orderTotal;
+                        const expanded = expandedOrders.has("rateio-" + order.id);
+
+                        return (
+                          <motion.div key={order.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            className="bg-card rounded-lg border overflow-hidden">
+                            <button onClick={() => toggleExpand("rateio-" + order.id)}
+                              className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors text-left">
+                              {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                  {order.type.toUpperCase()} — {order.process_number || order.beneficiary_name || "Sem número"}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-4 shrink-0 text-xs">
+                                <div className="text-right">
+                                  <p className="text-muted-foreground">Honorários</p>
+                                  <p className="font-medium text-foreground">{fmt(Number(order.office_amount))}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-muted-foreground">Distribuído</p>
+                                  <p className="font-bold text-blue-500">{fmt(orderTotal)}</p>
+                                </div>
+                                {available > 0.01 && (
+                                  <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600">
+                                    {fmt(available)} restante
+                                  </Badge>
+                                )}
+                              </div>
+                            </button>
+                            {expanded && (
+                              <div className="border-t px-4 pb-4 pt-3">
+                                <div className="space-y-1">
+                                  {orderDists.map(d => (
+                                    <div key={d.id} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-muted/30">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-foreground font-medium">{d.lawyer_name}</span>
+                                        {d.paid_at && (
+                                          <span className="text-muted-foreground">
+                                            em {new Date(d.paid_at + "T12:00:00").toLocaleDateString("pt-BR")}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="text-foreground font-semibold">{fmt(Number(d.amount))}</span>
+                                    </div>
+                                  ))}
+                                  <div className="flex justify-between text-xs px-2 pt-1 border-t mt-1">
+                                    <span className="text-muted-foreground">Total distribuído</span>
+                                    <span className="font-bold text-foreground">{fmt(orderTotal)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="bg-card rounded-lg border p-4 flex justify-between text-sm">
+                    <span className="font-medium text-muted-foreground">Total Distribuído (todos RPVs)</span>
+                    <span className="font-bold text-blue-500">{fmt(totalDistributed)}</span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </TabsContent>
+
         {/* ===== RESUMO MENSAL TAB ===== */}
         <TabsContent value="resumo">
           {monthlySummary.length > 0 ? (
