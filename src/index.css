@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 #lovable-badge {
   display: none !important;
@@ -10,103 +10,65 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 30% 15%;
+    --background: 210 30% 7%;
+    --foreground: 40 20% 92%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 15%;
+    --card: 210 28% 10%;
+    --card-foreground: 40 20% 92%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 15%;
+    --popover: 210 28% 10%;
+    --popover-foreground: 40 20% 92%;
 
-    --primary: 220 40% 20%;
-    --primary-foreground: 40 30% 95%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 210 40% 8%;
 
-    --secondary: 220 15% 92%;
-    --secondary-foreground: 220 30% 20%;
+    --secondary: 210 20% 14%;
+    --secondary-foreground: 40 15% 85%;
 
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 210 18% 13%;
+    --muted-foreground: 210 10% 55%;
 
-    --accent: 38 80% 55%;
-    --accent-foreground: 220 40% 12%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 210 40% 8%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 90%;
-    --input: 220 15% 90%;
-    --ring: 220 40% 20%;
+    --border: 210 18% 16%;
+    --input: 210 18% 16%;
+    --ring: 43 72% 52%;
 
     --radius: 0.625rem;
 
-    --sidebar-background: 220 35% 14%;
-    --sidebar-foreground: 220 10% 85%;
-    --sidebar-primary: 38 80% 55%;
-    --sidebar-primary-foreground: 220 40% 12%;
-    --sidebar-accent: 220 30% 20%;
-    --sidebar-accent-foreground: 220 10% 90%;
-    --sidebar-border: 220 25% 22%;
-    --sidebar-ring: 38 80% 55%;
+    --sidebar-background: 210 40% 10%;
+    --sidebar-foreground: 40 15% 82%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 210 40% 8%;
+    --sidebar-accent: 210 30% 16%;
+    --sidebar-accent-foreground: 40 15% 90%;
+    --sidebar-border: 210 25% 15%;
+    --sidebar-ring: 43 72% 52%;
 
     /* Custom tokens */
     --success: 152 60% 42%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 90% 10%;
+    --warning: 43 92% 50%;
+    --warning-foreground: 43 90% 10%;
     --info: 210 80% 55%;
     --info-foreground: 0 0% 100%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(220 40% 20%), hsl(220 35% 30%));
-    --gradient-accent: linear-gradient(135deg, hsl(38 80% 55%), hsl(32 85% 48%));
-    --gradient-hero: linear-gradient(160deg, hsl(220 35% 14%), hsl(220 40% 22%), hsl(220 30% 18%));
+    --gradient-primary: linear-gradient(135deg, hsl(210 40% 10%), hsl(210 35% 18%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(210 45% 8%), hsl(210 40% 12%), hsl(210 35% 6%));
 
-    --shadow-sm: 0 1px 3px hsl(220 30% 15% / 0.06);
-    --shadow-md: 0 4px 12px hsl(220 30% 15% / 0.08);
-    --shadow-lg: 0 8px 30px hsl(220 30% 15% / 0.12);
-    --shadow-accent: 0 4px 20px hsl(38 80% 55% / 0.25);
+    --shadow-sm: 0 1px 3px hsl(210 30% 5% / 0.3);
+    --shadow-md: 0 4px 12px hsl(210 30% 5% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(210 30% 5% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.15);
 
-    --font-display: 'Playfair Display', serif;
+    --font-display: 'Cinzel', serif;
     --font-body: 'Inter', sans-serif;
-  }
-
-  .dark {
-    --background: 220 30% 8%;
-    --foreground: 220 10% 92%;
-
-    --card: 220 28% 12%;
-    --card-foreground: 220 10% 92%;
-
-    --popover: 220 28% 12%;
-    --popover-foreground: 220 10% 92%;
-
-    --primary: 38 80% 55%;
-    --primary-foreground: 220 40% 12%;
-
-    --secondary: 220 25% 18%;
-    --secondary-foreground: 220 10% 85%;
-
-    --muted: 220 20% 16%;
-    --muted-foreground: 220 10% 55%;
-
-    --accent: 38 80% 55%;
-    --accent-foreground: 220 40% 12%;
-
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 38 80% 55%;
-
-    --sidebar-background: 220 35% 8%;
-    --sidebar-foreground: 220 10% 85%;
-    --sidebar-primary: 38 80% 55%;
-    --sidebar-primary-foreground: 220 40% 12%;
-    --sidebar-accent: 220 28% 15%;
-    --sidebar-accent-foreground: 220 10% 90%;
-    --sidebar-border: 220 20% 16%;
-    --sidebar-ring: 38 80% 55%;
   }
 }
 
@@ -137,6 +99,9 @@
   .shadow-card-hover {
     box-shadow: var(--shadow-lg);
   }
+  .shadow-gold-glow {
+    box-shadow: var(--shadow-gold-glow);
+  }
   .gradient-primary {
     background: var(--gradient-primary);
   }
@@ -151,5 +116,15 @@
   }
   .logo-img {
     filter: var(--logo-filter, none);
+  }
+  .gold-glow {
+    text-shadow: 0 0 20px hsl(43 72% 52% / 0.4);
+  }
+  .btn-gold-hover {
+    transition: all 0.3s ease;
+  }
+  .btn-gold-hover:hover {
+    box-shadow: 0 0 20px hsl(43 72% 52% / 0.35), 0 4px 12px hsl(43 72% 52% / 0.2);
+    filter: brightness(1.1);
   }
 }
