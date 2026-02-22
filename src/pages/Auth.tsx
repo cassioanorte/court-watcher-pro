@@ -66,7 +66,7 @@ const Auth = () => {
       <div
         className="relative lg:flex-1 flex items-center justify-center overflow-hidden bg-card"
       >
-        <img src={lexLogo} alt="Lex Imperium" className="w-80 max-w-[70%]" />
+        <img src={lexLogo} alt="Lex Imperium" className="w-[960px] max-w-[90%]" />
       </div>
 
       {/* Form Section */}
