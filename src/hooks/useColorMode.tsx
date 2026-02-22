@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 
-type ColorMode = "dark" | "light";
+export type ColorMode = "dark" | "light";
+export type LightVariant = "clean" | "slate" | "cream" | "contrast";
+
+const LIGHT_CLASSES = ["light", "light-clean", "light-slate", "light-cream", "light-contrast"] as const;
 
 function clearInlineThemeVars() {
   const el = document.documentElement;
@@ -17,28 +20,47 @@ function clearInlineThemeVars() {
   propsToRemove.forEach((p) => el.style.removeProperty(p));
 }
 
+function applyLightVariant(variant: LightVariant) {
+  const root = document.documentElement;
+  // Remove all light classes first
+  LIGHT_CLASSES.forEach((c) => root.classList.remove(c));
+  // Add the right ones
+  root.classList.add("light");
+  if (variant !== "clean") {
+    root.classList.add(`light-${variant}`);
+  }
+}
+
 export function useColorMode() {
   const [mode, setMode] = useState<ColorMode>(() => {
     const saved = localStorage.getItem("lex-color-mode");
     return (saved === "light" ? "light" : "dark") as ColorMode;
   });
 
+  const [lightVariant, setLightVariant] = useState<LightVariant>(() => {
+    return (localStorage.getItem("lex-light-variant") || "clean") as LightVariant;
+  });
+
   useEffect(() => {
     const root = document.documentElement;
     if (mode === "light") {
       clearInlineThemeVars();
-      root.classList.add("light");
+      applyLightVariant(lightVariant);
     } else {
-      root.classList.remove("light");
-      // Dispatch event so useThemeLoader can re-apply
+      LIGHT_CLASSES.forEach((c) => root.classList.remove(c));
       window.dispatchEvent(new CustomEvent("color-mode-changed", { detail: "dark" }));
     }
     localStorage.setItem("lex-color-mode", mode);
-  }, [mode]);
+  }, [mode, lightVariant]);
 
   const toggle = useCallback(() => {
     setMode((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
-  return { mode, toggle };
+  const setVariant = useCallback((v: LightVariant) => {
+    setLightVariant(v);
+    localStorage.setItem("lex-light-variant", v);
+  }, []);
+
+  return { mode, toggle, lightVariant, setVariant };
 }
