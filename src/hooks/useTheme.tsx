@@ -17,12 +17,12 @@ export interface ThemeColors {
 }
 
 export const DEFAULT_THEME: ThemeColors = {
-  sidebar: "#1a2332",
-  sidebarText: "#d4d8e0",
-  accent: "#c8972e",
-  background: "#f5f6f8",
-  card: "#ffffff",
-  foreground: "#1a2332",
+  sidebar: "#0f1a26",
+  sidebarText: "#c9b88a",
+  accent: "#D4AF37",
+  background: "#0d1117",
+  card: "#131c27",
+  foreground: "#e8dfc8",
   logoHue: 0,
   logoBrightness: 100,
   logoSaturate: 100,

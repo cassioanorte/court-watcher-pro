@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Scale, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import lexLogo from "@/assets/lex-imperium-logo.png";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -60,25 +61,74 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-xl gradient-accent flex items-center justify-center mx-auto mb-4">
-            <Scale className="w-7 h-7 text-accent-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-primary-foreground font-display">Portal Jurídico</h1>
-          <p className="text-sm text-primary-foreground/60 mt-1">
-            {isLogin ? "Acesse o painel do escritório" : "Crie sua conta de escritório"}
-          </p>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Hero Section */}
+      <div className="relative lg:flex-1 flex items-center justify-center p-8 lg:p-16 overflow-hidden" style={{ background: 'linear-gradient(160deg, hsl(210 45% 6%), hsl(210 40% 10%), hsl(210 35% 5%))' }}>
+        {/* Radial glow behind logo */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, hsl(43 72% 52% / 0.08) 0%, transparent 70%)' }} />
+        </div>
+        {/* Subtle particle dots */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                background: `hsl(43 72% ${50 + Math.random() * 20}% / ${0.2 + Math.random() * 0.3})`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -20, 0],
+                opacity: [0.2, 0.6, 0.2],
+              }}
+              transition={{
+                duration: 3 + Math.random() * 4,
+                repeat: Infinity,
+                delay: Math.random() * 3,
+              }}
+            />
+          ))}
         </div>
 
-        {/* Form */}
-        <div className="bg-card rounded-xl p-6 shadow-lg border">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="relative z-10 text-center"
+        >
+          <img
+            src={lexLogo}
+            alt="LEX IMPERIUM"
+            className="w-48 h-48 lg:w-64 lg:h-64 object-contain mx-auto mb-6 drop-shadow-2xl"
+          />
+          <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(43 72% 52%)' }}>
+            LEX IMPERIUM
+          </h1>
+          <p className="mt-3 text-sm lg:text-base tracking-widest uppercase font-body" style={{ color: 'hsl(40 20% 70%)' }}>
+            O poder do direito em suas mãos.
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Form Section */}
+      <div className="lg:w-[480px] flex items-center justify-center p-6 lg:p-12 bg-card">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="w-full max-w-sm"
+        >
+          <div className="mb-8">
+            <h2 className="text-xl font-display font-bold text-foreground">
+              {isLogin ? "Acessar Painel" : "Criar Escritório"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isLogin ? "Entre com suas credenciais" : "Cadastre seu escritório"}
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <>
@@ -89,7 +139,7 @@ const Auth = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required={!isLogin}
-                    className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     placeholder="Dr. João Silva"
                   />
                 </div>
@@ -100,7 +150,7 @@ const Auth = () => {
                     value={firmName}
                     onChange={(e) => setFirmName(e.target.value)}
                     required={!isLogin}
-                    className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     placeholder="Silva & Associados"
                   />
                 </div>
@@ -108,10 +158,10 @@ const Auth = () => {
             )}
             {isLogin && (
               <div className="flex gap-2 mb-1">
-                <button type="button" onClick={() => setLoginMethod("email")} className={`flex-1 h-9 rounded-lg border text-xs font-medium transition-colors ${loginMethod === "email" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                <button type="button" onClick={() => setLoginMethod("email")} className={`flex-1 h-9 rounded-lg border text-xs font-medium transition-colors ${loginMethod === "email" ? "bg-primary/15 border-primary text-primary" : "bg-background text-muted-foreground hover:bg-muted"}`}>
                   Email
                 </button>
-                <button type="button" onClick={() => setLoginMethod("cpf")} className={`flex-1 h-9 rounded-lg border text-xs font-medium transition-colors ${loginMethod === "cpf" ? "bg-accent/15 border-accent text-accent" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+                <button type="button" onClick={() => setLoginMethod("cpf")} className={`flex-1 h-9 rounded-lg border text-xs font-medium transition-colors ${loginMethod === "cpf" ? "bg-primary/15 border-primary text-primary" : "bg-background text-muted-foreground hover:bg-muted"}`}>
                   CPF
                 </button>
               </div>
@@ -125,7 +175,7 @@ const Auth = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   placeholder="email@escritorio.com"
                 />
               </div>
@@ -137,7 +187,7 @@ const Auth = () => {
                   value={cpf}
                   onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
                   required
-                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   placeholder="00000000000"
                 />
               </div>
@@ -151,7 +201,7 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="w-full mt-1 h-10 px-3 pr-10 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  className="w-full mt-1 h-10 px-3 pr-10 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   placeholder="••••••••"
                 />
                 <button
@@ -166,7 +216,7 @@ const Auth = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-10 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full h-10 rounded-lg gradient-accent text-primary-foreground text-sm font-semibold btn-gold-hover disabled:opacity-50"
             >
               {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar conta"}
             </button>
@@ -175,13 +225,13 @@ const Auth = () => {
           <div className="mt-4 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-accent hover:underline"
+              className="text-sm text-primary hover:underline"
             >
               {isLogin ? "Não tem conta? Cadastre seu escritório" : "Já tem conta? Faça login"}
             </button>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };
