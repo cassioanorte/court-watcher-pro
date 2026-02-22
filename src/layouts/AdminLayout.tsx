@@ -184,6 +184,13 @@ const AdminLayout = () => {
           </button>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleColorMode}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title={mode === "dark" ? "Tema claro" : "Tema escuro"}
+            >
+              {mode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <button className="relative text-muted-foreground hover:text-foreground transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
