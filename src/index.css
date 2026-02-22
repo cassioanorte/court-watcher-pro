@@ -9,7 +9,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /* Dark padrão – Azul Imperial (original) */
+  :root, .dark-imperial {
     --background: 210 30% 7%;
     --foreground: 40 20% 92%;
 
@@ -69,6 +70,265 @@
 
     --font-display: 'Cinzel', serif;
     --font-body: 'Inter', sans-serif;
+  }
+
+  /* Dark 2 – Meia-Noite (preto profundo azulado) */
+  .dark-midnight {
+    --background: 225 30% 5%;
+    --foreground: 220 15% 90%;
+    --card: 225 28% 8%;
+    --card-foreground: 220 15% 90%;
+    --popover: 225 28% 8%;
+    --popover-foreground: 220 15% 90%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 225 40% 6%;
+    --secondary: 225 22% 12%;
+    --secondary-foreground: 220 12% 80%;
+    --muted: 225 20% 11%;
+    --muted-foreground: 225 10% 50%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 225 40% 6%;
+    --border: 225 20% 14%;
+    --input: 225 20% 14%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 225 35% 7%;
+    --sidebar-foreground: 43 15% 80%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 225 40% 6%;
+    --sidebar-accent: 225 28% 14%;
+    --sidebar-accent-foreground: 43 12% 88%;
+    --sidebar-border: 225 25% 12%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(225 35% 7%), hsl(225 30% 14%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(225 35% 5%), hsl(225 30% 9%), hsl(225 35% 4%));
+    --shadow-sm: 0 1px 3px hsl(225 30% 3% / 0.4);
+    --shadow-md: 0 4px 12px hsl(225 30% 3% / 0.5);
+    --shadow-lg: 0 8px 30px hsl(225 30% 3% / 0.6);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.2);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.12);
+  }
+
+  /* Dark 3 – Carvão (cinza neutro) */
+  .dark-charcoal {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 90%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 90%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 82%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 0 0% 8%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 43 12% 78%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 88%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(0 0% 6%), hsl(0 0% 13%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(0 0% 6%), hsl(0 0% 10%), hsl(0 0% 5%));
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(0 0% 0% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.15);
+  }
+
+  /* Dark 4 – Obsidian (preto AMOLED) */
+  .dark-obsidian {
+    --background: 0 0% 2%;
+    --foreground: 0 0% 92%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 92%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 0 0% 2%;
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 82%;
+    --muted: 0 0% 7%;
+    --muted-foreground: 0 0% 48%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 0 0% 2%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 43 15% 80%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 0 0% 8%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 6%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(0 0% 0%), hsl(0 0% 6%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(0 0% 0%), hsl(0 0% 4%), hsl(0 0% 0%));
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.5);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.6);
+    --shadow-lg: 0 8px 30px hsl(0 0% 0% / 0.7);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.3);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.2);
+  }
+
+  /* Dark 5 – Floresta (verde escuro) */
+  .dark-forest {
+    --background: 160 25% 6%;
+    --foreground: 140 12% 90%;
+    --card: 160 22% 9%;
+    --card-foreground: 140 12% 90%;
+    --popover: 160 22% 9%;
+    --popover-foreground: 140 12% 90%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 160 30% 6%;
+    --secondary: 160 18% 13%;
+    --secondary-foreground: 140 10% 82%;
+    --muted: 160 16% 12%;
+    --muted-foreground: 160 8% 48%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 160 30% 6%;
+    --border: 160 16% 15%;
+    --input: 160 16% 15%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 160 30% 7%;
+    --sidebar-foreground: 43 15% 80%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 160 30% 6%;
+    --sidebar-accent: 160 22% 14%;
+    --sidebar-accent-foreground: 140 12% 88%;
+    --sidebar-border: 160 22% 12%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(160 30% 7%), hsl(160 24% 14%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(160 30% 5%), hsl(160 25% 9%), hsl(160 30% 4%));
+    --shadow-sm: 0 1px 3px hsl(160 20% 3% / 0.3);
+    --shadow-md: 0 4px 12px hsl(160 20% 3% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(160 20% 3% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.15);
+  }
+
+  /* Dark 6 – Vinho (bordô escuro) */
+  .dark-wine {
+    --background: 345 22% 7%;
+    --foreground: 340 10% 90%;
+    --card: 345 20% 10%;
+    --card-foreground: 340 10% 90%;
+    --popover: 345 20% 10%;
+    --popover-foreground: 340 10% 90%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 345 25% 7%;
+    --secondary: 345 16% 14%;
+    --secondary-foreground: 340 8% 82%;
+    --muted: 345 14% 13%;
+    --muted-foreground: 345 8% 48%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 345 25% 7%;
+    --border: 345 14% 16%;
+    --input: 345 14% 16%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 345 28% 8%;
+    --sidebar-foreground: 43 15% 80%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 345 25% 7%;
+    --sidebar-accent: 345 20% 14%;
+    --sidebar-accent-foreground: 340 10% 88%;
+    --sidebar-border: 345 18% 12%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(345 28% 8%), hsl(345 22% 14%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(345 28% 6%), hsl(345 24% 10%), hsl(345 28% 5%));
+    --shadow-sm: 0 1px 3px hsl(345 20% 3% / 0.3);
+    --shadow-md: 0 4px 12px hsl(345 20% 3% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(345 20% 3% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.15);
+  }
+
+  /* Dark 7 – Oceano (azul profundo) */
+  .dark-ocean {
+    --background: 205 35% 7%;
+    --foreground: 200 15% 90%;
+    --card: 205 32% 10%;
+    --card-foreground: 200 15% 90%;
+    --popover: 205 32% 10%;
+    --popover-foreground: 200 15% 90%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 205 40% 7%;
+    --secondary: 205 25% 14%;
+    --secondary-foreground: 200 12% 82%;
+    --muted: 205 22% 13%;
+    --muted-foreground: 205 10% 50%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 205 40% 7%;
+    --border: 205 22% 16%;
+    --input: 205 22% 16%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 205 40% 9%;
+    --sidebar-foreground: 43 15% 80%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 205 40% 7%;
+    --sidebar-accent: 205 30% 15%;
+    --sidebar-accent-foreground: 200 12% 88%;
+    --sidebar-border: 205 28% 13%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(205 40% 9%), hsl(205 34% 16%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(205 40% 6%), hsl(205 35% 10%), hsl(205 40% 5%));
+    --shadow-sm: 0 1px 3px hsl(205 25% 3% / 0.3);
+    --shadow-md: 0 4px 12px hsl(205 25% 3% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(205 25% 3% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.15);
+  }
+
+  /* Dark 8 – Quente (tons marrons escuros) */
+  .dark-warm {
+    --background: 25 20% 7%;
+    --foreground: 35 15% 90%;
+    --card: 25 18% 10%;
+    --card-foreground: 35 15% 90%;
+    --popover: 25 18% 10%;
+    --popover-foreground: 35 15% 90%;
+    --primary: 43 72% 52%;
+    --primary-foreground: 25 25% 7%;
+    --secondary: 25 14% 14%;
+    --secondary-foreground: 35 10% 82%;
+    --muted: 25 12% 13%;
+    --muted-foreground: 25 8% 48%;
+    --accent: 43 72% 52%;
+    --accent-foreground: 25 25% 7%;
+    --border: 25 12% 16%;
+    --input: 25 12% 16%;
+    --ring: 43 72% 52%;
+    --sidebar-background: 25 24% 8%;
+    --sidebar-foreground: 43 15% 80%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 25 25% 7%;
+    --sidebar-accent: 25 18% 14%;
+    --sidebar-accent-foreground: 35 12% 88%;
+    --sidebar-border: 25 16% 12%;
+    --sidebar-ring: 43 72% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(25 24% 8%), hsl(25 18% 14%));
+    --gradient-accent: linear-gradient(135deg, hsl(43 72% 52%), hsl(38 80% 42%));
+    --gradient-hero: linear-gradient(160deg, hsl(25 24% 6%), hsl(25 20% 10%), hsl(25 24% 5%));
+    --shadow-sm: 0 1px 3px hsl(25 15% 3% / 0.3);
+    --shadow-md: 0 4px 12px hsl(25 15% 3% / 0.4);
+    --shadow-lg: 0 8px 30px hsl(25 15% 3% / 0.5);
+    --shadow-accent: 0 4px 20px hsl(43 72% 52% / 0.25);
+    --shadow-gold-glow: 0 0 30px hsl(43 72% 52% / 0.15);
   }
 
   /* Variante 1 – Branco limpo */
