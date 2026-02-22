@@ -67,7 +67,7 @@ const Auth = () => {
         className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
         style={{
           backgroundImage: `url(${lexLogo})`,
-          backgroundSize: 'cover',
+          backgroundSize: '60%',
           backgroundPosition: 'center',
         }}
       >
