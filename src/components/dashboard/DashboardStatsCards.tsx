@@ -19,19 +19,19 @@ interface Props {
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow: string; hoverBg: string; line: string }> = {
   purple: {
-    bg: "bg-purple-500/10", border: "border-purple-500/20", text: "text-purple-400",
-    glow: "hover:shadow-[0_0_30px_hsl(270_60%_50%/0.15)]", hoverBg: "group-hover:bg-purple-500/20",
-    line: "via-purple-500/50",
+    bg: "bg-purple-500/20", border: "border-purple-500/30", text: "text-purple-300",
+    glow: "hover:shadow-[0_0_30px_hsl(270_60%_50%/0.25)]", hoverBg: "group-hover:bg-purple-500/30",
+    line: "via-purple-400/70",
   },
   emerald: {
-    bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-400",
-    glow: "hover:shadow-[0_0_30px_hsl(152_60%_42%/0.15)]", hoverBg: "group-hover:bg-emerald-500/20",
-    line: "via-emerald-500/50",
+    bg: "bg-emerald-500/20", border: "border-emerald-500/30", text: "text-emerald-300",
+    glow: "hover:shadow-[0_0_30px_hsl(152_60%_42%/0.25)]", hoverBg: "group-hover:bg-emerald-500/30",
+    line: "via-emerald-400/70",
   },
   orange: {
-    bg: "bg-orange-500/10", border: "border-orange-500/20", text: "text-orange-400",
-    glow: "hover:shadow-[0_0_30px_hsl(25_90%_50%/0.15)]", hoverBg: "group-hover:bg-orange-500/20",
-    line: "via-orange-500/50",
+    bg: "bg-orange-500/20", border: "border-orange-500/30", text: "text-orange-300",
+    glow: "hover:shadow-[0_0_30px_hsl(25_90%_50%/0.25)]", hoverBg: "group-hover:bg-orange-500/30",
+    line: "via-orange-400/70",
   },
 };
 
