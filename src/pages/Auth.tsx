@@ -107,7 +107,7 @@ const Auth = () => {
           <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(43 72% 52%)' }}>
             LEX IMPERIUM
           </h1>
-          <p className="mt-3 text-sm lg:text-base tracking-widest uppercase font-body" style={{ color: 'hsl(40 20% 70%)' }}>
+          <p className="text-sm lg:text-base tracking-widest uppercase font-body -mt-2" style={{ color: 'hsl(40 20% 70%)' }}>
             O poder do direito em suas mãos.
           </p>
         </motion.div>
