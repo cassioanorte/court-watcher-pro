@@ -196,20 +196,15 @@ const AdminLayout = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border rounded-md px-2 py-1">
                     <span className="hidden sm:inline">
-                      {{ clean: "Branco Limpo", slate: "Cinza Azulado", cream: "Creme Premium", contrast: "Contraste Alto" }[lightVariant]}
+                      {LIGHT_VARIANT_OPTIONS.find(v => v.key === lightVariant)?.label || "Tema"}
                     </span>
                     <span className="sm:hidden">Tema</span>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover z-[100]">
+                <DropdownMenuContent align="end" className="bg-popover z-[100] max-h-80 overflow-y-auto">
                   <DropdownMenuLabel className="text-xs">Variante do Tema Claro</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {([
-                    { key: "clean" as LightVariant, label: "Branco Limpo", desc: "Fundo branco puro, limpo e moderno" },
-                    { key: "slate" as LightVariant, label: "Cinza Azulado", desc: "Tom azulado elegante e sofisticado" },
-                    { key: "cream" as LightVariant, label: "Creme Premium", desc: "Tom quente e acolhedor, estilo luxo" },
-                    { key: "contrast" as LightVariant, label: "Contraste Alto", desc: "Preto no branco, máxima legibilidade" },
-                  ]).map((v) => (
+                  {LIGHT_VARIANT_OPTIONS.map((v) => (
                     <DropdownMenuItem key={v.key} onClick={() => setVariant(v.key)} className="flex items-center gap-2 cursor-pointer">
                       <Check className={cn("w-3.5 h-3.5 shrink-0", lightVariant === v.key ? "opacity-100" : "opacity-0")} />
                       <div>
