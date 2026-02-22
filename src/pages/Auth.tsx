@@ -69,6 +69,8 @@ const Auth = () => {
           backgroundImage: `url(${lexLogo})`,
           backgroundSize: '60%',
           backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundColor: '#1a1e38',
         }}
       >
         {/* Subtle particle dots */}
