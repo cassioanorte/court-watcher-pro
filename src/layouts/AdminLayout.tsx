@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check } from "lucide-react";
-import { useColorMode, LIGHT_VARIANT_OPTIONS, type LightVariant } from "@/hooks/useColorMode";
+import { useColorMode, LIGHT_VARIANT_OPTIONS, DARK_VARIANT_OPTIONS, type LightVariant, type DarkVariant } from "@/hooks/useColorMode";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "@/hooks/useTheme";
@@ -39,7 +39,7 @@ const AdminLayout = () => {
   const [logoFilter, setLogoFilter] = useState("");
   const [logoBg, setLogoBg] = useState("");
   useThemeLoader();
-  const { mode, toggle: toggleColorMode, lightVariant, setVariant } = useColorMode();
+  const { mode, toggle: toggleColorMode, lightVariant, setVariant, darkVariant, setDarkVariant } = useColorMode();
 
   useEffect(() => {
     if (!tenantId) return;
@@ -191,20 +191,25 @@ const AdminLayout = () => {
             >
               {mode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            {mode === "light" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border rounded-md px-2 py-1">
-                    <span className="hidden sm:inline">
-                      {LIGHT_VARIANT_OPTIONS.find(v => v.key === lightVariant)?.label || "Tema"}
-                    </span>
-                    <span className="sm:hidden">Tema</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-popover z-[100] max-h-80 overflow-y-auto">
-                  <DropdownMenuLabel className="text-xs">Variante do Tema Claro</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {LIGHT_VARIANT_OPTIONS.map((v) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border rounded-md px-2 py-1">
+                  <span className="hidden sm:inline">
+                    {mode === "light"
+                      ? LIGHT_VARIANT_OPTIONS.find(v => v.key === lightVariant)?.label
+                      : DARK_VARIANT_OPTIONS.find(v => v.key === darkVariant)?.label
+                    }
+                  </span>
+                  <span className="sm:hidden">Tema</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover z-[100] max-h-80 overflow-y-auto">
+                <DropdownMenuLabel className="text-xs">
+                  {mode === "light" ? "Variante do Tema Claro" : "Variante do Tema Escuro"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {mode === "light"
+                  ? LIGHT_VARIANT_OPTIONS.map((v) => (
                     <DropdownMenuItem key={v.key} onClick={() => setVariant(v.key)} className="flex items-center gap-2 cursor-pointer">
                       <Check className={cn("w-3.5 h-3.5 shrink-0", lightVariant === v.key ? "opacity-100" : "opacity-0")} />
                       <div>
@@ -212,10 +217,19 @@ const AdminLayout = () => {
                         <p className="text-xs text-muted-foreground">{v.desc}</p>
                       </div>
                     </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                  ))
+                  : DARK_VARIANT_OPTIONS.map((v) => (
+                    <DropdownMenuItem key={v.key} onClick={() => setDarkVariant(v.key)} className="flex items-center gap-2 cursor-pointer">
+                      <Check className={cn("w-3.5 h-3.5 shrink-0", darkVariant === v.key ? "opacity-100" : "opacity-0")} />
+                      <div>
+                        <p className="text-sm font-medium">{v.label}</p>
+                        <p className="text-xs text-muted-foreground">{v.desc}</p>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                }
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button className="relative text-muted-foreground hover:text-foreground transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
