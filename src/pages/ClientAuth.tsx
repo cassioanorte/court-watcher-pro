@@ -1,17 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Scale, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
 
 const ClientAuth = () => {
   const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [tenantName, setTenantName] = useState("Portal Jurídico");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Try to get tenant logo from URL or fetch all tenants' first logo
+    const fetchLogo = async () => {
+      const { data } = await supabase.from("tenants").select("logo_url, name").limit(1).single();
+      if (data?.logo_url) setLogoUrl(data.logo_url);
+      if (data?.name) setTenantName(data.name);
+    };
+    fetchLogo();
+  }, []);
 
   const formatCpf = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -59,9 +72,11 @@ const ClientAuth = () => {
         className="w-full max-w-sm"
       >
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl gradient-accent flex items-center justify-center mx-auto mb-3">
-            <Scale className="w-6 h-6 text-accent-foreground" />
-          </div>
+          <img
+            src={logoUrl || defaultLogo}
+            alt={tenantName}
+            className="h-16 mx-auto mb-4 object-contain"
+          />
           <h1 className="text-xl font-bold text-foreground font-display">Área do Cliente</h1>
           <p className="text-sm text-muted-foreground mt-1">Acompanhe seus processos</p>
         </div>
