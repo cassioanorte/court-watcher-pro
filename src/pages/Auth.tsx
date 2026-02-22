@@ -65,12 +65,7 @@ const Auth = () => {
       {/* Hero Section */}
       <div
         className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
-        style={{
-          backgroundImage: `url(${lexLogo})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
+        style={{ backgroundColor: '#171b36' }}
       >
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
