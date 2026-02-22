@@ -64,7 +64,8 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
       <div
-        className="relative lg:flex-1 flex items-center justify-center overflow-hidden bg-card"
+        className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
+        style={{ backgroundColor: '#0a0a0a' }}
       >
         <img src={lexLogo} alt="Lex Imperium" className="w-[960px] max-w-[90%]" />
       </div>
