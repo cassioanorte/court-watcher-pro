@@ -70,6 +70,8 @@ const Auth = () => {
           backgroundSize: '60%',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
+          backgroundColor: '#1a1e38',
+        }}
       >
         {/* Subtle particle dots */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
