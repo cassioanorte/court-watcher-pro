@@ -67,29 +67,6 @@ const Auth = () => {
         className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
         style={{ backgroundColor: '#0B1633' }}
       >
-        {/* Subtle particle dots */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 rounded-full"
-              style={{
-                background: `hsl(42 85% ${50 + Math.random() * 20}% / ${0.2 + Math.random() * 0.3})`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                y: [0, -20, 0],
-                opacity: [0.2, 0.6, 0.2],
-              }}
-              transition={{
-                duration: 3 + Math.random() * 4,
-                repeat: Infinity,
-                delay: Math.random() * 3,
-              }}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Form Section */}
