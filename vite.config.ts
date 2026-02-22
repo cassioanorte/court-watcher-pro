@@ -22,9 +22,9 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "LEX IMPERIUM",
         short_name: "LEX IMPERIUM",
-        description: "Sistema de gestão jurídica inteligente",
-        theme_color: "#1e3a5f",
-        background_color: "#ffffff",
+        description: "LEX IMPERIUM — O poder do direito em suas mãos",
+        theme_color: "#0B1C2D",
+        background_color: "#0B1C2D",
         display: "standalone",
         start_url: "/",
         icons: [
