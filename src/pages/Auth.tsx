@@ -98,18 +98,15 @@ const Auth = () => {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative z-10 text-center"
         >
-          <div className="relative w-48 h-48 lg:w-64 lg:h-64 mx-auto mb-6">
-            {/* Mask that blends logo edges into page background */}
-            <div
-              className="absolute inset-0 rounded-full pointer-events-none z-10"
-              style={{
-                boxShadow: '0 0 40px 30px hsl(210 45% 7%), 0 0 80px 60px hsl(210 45% 7%)',
-              }}
-            />
+          <div className="relative w-48 h-48 lg:w-64 lg:h-64 mx-auto mb-6 overflow-hidden">
             <img
               src={lexLogo}
               alt="LEX IMPERIUM"
-              className="w-full h-full object-contain drop-shadow-2xl relative z-0"
+              className="w-full h-full object-contain drop-shadow-2xl"
+              style={{
+                mask: 'radial-gradient(circle at center, black 45%, transparent 75%)',
+                WebkitMask: 'radial-gradient(circle at center, black 45%, transparent 75%)',
+              }}
             />
           </div>
           <h1 className="text-3xl lg:text-4xl font-display font-bold tracking-wider gold-glow" style={{ color: 'hsl(43 72% 52%)' }}>
