@@ -142,7 +142,11 @@ export function useThemeLoader() {
 
   useEffect(() => {
     if (!tenantId) return;
+
     const load = async () => {
+      // Don't apply inline theme if in light mode
+      if (document.documentElement.classList.contains("light")) return;
+
       const { data } = await supabase.from("tenants").select("theme_colors, primary_color").eq("id", tenantId).single();
       if (data?.theme_colors && Object.keys(data.theme_colors as object).length > 0) {
         applyTheme({ ...DEFAULT_THEME, ...(data.theme_colors as unknown as Partial<ThemeColors>) });
@@ -150,6 +154,12 @@ export function useThemeLoader() {
         applyTheme({ ...DEFAULT_THEME, accent: data.primary_color });
       }
     };
+
     load();
+
+    // Re-apply when switching back to dark
+    const handler = () => load();
+    window.addEventListener("color-mode-changed", handler);
+    return () => window.removeEventListener("color-mode-changed", handler);
   }, [tenantId]);
 }
