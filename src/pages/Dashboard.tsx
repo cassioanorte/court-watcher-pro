@@ -208,8 +208,9 @@ const Dashboard = () => {
                   <Clock className="w-3 h-3" />
                   {lastMovRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
-                <Button variant="ghost" size="sm" onClick={fetchTodayMovements} className="text-muted-foreground text-xs h-7 px-2">
-                  Atualizar
+                <Button variant="ghost" size="sm" onClick={async () => { setRefreshingMovs(true); await fetchTodayMovements(); setRefreshingMovs(false); toast.success("Movimentações atualizadas"); }} disabled={refreshingMovs} className="text-muted-foreground text-xs h-7 px-2 gap-1">
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingMovs ? "animate-spin" : ""}`} />
+                  {refreshingMovs ? "Atualizando..." : "Atualizar"}
                 </Button>
               </div>
             </div>
