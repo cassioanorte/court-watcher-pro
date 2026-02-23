@@ -458,10 +458,11 @@ const ProcessDetail = () => {
     TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
     TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
     TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
-    TJRS_1G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
-    TJRS_2G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
+    TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/`,
+    TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/`,
   };
 
+  const isEprocSource = caseData.source === "TJRS_1G" || caseData.source === "TJRS_2G";
   const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
 
   const tabs = [
@@ -723,14 +724,28 @@ const ProcessDetail = () => {
           {refreshing ? "Consultando tribunais..." : "Atualizar movimentações"}
         </button>
         {tribunalUrl && (
-          <a
-            href={tribunalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" /> Abrir no tribunal
-          </a>
+          isEprocSource ? (
+            <button
+              onClick={() => {
+                const num = caseData.process_number.replace(/\D/g, "");
+                navigator.clipboard.writeText(num);
+                toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
+                window.open(tribunalUrl, "_blank");
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" /> Abrir no eproc (copia nº)
+            </button>
+          ) : (
+            <a
+              href={tribunalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" /> Abrir no tribunal
+            </a>
+          )
         )}
       </div>
 
