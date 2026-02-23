@@ -450,7 +450,7 @@ const Publicacoes = () => {
                     <span>{new Date(pub.publication_date).toLocaleDateString("pt-BR")}</span>
                   </div>
                   {/* Tribunal quick links */}
-                  {(() => {
+                   {(() => {
                     const allText = [pub.title, pub.content || "", pub.process_number || ""].join(" ");
                     const processes = extractProcessNumbers(allText);
                     if (processes.length === 0 && pub.process_number) {
@@ -462,20 +462,30 @@ const Publicacoes = () => {
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {processes.map((pn) => {
                           const url = getCourtUrl(pn);
-                          if (!url) return null;
                           return (
-                            <a
-                              key={pn}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
-                              title={`Abrir ${pn} no tribunal`}
-                            >
-                              <Scale className="w-3 h-3" />
-                              {processes.length > 1 ? pn.slice(-13) : "Tribunal"}
-                            </a>
+                            <span key={pn} className="inline-flex items-center gap-0.5">
+                              {url && (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                                  title={`Abrir ${pn} no tribunal`}
+                                >
+                                  <Scale className="w-3 h-3" />
+                                  {processes.length > 1 ? pn.slice(-13) : "Tribunal"}
+                                </a>
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, processNumber: pn, sourceId: pub.id }); }}
+                                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 ${url ? 'rounded-r border border-l-0' : 'rounded border'} border-accent/20 bg-accent/5 text-accent hover:bg-accent/10 transition-colors`}
+                                title={`Encaminhar ${pn} para cumprimento`}
+                              >
+                                <Send className="w-3 h-3" />
+                                Encaminhar
+                              </button>
+                            </span>
                           );
                         })}
                       </div>
@@ -484,16 +494,6 @@ const Publicacoes = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {/* Encaminhar button */}
-                  {pub.case_id && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id!, processNumber: pub.process_number || undefined, sourceId: pub.id }); }}
-                      className="text-muted-foreground hover:text-accent transition-colors p-1"
-                      title="Encaminhar para cumprimento"
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
-                  )}
                   {/* AI analyze button */}
                   {aiCredits && aiCredits.limit > 0 && (
                     <button
