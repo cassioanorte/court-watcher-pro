@@ -90,7 +90,7 @@ const Cumprimentos = () => {
   const [attachModalId, setAttachModalId] = useState<string | null>(null);
   const [attachDocs, setAttachDocs] = useState<FulfillmentDoc[]>([]);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   const fetchData = async () => {
     if (!tenantId) return;
@@ -213,12 +213,11 @@ const Cumprimentos = () => {
     setAttachDocs((data as FulfillmentDoc[]) || []);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !attachModalId || !tenantId) return;
+  const handleFilesUpload = async (files: File[]) => {
+    if (files.length === 0 || !attachModalId || !tenantId) return;
     setUploading(true);
 
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       const path = `fulfillments/${attachModalId}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("case-documents")
@@ -239,7 +238,6 @@ const Cumprimentos = () => {
 
     toast({ title: "Documento(s) anexado(s)!" });
     setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
     openAttachModal(attachModalId);
   };
 
