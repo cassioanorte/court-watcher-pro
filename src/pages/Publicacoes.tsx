@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2 } from "lucide-react";
+import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2, Send } from "lucide-react";
 import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import EmailIntegrationSetup from "@/components/EmailIntegrationSetup";
+import FulfillmentModal from "@/components/FulfillmentModal";
 
 interface Publication {
   id: string;
@@ -30,6 +31,7 @@ interface Publication {
   ai_deadlines: string | null;
   ai_next_steps: string | null;
   ai_analyzed_at: string | null;
+  case_id: string | null;
 }
 
 const Publicacoes = () => {
