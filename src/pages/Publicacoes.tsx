@@ -454,8 +454,7 @@ const Publicacoes = () => {
                     const allText = [pub.title, pub.content || "", pub.process_number || ""].join(" ");
                     const processes = extractProcessNumbers(allText);
                     if (processes.length === 0 && pub.process_number) {
-                      const url = getCourtUrl(pub.process_number);
-                      if (url) processes.push(pub.process_number);
+                      processes.push(pub.process_number);
                     }
                     if (processes.length === 0) return null;
                     return (
