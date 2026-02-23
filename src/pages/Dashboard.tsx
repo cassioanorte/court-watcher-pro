@@ -335,6 +335,14 @@ const Dashboard = () => {
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                        onClick={() => { setSelectedPub(null); setFulfillmentModal({ open: true, caseId: undefined, processNumber: pn, sourceType: "publication", sourceId: selectedPub?.id }); }}
+                      >
+                        <Send className="w-3 h-3" /> Encaminhar
+                      </Button>
                     </div>
                   );
                 })}
