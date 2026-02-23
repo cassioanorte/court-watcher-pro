@@ -349,6 +349,15 @@ const Dashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <FulfillmentModal
+        open={fulfillmentModal.open}
+        onOpenChange={(open) => setFulfillmentModal(prev => ({ ...prev, open }))}
+        caseId={fulfillmentModal.caseId}
+        processNumber={fulfillmentModal.processNumber}
+        sourceType={fulfillmentModal.sourceType}
+        sourceId={fulfillmentModal.sourceId}
+      />
     </div>
   );
 };
