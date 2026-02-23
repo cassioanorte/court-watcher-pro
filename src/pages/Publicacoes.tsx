@@ -48,6 +48,7 @@ const Publicacoes = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [aiCredits, setAiCredits] = useState<{ limit: number; used: number } | null>(null);
+  const [fulfillmentModal, setFulfillmentModal] = useState<{ open: boolean; caseId?: string; processNumber?: string; sourceId?: string }>({ open: false });
 
   // Fetch AI credits
   useEffect(() => {
