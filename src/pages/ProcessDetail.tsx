@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import SubstabelecimentoSection from "@/components/SubstabelecimentoSection";
 import CaseActivityLog from "@/components/CaseActivityLog";
 import CaseAppointments from "@/components/CaseAppointments";
+import FulfillmentModal from "@/components/FulfillmentModal";
 
 type ProcessSource = Database["public"]["Enums"]["process_source"];
 
@@ -83,6 +84,7 @@ const ProcessDetail = () => {
   const [editClients, setEditClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [editStaff, setEditStaff] = useState<{ user_id: string; full_name: string }[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
 
   const isLawyer = role === "owner" || role === "staff" || role === "superadmin";
 
@@ -515,6 +517,14 @@ const ProcessDetail = () => {
               >
                 {caseData.archived ? <ArchiveRestore className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
                 {caseData.archived ? "Desarquivar" : "Arquivar"}
+              </button>
+            )}
+            {isLawyer && (
+              <button
+                onClick={() => setShowFulfillmentModal(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border border-accent/20 bg-accent/5 hover:bg-accent/10 transition-colors text-accent"
+              >
+                <Send className="w-3 h-3" /> Encaminhar
               </button>
             )}
             {isLawyer && (
@@ -1100,6 +1110,15 @@ const ProcessDetail = () => {
             </form>
           </div>
         </div>
+      )}
+      {caseData && (
+        <FulfillmentModal
+          open={showFulfillmentModal}
+          onOpenChange={setShowFulfillmentModal}
+          caseId={caseData.id}
+          processNumber={caseData.process_number}
+          sourceType="manual"
+        />
       )}
     </div>
   );
