@@ -180,10 +180,15 @@ const Dashboard = () => {
       {/* Task Notifications */}
       <DashboardTaskNotifications />
 
-      {/* Reminders + Pipeline row */}
+      {/* Fulfillments + Reminders + Pipeline */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardFulfillments />
         <DashboardReminders />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardCrmPipeline />
+        <DashboardDeadlines />
       </div>
 
       {/* Deadlines + Movements row */}
