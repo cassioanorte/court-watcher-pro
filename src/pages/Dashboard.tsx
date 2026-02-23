@@ -277,19 +277,32 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-2">
               {todayPubs.map(pub => (
-                <button
+                <div
                   key={pub.id}
-                  onClick={() => handlePubClick(pub)}
-                  className={`block w-full text-left rounded-md border p-3 hover:border-accent/30 transition-all ${!pub.read ? "border-l-4 border-l-accent" : ""}`}
+                  className={`rounded-md border p-3 hover:border-accent/30 transition-all ${!pub.read ? "border-l-4 border-l-accent" : ""}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-[10px]">{pub.source}</Badge>
-                    {pub.publication_type && <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>}
-                    {!pub.read && <span className="w-2 h-2 rounded-full bg-accent" />}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <button onClick={() => handlePubClick(pub)} className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px]">{pub.source}</Badge>
+                      {pub.publication_type && <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>}
+                      {!pub.read && <span className="w-2 h-2 rounded-full bg-accent" />}
+                    </button>
+                    {pub.case_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                        onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id!, processNumber: pub.process_number || undefined, sourceType: "publication", sourceId: pub.id }); }}
+                      >
+                        <Send className="w-3 h-3" /> Encaminhar
+                      </Button>
+                    )}
                   </div>
-                  <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>{pub.title}</p>
-                  {pub.process_number && <p className="text-xs text-muted-foreground font-mono mt-1">{pub.process_number}</p>}
-                </button>
+                  <button onClick={() => handlePubClick(pub)} className="text-left w-full">
+                    <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>{pub.title}</p>
+                    {pub.process_number && <p className="text-xs text-muted-foreground font-mono mt-1">{pub.process_number}</p>}
+                  </button>
+                </div>
               ))}
             </div>
           )}
