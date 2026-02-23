@@ -221,7 +221,7 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
 }
 
 const TRIBUNALS = [
-  { label: "eProc TJRS", url: "https://eproc.tjrs.jus.br/", color: "bg-blue-500/10 text-blue-400" },
+  { label: "eProc TJRS", url: "https://eproc1g.tjrs.jus.br/eproc/", color: "bg-blue-500/10 text-blue-400" },
   { label: "eProc JFRS", url: "https://eproc.jfrs.jus.br/", color: "bg-green-500/10 text-green-400" },
   { label: "eProc JFSC", url: "https://eproc.jfsc.jus.br/", color: "bg-purple-500/10 text-purple-400" },
   { label: "eProc JFPR", url: "https://eproc.jfpr.jus.br/", color: "bg-orange-500/10 text-orange-400" },
