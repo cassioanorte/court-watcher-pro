@@ -714,6 +714,15 @@ const Publicacoes = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <FulfillmentModal
+        open={fulfillmentModal.open}
+        onOpenChange={(open) => setFulfillmentModal(prev => ({ ...prev, open }))}
+        caseId={fulfillmentModal.caseId}
+        processNumber={fulfillmentModal.processNumber}
+        sourceType="publication"
+        sourceId={fulfillmentModal.sourceId}
+      />
     </div>
   );
 };
