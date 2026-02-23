@@ -1090,6 +1090,51 @@ export type Database = {
           },
         ]
       }
+      fulfillment_documents: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_url: string
+          fulfillment_id: string
+          id: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_url: string
+          fulfillment_id: string
+          id?: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          fulfillment_id?: string
+          id?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fulfillment_documents_fulfillment_id_fkey"
+            columns: ["fulfillment_id"]
+            isOneToOne: false
+            referencedRelation: "case_fulfillments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landing_pages: {
         Row: {
           content: Json

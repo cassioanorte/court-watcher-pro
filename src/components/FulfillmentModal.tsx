@@ -34,6 +34,17 @@ const PRIORITIES = [
 
 const SUGGESTED_DAYS = [5, 10, 15, 30];
 
+export interface FulfillmentEditData {
+  id: string;
+  case_id: string;
+  category: string;
+  description: string | null;
+  assigned_to: string;
+  due_date: string;
+  priority: string;
+  notes: string | null;
+}
+
 interface FulfillmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +52,7 @@ interface FulfillmentModalProps {
   processNumber?: string;
   sourceType?: "publication" | "movement" | "manual";
   sourceId?: string;
+  editData?: FulfillmentEditData | null;
   onCreated?: () => void;
 }
 
@@ -51,7 +63,7 @@ interface StaffMember {
   oab_number: string | null;
 }
 
-const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceType, sourceId, onCreated }: FulfillmentModalProps) => {
+const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceType, sourceId, editData, onCreated }: FulfillmentModalProps) => {
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -66,9 +78,26 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   const [notes, setNotes] = useState("");
   const [selectedCaseId, setSelectedCaseId] = useState(caseId || "");
 
+  const isEditing = !!editData;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editData && open) {
+      setCategory(editData.category);
+      setAssignedTo(editData.assigned_to);
+      setDueDate(editData.due_date);
+      setPriority(editData.priority);
+      setDescription(editData.description || "");
+      setNotes(editData.notes || "");
+      setSelectedCaseId(editData.case_id);
+    } else if (!editData && open) {
+      resetForm();
+      setSelectedCaseId(caseId || "");
+    }
+  }, [editData, open, caseId]);
+
   useEffect(() => {
     if (!tenantId || !open) return;
-    // Fetch staff members
     const fetchStaff = async () => {
       const { data: profiles } = await supabase
         .from("profiles")
@@ -84,21 +113,15 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     };
     fetchStaff();
 
-    // Fetch cases - always fetch so we can resolve processNumber to caseId
     supabase.from("cases").select("id, process_number").eq("tenant_id", tenantId).eq("archived", false).order("process_number").then(({ data }) => {
       const allCases = data || [];
       setCases(allCases);
-      // Auto-select case if processNumber provided but no caseId
-      if (!caseId && processNumber) {
+      if (!caseId && !editData && processNumber) {
         const match = allCases.find(c => c.process_number === processNumber);
         if (match) setSelectedCaseId(match.id);
       }
     });
-  }, [tenantId, open, caseId, processNumber]);
-
-  useEffect(() => {
-    setSelectedCaseId(caseId || "");
-  }, [caseId]);
+  }, [tenantId, open, caseId, processNumber, editData]);
 
   const setSuggestedDays = (days: number) => {
     const d = new Date();
@@ -113,27 +136,40 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("case_fulfillments").insert({
-        case_id: selectedCaseId,
-        tenant_id: tenantId!,
-        category,
-        description: description || null,
-        assigned_to: assignedTo,
-        assigned_by: user!.id,
-        due_date: dueDate,
-        status: "pendente",
-        source_type: sourceType || "manual",
-        source_id: sourceId || null,
-        priority,
-        notes: notes || null,
-      });
-      if (error) throw error;
-      toast({ title: "Cumprimento criado!", description: "O responsável foi notificado." });
+      if (isEditing) {
+        const { error } = await supabase.from("case_fulfillments").update({
+          category,
+          description: description || null,
+          assigned_to: assignedTo,
+          due_date: dueDate,
+          priority,
+          notes: notes || null,
+        }).eq("id", editData!.id);
+        if (error) throw error;
+        toast({ title: "Cumprimento atualizado!" });
+      } else {
+        const { error } = await supabase.from("case_fulfillments").insert({
+          case_id: selectedCaseId,
+          tenant_id: tenantId!,
+          category,
+          description: description || null,
+          assigned_to: assignedTo,
+          assigned_by: user!.id,
+          due_date: dueDate,
+          status: "pendente",
+          source_type: sourceType || "manual",
+          source_id: sourceId || null,
+          priority,
+          notes: notes || null,
+        });
+        if (error) throw error;
+        toast({ title: "Cumprimento criado!", description: "O responsável foi notificado." });
+      }
       onOpenChange(false);
       resetForm();
       onCreated?.();
     } catch (err: any) {
-      toast({ title: "Erro ao criar cumprimento", description: err.message, variant: "destructive" });
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -154,19 +190,18 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-accent" />
-            Encaminhar para Cumprimento
+            {isEditing ? "Editar Cumprimento" : "Encaminhar para Cumprimento"}
           </DialogTitle>
         </DialogHeader>
 
-        {processNumber && (
+        {processNumber && !isEditing && (
           <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono">
             Processo: {processNumber}
           </div>
         )}
 
         <div className="space-y-4 mt-2">
-          {/* Case selector (only if no caseId) */}
-          {!caseId && (
+          {!caseId && !isEditing && (
             <div className="space-y-1.5">
               <Label>Processo *</Label>
               <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
@@ -182,7 +217,6 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             </div>
           )}
 
-          {/* Category */}
           <div className="space-y-1.5">
             <Label>Tipo de Ação *</Label>
             <Select value={category} onValueChange={setCategory}>
@@ -197,7 +231,6 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             </Select>
           </div>
 
-          {/* Assigned to */}
           <div className="space-y-1.5">
             <Label>Responsável *</Label>
             <Select value={assignedTo} onValueChange={setAssignedTo}>
@@ -214,7 +247,6 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             </Select>
           </div>
 
-          {/* Due date with suggestions */}
           <div className="space-y-1.5">
             <Label>Prazo *</Label>
             <div className="flex items-center gap-2">
@@ -229,7 +261,6 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             </div>
           </div>
 
-          {/* Priority */}
           <div className="space-y-1.5">
             <Label>Prioridade</Label>
             <Select value={priority} onValueChange={setPriority}>
@@ -244,13 +275,11 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             </Select>
           </div>
 
-          {/* Description */}
           <div className="space-y-1.5">
             <Label>Descrição</Label>
             <Textarea placeholder="Descreva o que precisa ser feito..." value={description} onChange={e => setDescription(e.target.value)} rows={2} />
           </div>
 
-          {/* Notes */}
           <div className="space-y-1.5">
             <Label>Observações</Label>
             <Input placeholder="Observações adicionais..." value={notes} onChange={e => setNotes(e.target.value)} />
@@ -258,7 +287,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
 
           <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Encaminhar
+            {isEditing ? "Salvar Alterações" : "Encaminhar"}
           </Button>
         </div>
       </DialogContent>
