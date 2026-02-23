@@ -841,6 +841,59 @@ export type Database = {
           },
         ]
       }
+      eproc_sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          movements_synced: number | null
+          processes_found: number | null
+          processes_synced: number | null
+          source: string
+          started_at: string
+          status: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          movements_synced?: number | null
+          processes_found?: number | null
+          processes_synced?: number | null
+          source: string
+          started_at?: string
+          status?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          movements_synced?: number | null
+          processes_found?: number | null
+          processes_synced?: number | null
+          source?: string
+          started_at?: string
+          status?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eproc_sync_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_distributions: {
         Row: {
           amount: number
