@@ -53,6 +53,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [lastMovRefresh, setLastMovRefresh] = useState<Date>(new Date());
+  const [refreshingMovs, setRefreshingMovs] = useState(false);
   const [refreshingPubs, setRefreshingPubs] = useState(false);
   const [fulfillmentModal, setFulfillmentModal] = useState<{ open: boolean; caseId?: string; processNumber?: string; sourceType?: "publication" | "movement"; sourceId?: string }>({ open: false });
 
