@@ -454,8 +454,7 @@ const Publicacoes = () => {
                     const allText = [pub.title, pub.content || "", pub.process_number || ""].join(" ");
                     const processes = extractProcessNumbers(allText);
                     if (processes.length === 0 && pub.process_number) {
-                      const url = getCourtUrl(pub.process_number);
-                      if (url) processes.push(pub.process_number);
+                      processes.push(pub.process_number);
                     }
                     if (processes.length === 0) return null;
                     return (
@@ -590,6 +589,13 @@ const Publicacoes = () => {
                                 Abrir no tribunal
                               </a>
                             )}
+                            <button
+                              onClick={() => { setSelectedPub(null); setFulfillmentModal({ open: true, processNumber: pn, sourceId: selectedPub.id }); }}
+                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-accent/20 bg-accent/5 text-accent hover:bg-accent/10 transition-colors"
+                            >
+                              <Send className="w-3 h-3" />
+                              Encaminhar
+                            </button>
                           </div>
                         );
                       })}
