@@ -128,18 +128,59 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
   }
 
   function parseParties(html){
-    var text=html.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ');
-    var authorM=text.match(/(?:Autor|Requerente|Exequente|Impetrante|Reclamante)[:\\s]+([^|,;\\n]+)/i);
-    var reuM=text.match(/(?:R[ée]u|Requerido|Executado|Impetrado|Reclamado)[:\\s]+([^|,;\\n]+)/i);
+    var dp=new DOMParser();
+    var doc=dp.parseFromString(html,'text/html');
     var parts=[];
-    if(authorM)parts.push(authorM[1].trim().substring(0,200));
-    if(reuM)parts.push(reuM[1].trim().substring(0,200));
+    var parteEls=doc.querySelectorAll('.infraNomeParte, .nome-parte, [id*=txtParteAutor], [id*=txtParteReu], .parteAutor, .parteReu');
+    if(parteEls.length>0){
+      for(var i=0;i<parteEls.length;i++){
+        var t=parteEls[i].textContent.trim().substring(0,200);
+        if(t.length>2)parts.push(t);
+      }
+    }
+    if(parts.length===0){
+      var rows=doc.querySelectorAll('tr');
+      for(var i=0;i<rows.length;i++){
+        var cells=rows[i].querySelectorAll('td,th');
+        for(var j=0;j<cells.length;j++){
+          var label=cells[j].textContent.trim();
+          if(/^(Autor|Requerente|Exequente|Impetrante|Reclamante|R[ée]u|Requerido|Executado|Impetrado|Reclamado)/i.test(label)){
+            var val=cells[j+1]?cells[j+1].textContent.trim():'';
+            if(!val)val=label.replace(/^[^:]+:\\s*/,'');
+            if(val.length>2)parts.push(val.substring(0,200));
+          }
+        }
+      }
+    }
+    if(parts.length===0){
+      var text=html.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ');
+      var authorM=text.match(/(?:Autor|Requerente|Exequente|Impetrante|Reclamante)[:\\s]+([^|,;()\\n]+)/i);
+      var reuM=text.match(/(?:R[ée]u|Requerido|Executado|Impetrado|Reclamado)[:\\s]+([^|,;()\\n]+)/i);
+      if(authorM)parts.push(authorM[1].trim().substring(0,200));
+      if(reuM)parts.push(reuM[1].trim().substring(0,200));
+    }
     return parts.length>0?parts.join(' | '):null;
   }
 
   function parseSubject(html){
+    var dp=new DOMParser();
+    var doc=dp.parseFromString(html,'text/html');
+    var el=doc.querySelector('.infraClasseAssunto, [id*=txtAssunto], [id*=txtClasse], .assunto');
+    if(el){var t=el.textContent.trim();if(t.length>2)return t.substring(0,200);}
+    var rows=doc.querySelectorAll('tr');
+    for(var i=0;i<rows.length;i++){
+      var cells=rows[i].querySelectorAll('td,th');
+      for(var j=0;j<cells.length;j++){
+        var label=cells[j].textContent.trim();
+        if(/^(Assunto|Classe|Classe Judicial)/i.test(label)){
+          var val=cells[j+1]?cells[j+1].textContent.trim():'';
+          if(!val)val=label.replace(/^[^:]+:\\s*/,'');
+          if(val.length>2)return val.substring(0,200);
+        }
+      }
+    }
     var text=html.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ');
-    var m=text.match(/(?:Assunto|Classe)[:\\s]+([^|\\n]{3,100})/i);
+    var m=text.match(/(?:Assunto|Classe)[:\\s]+([^|\\n]{3,200})/i);
     return m?m[1].trim():null;
   }
 
