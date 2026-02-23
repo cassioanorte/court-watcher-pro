@@ -53,6 +53,7 @@ const Dashboard = () => {
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [lastMovRefresh, setLastMovRefresh] = useState<Date>(new Date());
   const [refreshingPubs, setRefreshingPubs] = useState(false);
+  const [fulfillmentModal, setFulfillmentModal] = useState<{ open: boolean; caseId?: string; processNumber?: string; sourceType?: "publication" | "movement"; sourceId?: string }>({ open: false });
 
   const fetchTodayMovements = useCallback(async () => {
     if (!tenantId) return;
