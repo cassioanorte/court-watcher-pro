@@ -102,8 +102,31 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
     setTimeout(function(){overlay.remove()},4000);
     return;
   }
+  var excl=prompt('📋 '+procs.length+' processos encontrados.\\n\\nPara EXCLUIR processos que contenham determinadas palavras (ex: nome de parte, município), digite abaixo separando por vírgula:\\n\\n(Deixe em branco para sincronizar todos)');
+  if(excl===null){overlay.remove();return;}
+  var norm=function(s){return s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')};
+  if(excl.trim()){
+    var terms=excl.split(',').map(function(s){return norm(s.trim())}).filter(function(s){return s.length>0});
+    if(terms.length>0){
+      var before=procs.length;
+      var filtered=[];
+      for(var fi=0;fi<procs.length;fi++){
+        var pm=procMeta[procs[fi]]||{parties:null,subject:null};
+        var txt=norm((pm.parties||'')+' '+(pm.subject||''));
+        var excluded=false;
+        for(var ti=0;ti<terms.length;ti++){if(txt.indexOf(terms[ti])>=0){excluded=true;break;}}
+        if(!excluded)filtered.push(procs[fi]);
+      }
+      var removed=before-filtered.length;
+      if(removed>0){
+        if(!confirm('✅ '+filtered.length+' processos serão sincronizados.\\n❌ '+removed+' processos excluídos pelo filtro.\\n\\nContinuar?')){overlay.remove();return;}
+      }
+      procs=filtered;
+    }
+  }
+  if(procs.length===0){setMsg('Nenhum processo restante após o filtro','',100);$('lx-icon').textContent='❌';setTimeout(function(){overlay.remove()},3000);return;}
 
-  setMsg('Processos encontrados: '+procs.length,'Buscando movimentações e documentos...',5);
+  setMsg('Sincronizando '+procs.length+' processos...','Buscando movimentações e documentos...',5);
 
   var results=[];
   var allDocs=[];
