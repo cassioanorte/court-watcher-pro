@@ -237,11 +237,11 @@ const EprocSessionSync = () => {
         </h2>
         <div className="flex items-center gap-2">
           {isSessionActive ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/15 px-2 py-0.5 rounded-full">
               <ShieldCheck className="w-3 h-3" /> Sincronizado hoje
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/15 px-2 py-0.5 rounded-full">
               <AlertCircle className="w-3 h-3" /> Não sincronizado
             </span>
           )}
@@ -338,7 +338,7 @@ const EprocSessionSync = () => {
               <div key={sync.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border text-xs">
                 <div className="flex items-center gap-2">
                   {sync.status === "completed" ? (
-                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                    <CheckCircle className="w-3.5 h-3.5 text-success" />
                   ) : sync.status === "failed" ? (
                     <AlertCircle className="w-3.5 h-3.5 text-destructive" />
                   ) : (
