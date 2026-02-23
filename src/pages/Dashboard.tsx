@@ -221,16 +221,28 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {todayMovements.map((mov) => (
-                  <Link key={mov.id} to={`/processos/${mov.case_id}`} className="block rounded-md border p-3 hover:border-accent/30 transition-all">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-[10px] font-mono">{mov.process_number}</Badge>
+                  <div key={mov.id} className="rounded-md border p-3 hover:border-accent/30 transition-all">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <Link to={`/processos/${mov.case_id}`}>
+                        <Badge variant="outline" className="text-[10px] font-mono hover:text-accent">{mov.process_number}</Badge>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                        onClick={() => setFulfillmentModal({ open: true, caseId: mov.case_id, processNumber: mov.process_number, sourceType: "movement", sourceId: mov.id })}
+                      >
+                        <Send className="w-3 h-3" /> Encaminhar
+                      </Button>
                     </div>
-                    <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
-                    {mov.details && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mov.details}</p>}
+                    <Link to={`/processos/${mov.case_id}`}>
+                      <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
+                      {mov.details && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mov.details}</p>}
+                    </Link>
                     <p className="text-[10px] text-muted-foreground mt-1">
                       {new Date(mov.occurred_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </p>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
