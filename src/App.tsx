@@ -42,6 +42,7 @@ import LandingPagePublic from "./pages/LandingPagePublic";
 import Pagamentos from "./pages/Pagamentos";
 import AgentesIA from "./pages/AgentesIA";
 import Calculadoras from "./pages/Calculadoras";
+import Cumprimentos from "./pages/Cumprimentos";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 const queryClient = new QueryClient();
 
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="configuracoes" element={<Settings />} />
               <Route path="agentes-ia" element={<AgentesIA />} />
               <Route path="calculadoras" element={<Calculadoras />} />
+              <Route path="cumprimentos" element={<Cumprimentos />} />
             </Route>
 
             {/* Client portal routes */}
