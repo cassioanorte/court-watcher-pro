@@ -15,8 +15,8 @@ const tribunalUrls: Record<string, (n: string) => string> = {
   TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
   TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
   TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
-  TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatCNJ(n))}`,
-  TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatCNJ(n))}`,
+  TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatCNJ(n))}&acao_origem=processo_consulta_publica`,
+  TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatCNJ(n))}&acao_origem=processo_consulta_publica`,
 };
 
 /**
@@ -89,12 +89,12 @@ export function getAuthenticatedCourtUrl(processNumber: string, source?: string)
     } else if (origin.startsWith("70")) {
       base = "https://eproc.jfpr.jus.br/eprocV2";
     }
-    return `${base}/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}`;
+    return `${base}/externo_controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}&acao_origem=processo_consulta_publica`;
   }
 
   // Justice 8 = Estadual
   if (justice === "8" && tribunal === "21") {
-    return `https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}`;
+    return `https://eproc1g.tjrs.jus.br/eproc/externo_controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}&acao_origem=processo_consulta_publica`;
   }
 
   // Justice 5 = Trabalho
