@@ -89,7 +89,7 @@ export function getAuthenticatedCourtUrl(processNumber: string, source?: string)
     } else if (origin.startsWith("70")) {
       base = "https://eproc.jfpr.jus.br/eprocV2";
     }
-    return `${base}/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}`;
+    return `${base}/externo_controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}&acao_origem=processo_consulta_publica`;
   }
 
   // Justice 8 = Estadual
