@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw } from "lucide-react";
+import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw, Send } from "lucide-react";
 import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
@@ -11,6 +11,8 @@ import DashboardReminders from "@/components/dashboard/DashboardReminders";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
 import DashboardTaskNotifications from "@/components/dashboard/DashboardTaskNotifications";
+import DashboardFulfillments from "@/components/dashboard/DashboardFulfillments";
+import FulfillmentModal from "@/components/FulfillmentModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,6 +31,7 @@ interface Publication {
   content: string | null;
   organ: string | null;
   external_url: string | null;
+  case_id: string | null;
 }
 
 interface TodayMovement {
@@ -51,6 +54,7 @@ const Dashboard = () => {
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
   const [lastMovRefresh, setLastMovRefresh] = useState<Date>(new Date());
   const [refreshingPubs, setRefreshingPubs] = useState(false);
+  const [fulfillmentModal, setFulfillmentModal] = useState<{ open: boolean; caseId?: string; processNumber?: string; sourceType?: "publication" | "movement"; sourceId?: string }>({ open: false });
 
   const fetchTodayMovements = useCallback(async () => {
     if (!tenantId) return;
@@ -102,7 +106,7 @@ const Dashboard = () => {
         supabase.from("ai_agents").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id").eq("tenant_id", tenantId),
         supabase.from("appointments").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("start_at", new Date().toISOString()).lte("start_at", weekEndStr),
-        supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
+        supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url, case_id").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
       ]);
 
       setAgentsCount(agentsRes.count || 0);
@@ -137,7 +141,7 @@ const Dashboard = () => {
       const today = new Date().toISOString().split("T")[0];
       const { data } = await supabase
         .from("dje_publications")
-        .select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url")
+        .select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url, case_id")
         .eq("tenant_id", tenantId)
         .eq("publication_date", today)
         .order("created_at", { ascending: false })
@@ -177,10 +181,15 @@ const Dashboard = () => {
       {/* Task Notifications */}
       <DashboardTaskNotifications />
 
-      {/* Reminders + Pipeline row */}
+      {/* Fulfillments + Reminders + Pipeline */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardFulfillments />
         <DashboardReminders />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardCrmPipeline />
+        <DashboardDeadlines />
       </div>
 
       {/* Deadlines + Movements row */}
@@ -213,16 +222,28 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {todayMovements.map((mov) => (
-                  <Link key={mov.id} to={`/processos/${mov.case_id}`} className="block rounded-md border p-3 hover:border-accent/30 transition-all">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-[10px] font-mono">{mov.process_number}</Badge>
+                  <div key={mov.id} className="rounded-md border p-3 hover:border-accent/30 transition-all">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <Link to={`/processos/${mov.case_id}`}>
+                        <Badge variant="outline" className="text-[10px] font-mono hover:text-accent">{mov.process_number}</Badge>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                        onClick={() => setFulfillmentModal({ open: true, caseId: mov.case_id, processNumber: mov.process_number, sourceType: "movement", sourceId: mov.id })}
+                      >
+                        <Send className="w-3 h-3" /> Encaminhar
+                      </Button>
                     </div>
-                    <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
-                    {mov.details && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mov.details}</p>}
+                    <Link to={`/processos/${mov.case_id}`}>
+                      <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
+                      {mov.details && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mov.details}</p>}
+                    </Link>
                     <p className="text-[10px] text-muted-foreground mt-1">
                       {new Date(mov.occurred_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                     </p>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
@@ -256,19 +277,32 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-2">
               {todayPubs.map(pub => (
-                <button
+                <div
                   key={pub.id}
-                  onClick={() => handlePubClick(pub)}
-                  className={`block w-full text-left rounded-md border p-3 hover:border-accent/30 transition-all ${!pub.read ? "border-l-4 border-l-accent" : ""}`}
+                  className={`rounded-md border p-3 hover:border-accent/30 transition-all ${!pub.read ? "border-l-4 border-l-accent" : ""}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-[10px]">{pub.source}</Badge>
-                    {pub.publication_type && <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>}
-                    {!pub.read && <span className="w-2 h-2 rounded-full bg-accent" />}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <button onClick={() => handlePubClick(pub)} className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px]">{pub.source}</Badge>
+                      {pub.publication_type && <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>}
+                      {!pub.read && <span className="w-2 h-2 rounded-full bg-accent" />}
+                    </button>
+                    {pub.case_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                        onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id!, processNumber: pub.process_number || undefined, sourceType: "publication", sourceId: pub.id }); }}
+                      >
+                        <Send className="w-3 h-3" /> Encaminhar
+                      </Button>
+                    )}
                   </div>
-                  <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>{pub.title}</p>
-                  {pub.process_number && <p className="text-xs text-muted-foreground font-mono mt-1">{pub.process_number}</p>}
-                </button>
+                  <button onClick={() => handlePubClick(pub)} className="text-left w-full">
+                    <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>{pub.title}</p>
+                    {pub.process_number && <p className="text-xs text-muted-foreground font-mono mt-1">{pub.process_number}</p>}
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -329,6 +363,15 @@ const Dashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <FulfillmentModal
+        open={fulfillmentModal.open}
+        onOpenChange={(open) => setFulfillmentModal(prev => ({ ...prev, open }))}
+        caseId={fulfillmentModal.caseId}
+        processNumber={fulfillmentModal.processNumber}
+        sourceType={fulfillmentModal.sourceType}
+        sourceId={fulfillmentModal.sourceId}
+      />
     </div>
   );
 };

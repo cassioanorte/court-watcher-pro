@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check, ClipboardCheck } from "lucide-react";
 import { useColorMode, LIGHT_VARIANT_OPTIONS, DARK_VARIANT_OPTIONS, type LightVariant, type DarkVariant } from "@/hooks/useColorMode";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ const navItems = [
   { to: "/crm", icon: UserPlus, label: "CRM" },
   { to: "/agenda", icon: CalendarDays, label: "Agenda" },
   { to: "/publicacoes", icon: Newspaper, label: "Publicações" },
+  { to: "/cumprimentos", icon: ClipboardCheck, label: "Cumprimentos" },
   { to: "/financeiro", icon: DollarSign, label: "Financeiro" },
   { to: "/cobranca", icon: Receipt, label: "Cobrança" },
   { to: "/pagamentos", icon: Banknote, label: "Pagamentos" },

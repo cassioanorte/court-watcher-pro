@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2 } from "lucide-react";
+import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2, Send } from "lucide-react";
 import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import EmailIntegrationSetup from "@/components/EmailIntegrationSetup";
+import FulfillmentModal from "@/components/FulfillmentModal";
 
 interface Publication {
   id: string;
@@ -30,6 +31,7 @@ interface Publication {
   ai_deadlines: string | null;
   ai_next_steps: string | null;
   ai_analyzed_at: string | null;
+  case_id: string | null;
 }
 
 const Publicacoes = () => {
@@ -46,6 +48,7 @@ const Publicacoes = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [aiCredits, setAiCredits] = useState<{ limit: number; used: number } | null>(null);
+  const [fulfillmentModal, setFulfillmentModal] = useState<{ open: boolean; caseId?: string; processNumber?: string; sourceId?: string }>({ open: false });
 
   // Fetch AI credits
   useEffect(() => {
@@ -481,6 +484,16 @@ const Publicacoes = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Encaminhar button */}
+                  {pub.case_id && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id!, processNumber: pub.process_number || undefined, sourceId: pub.id }); }}
+                      className="text-muted-foreground hover:text-accent transition-colors p-1"
+                      title="Encaminhar para cumprimento"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
                   {/* AI analyze button */}
                   {aiCredits && aiCredits.limit > 0 && (
                     <button
@@ -701,6 +714,15 @@ const Publicacoes = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <FulfillmentModal
+        open={fulfillmentModal.open}
+        onOpenChange={(open) => setFulfillmentModal(prev => ({ ...prev, open }))}
+        caseId={fulfillmentModal.caseId}
+        processNumber={fulfillmentModal.processNumber}
+        sourceType="publication"
+        sourceId={fulfillmentModal.sourceId}
+      />
     </div>
   );
 };
