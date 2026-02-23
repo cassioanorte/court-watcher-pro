@@ -84,13 +84,17 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     };
     fetchStaff();
 
-    // Fetch cases if no caseId provided
-    if (!caseId) {
-      supabase.from("cases").select("id, process_number").eq("tenant_id", tenantId).eq("archived", false).order("process_number").then(({ data }) => {
-        setCases(data || []);
-      });
-    }
-  }, [tenantId, open, caseId]);
+    // Fetch cases - always fetch so we can resolve processNumber to caseId
+    supabase.from("cases").select("id, process_number").eq("tenant_id", tenantId).eq("archived", false).order("process_number").then(({ data }) => {
+      const allCases = data || [];
+      setCases(allCases);
+      // Auto-select case if processNumber provided but no caseId
+      if (!caseId && processNumber) {
+        const match = allCases.find(c => c.process_number === processNumber);
+        if (match) setSelectedCaseId(match.id);
+      }
+    });
+  }, [tenantId, open, caseId, processNumber]);
 
   useEffect(() => {
     setSelectedCaseId(caseId || "");
