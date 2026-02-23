@@ -458,10 +458,11 @@ const ProcessDetail = () => {
     TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
     TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
     TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
-    TJRS_1G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
-    TJRS_2G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
+    TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/`,
+    TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/`,
   };
 
+  const isEprocSource = caseData.source === "TJRS_1G" || caseData.source === "TJRS_2G";
   const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
 
   const tabs = [
