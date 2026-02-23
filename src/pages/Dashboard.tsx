@@ -188,9 +188,8 @@ const Dashboard = () => {
         <DashboardDeadlines />
       </div>
 
-      {/* Deadlines + Movements row */}
+      {/* Movements row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardDeadlines />
 
         {/* Today's Movements */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
