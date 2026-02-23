@@ -300,7 +300,7 @@ const EprocSessionSync = () => {
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">5</span>
               <span className="flex items-center gap-1">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-success shrink-0" />
                 Pronto! Processos e movimentações sincronizados, incluindo os em segredo de justiça.
               </span>
             </li>
