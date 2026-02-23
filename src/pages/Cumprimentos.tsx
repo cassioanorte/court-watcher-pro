@@ -416,24 +416,16 @@ const Cumprimentos = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {uploading ? "Enviando..." : "Anexar Documento"}
-              </Button>
-            </div>
+            <FileDropZone
+              onFile={(file) => handleFilesUpload([file])}
+              multiple
+              onFiles={handleFilesUpload}
+              loading={uploading}
+              loadingText="Enviando..."
+              label="Arraste documentos aqui ou clique para selecionar"
+              sublabel="PDF, Word, imagens e outros formatos"
+              compact
+            />
             {attachDocs.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento anexado</p>
             ) : (
