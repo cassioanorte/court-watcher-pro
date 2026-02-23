@@ -484,6 +484,16 @@ const Publicacoes = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Encaminhar button */}
+                  {pub.case_id && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id!, processNumber: pub.process_number || undefined, sourceId: pub.id }); }}
+                      className="text-muted-foreground hover:text-accent transition-colors p-1"
+                      title="Encaminhar para cumprimento"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
                   {/* AI analyze button */}
                   {aiCredits && aiCredits.limit > 0 && (
                     <button
