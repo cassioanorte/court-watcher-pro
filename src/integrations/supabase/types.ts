@@ -841,6 +841,82 @@ export type Database = {
           },
         ]
       }
+      eproc_documents: {
+        Row: {
+          case_id: string | null
+          created_at: string
+          document_name: string
+          document_type: string | null
+          document_url: string
+          downloaded_at: string | null
+          file_size: string | null
+          id: string
+          process_number: string
+          processed_at: string | null
+          processing_result: Json | null
+          status: string
+          sync_log_id: string | null
+          tenant_id: string
+          unique_hash: string
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string
+          document_name: string
+          document_type?: string | null
+          document_url: string
+          downloaded_at?: string | null
+          file_size?: string | null
+          id?: string
+          process_number: string
+          processed_at?: string | null
+          processing_result?: Json | null
+          status?: string
+          sync_log_id?: string | null
+          tenant_id: string
+          unique_hash: string
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string
+          document_name?: string
+          document_type?: string | null
+          document_url?: string
+          downloaded_at?: string | null
+          file_size?: string | null
+          id?: string
+          process_number?: string
+          processed_at?: string | null
+          processing_result?: Json | null
+          status?: string
+          sync_log_id?: string | null
+          tenant_id?: string
+          unique_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eproc_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eproc_documents_sync_log_id_fkey"
+            columns: ["sync_log_id"]
+            isOneToOne: false
+            referencedRelation: "eproc_sync_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eproc_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eproc_sync_logs: {
         Row: {
           completed_at: string | null
