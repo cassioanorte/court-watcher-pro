@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bot, Users, CalendarDays, LucideIcon } from "lucide-react";
+import { Bot, CalendarDays, Send, LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface StatCard {
@@ -7,12 +7,12 @@ interface StatCard {
   value: number;
   icon: LucideIcon;
   link: string;
-  color: string; // tailwind color prefix e.g. "purple", "emerald", "orange"
+  color: string;
 }
 
 interface Props {
   agentsCount: number;
-  clientsCount: number;
+  fulfillmentsCount: number;
   appointmentsCount: number;
   loading: boolean;
 }
@@ -35,10 +35,10 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow
   },
 };
 
-const DashboardStatsCards = ({ agentsCount, clientsCount, appointmentsCount, loading }: Props) => {
+const DashboardStatsCards = ({ agentsCount, fulfillmentsCount, appointmentsCount, loading }: Props) => {
   const stats: StatCard[] = [
     { label: "Agentes de IA", value: agentsCount, icon: Bot, link: "/agentes-ia", color: "purple" },
-    { label: "Contatos", value: clientsCount, icon: Users, link: "/contatos", color: "emerald" },
+    { label: "Cumprimentos Pendentes", value: fulfillmentsCount, icon: Send, link: "/cumprimentos", color: "emerald" },
     { label: "Compromissos da Semana", value: appointmentsCount, icon: CalendarDays, link: "/agenda", color: "orange" },
   ];
 
