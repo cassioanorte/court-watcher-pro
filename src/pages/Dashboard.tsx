@@ -282,16 +282,14 @@ const Dashboard = () => {
                       {pub.publication_type && <span className="text-[10px] text-muted-foreground">{pub.publication_type}</span>}
                       {!pub.read && <span className="w-2 h-2 rounded-full bg-accent" />}
                     </button>
-                    {pub.case_id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
-                        onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id!, processNumber: pub.process_number || undefined, sourceType: "publication", sourceId: pub.id }); }}
-                      >
-                        <Send className="w-3 h-3" /> Encaminhar
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                      onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, caseId: pub.case_id || undefined, processNumber: pub.process_number || undefined, sourceType: "publication", sourceId: pub.id }); }}
+                    >
+                      <Send className="w-3 h-3" /> Encaminhar
+                    </Button>
                   </div>
                   <button onClick={() => handlePubClick(pub)} className="text-left w-full">
                     <p className={`text-sm line-clamp-1 ${pub.read ? "text-muted-foreground" : "text-foreground font-medium"}`}>{pub.title}</p>
