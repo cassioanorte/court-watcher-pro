@@ -52,13 +52,48 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
   var $=function(id){return document.getElementById(id)};
   var setMsg=function(t,m,p,d){$('lx-title').textContent=t;$('lx-msg').textContent=m;$('lx-bar').style.width=p+'%';if(d)$('lx-detail').textContent=d};
 
-  var cnj=/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/g;
-  var pageText=document.body.innerText;
-  var matches=pageText.match(cnj)||[];
-  var unique={};
+  var cnj=/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/;
+  var tableRows=document.querySelectorAll('table tr');
+  var colMap={autor:-1,reu:-1,assunto:-1,classe:-1};
+  var headerRow=tableRows[0];
+  if(headerRow){
+    var ths=headerRow.querySelectorAll('th,td');
+    for(var h=0;h<ths.length;h++){
+      var ht=(ths[h].textContent||'').toLowerCase().trim();
+      if(ht.indexOf('autor')>=0) colMap.autor=h;
+      else if(ht.indexOf('réu')>=0||ht.indexOf('reu')>=0) colMap.reu=h;
+      else if(ht.indexOf('classe')>=0) colMap.classe=h;
+      else if(ht.indexOf('assunto')>=0) colMap.assunto=h;
+    }
+  }
   var procs=[];
-  for(var i=0;i<matches.length;i++){
-    if(!unique[matches[i]]){unique[matches[i]]=1;procs.push(matches[i]);}
+  var procMeta={};
+  for(var i=0;i<tableRows.length;i++){
+    var cells=tableRows[i].querySelectorAll('td');
+    if(cells.length<3) continue;
+    var rowText=(cells[0].textContent||'').replace(/\\s/g,'');
+    var cnjMatch=rowText.match(cnj);
+    if(!cnjMatch) continue;
+    var num=cnjMatch[0];
+    if(procMeta[num]) continue;
+    var autor=(colMap.autor>=0&&cells[colMap.autor])?cells[colMap.autor].textContent.trim():null;
+    var reu=(colMap.reu>=0&&cells[colMap.reu])?cells[colMap.reu].textContent.trim():null;
+    var assunto=(colMap.assunto>=0&&cells[colMap.assunto])?cells[colMap.assunto].textContent.trim():null;
+    var classe=(colMap.classe>=0&&cells[colMap.classe])?cells[colMap.classe].textContent.trim():null;
+    var parties=null;
+    if(autor||reu){var pp=[];if(autor)pp.push(autor);if(reu)pp.push(reu);parties=pp.join(' | ');}
+    var subject=assunto||classe||null;
+    procMeta[num]={parties:parties,subject:subject};
+    procs.push(num);
+  }
+  if(procs.length===0){
+    var pageText=document.body.innerText;
+    var cnjG=/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/g;
+    var matches=pageText.match(cnjG)||[];
+    var unique={};
+    for(var i=0;i<matches.length;i++){
+      if(!unique[matches[i]]){unique[matches[i]]=1;procs.push(matches[i]);procMeta[matches[i]]={parties:null,subject:null};}
+    }
   }
 
   if(procs.length===0){
