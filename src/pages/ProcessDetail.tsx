@@ -724,14 +724,28 @@ const ProcessDetail = () => {
           {refreshing ? "Consultando tribunais..." : "Atualizar movimentações"}
         </button>
         {tribunalUrl && (
-          <a
-            href={tribunalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" /> Abrir no tribunal
-          </a>
+          isEprocSource ? (
+            <button
+              onClick={() => {
+                const num = caseData.process_number.replace(/\D/g, "");
+                navigator.clipboard.writeText(num);
+                toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
+                window.open(tribunalUrl, "_blank");
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" /> Abrir no eproc (copia nº)
+            </button>
+          ) : (
+            <a
+              href={tribunalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" /> Abrir no tribunal
+            </a>
+          )
         )}
       </div>
 
