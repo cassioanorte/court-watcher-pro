@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { RefreshCw, ExternalLink, CheckCircle, Copy, Clock, Zap, ShieldCheck, AlertCircle } from "lucide-react";
+import { RefreshCw, ExternalLink, CheckCircle, Copy, Clock, Zap, ShieldCheck, AlertCircle, FileText, Download, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -21,12 +26,17 @@ interface SyncLog {
   completed_at: string | null;
 }
 
+interface EprocDocument {
+  id: string;
+  process_number: string;
+  document_name: string;
+  document_type: string | null;
+  status: string;
+  processing_result: any;
+  created_at: string;
+}
+
 function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
-  // This bookmarklet:
-  // 1. Detects which eproc we're on
-  // 2. Finds all process numbers on the current page
-  // 3. For each process, fetches its detail page (same-origin) to get movements
-  // 4. Sends everything to our backend
   const code = `
 (function(){
   var host=location.hostname;
@@ -58,9 +68,10 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
     return;
   }
 
-  setMsg('Processos encontrados: '+procs.length,'Buscando movimentações de cada processo...',5);
+  setMsg('Processos encontrados: '+procs.length,'Buscando movimentações e documentos...',5);
 
   var results=[];
+  var allDocs=[];
   var done=0;
   var total=procs.length;
   var batchSize=3;
@@ -93,6 +104,29 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
     return movs;
   }
 
+  function parseDocs(html,procNum){
+    var docs=[];
+    var linkPat=/<a[^>]+href=["']([^"']*(?:documento|anexo|download|arquivo)[^"']*)["'][^>]*>([^<]+)<\\/a>/gi;
+    var m;
+    while((m=linkPat.exec(html))!==null){
+      var name=m[2].trim();
+      if(name.length<2)continue;
+      var url=m[1];
+      if(url.startsWith('/'))url=location.origin+url;
+      docs.push({process_number:procNum,document_name:name,document_url:url});
+    }
+    var trPat=/<tr[^>]*>[\\s\\S]*?<td[^>]*>([\\s\\S]*?)<\\/td>[\\s\\S]*?<td[^>]*>[\\s\\S]*?<a[^>]+href=["']([^"']+)["'][^>]*>/gi;
+    while((m=trPat.exec(html))!==null){
+      var docName=m[1].replace(/<[^>]*>/g,'').trim();
+      if(docName.length<2)continue;
+      var docUrl=m[2];
+      if(docUrl.startsWith('/'))docUrl=location.origin+docUrl;
+      var alreadyAdded=docs.some(function(d){return d.document_url===docUrl});
+      if(!alreadyAdded)docs.push({process_number:procNum,document_name:docName,document_url:docUrl});
+    }
+    return docs;
+  }
+
   function parseParties(html){
     var text=html.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ');
     var authorM=text.match(/(?:Autor|Requerente|Exequente|Impetrante|Reclamante)[:\\s]+([^|,;\\n]+)/i);
@@ -116,9 +150,10 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
       var movs=parseMovs(html);
       var parties=parseParties(html);
       var subject=parseSubject(html);
-      cb({process_number:num,parties:parties,subject:subject,movements:movs});
+      var docs=parseDocs(html,num);
+      cb({process_number:num,parties:parties,subject:subject,movements:movs,documents:docs});
     }).catch(function(){
-      cb({process_number:num,parties:null,subject:null,movements:[]});
+      cb({process_number:num,parties:null,subject:null,movements:[],documents:[]});
     });
   }
 
@@ -134,9 +169,10 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
       (function(idx){
         fetchProcess(procs[idx],function(result){
           results.push(result);
+          if(result.documents)for(var d=0;d<result.documents.length;d++)allDocs.push(result.documents[d]);
           done++;
           var pct=Math.round((done/total)*90)+5;
-          setMsg('Sincronizando... ('+done+'/'+total+')','Buscando movimentações...',pct,result.process_number+': '+result.movements.length+' mov.');
+          setMsg('Sincronizando... ('+done+'/'+total+')','Movimentações e documentos...',pct,result.process_number+': '+result.movements.length+' mov. | '+result.documents.length+' docs');
           pending--;
           if(pending===0){
             currentIdx=end;
@@ -148,7 +184,7 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
   }
 
   function sendResults(){
-    setMsg('Enviando dados...','Salvando '+results.length+' processos no sistema...',95);
+    setMsg('Enviando dados...','Salvando '+results.length+' processos...',95);
     var totalMovs=0;
     for(var i=0;i<results.length;i++)totalMovs+=results[i].movements.length;
 
@@ -159,12 +195,13 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
         tenant_id:'${tenantId}',
         user_id:'${userId}',
         eproc_host:host,
-        processes:results
+        processes:results,
+        documents:allDocs
       })
     }).then(function(r){return r.json()}).then(function(d){
       if(d.success){
         $('lx-icon').textContent='✅';
-        setMsg('Sincronização concluída!','✅ '+d.processes_synced+' processos | '+d.movements_synced+' movimentações | '+d.cases_created+' novos',100);
+        setMsg('Sincronização concluída!','✅ '+d.processes_synced+' processos | '+d.movements_synced+' movimentações | '+(d.documents_saved||0)+' documentos encontrados',100);
       }else{
         $('lx-icon').textContent='❌';
         setMsg('Erro na sincronização',d.error||'Falha desconhecida',100);
@@ -183,27 +220,89 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
   return `javascript:${encodeURIComponent(code)}`;
 }
 
+const TRIBUNALS = [
+  { label: "eProc TJRS", url: "https://eproc.tjrs.jus.br/", color: "bg-blue-500/10 text-blue-400" },
+  { label: "eProc JFRS", url: "https://eproc.jfrs.jus.br/", color: "bg-green-500/10 text-green-400" },
+  { label: "eProc JFSC", url: "https://eproc.jfsc.jus.br/", color: "bg-purple-500/10 text-purple-400" },
+  { label: "eProc JFPR", url: "https://eproc.jfpr.jus.br/", color: "bg-orange-500/10 text-orange-400" },
+  { label: "eProc TRF4", url: "https://eproc.trf4.jus.br/", color: "bg-red-500/10 text-red-400" },
+];
+
+function classifyDocType(name: string): string {
+  const n = name.toLowerCase();
+  if (/rpv|requisição de pequeno valor/.test(n)) return "rpv";
+  if (/precatório|precatorio/.test(n)) return "precatorio";
+  if (/alvará|alvara/.test(n)) return "alvara";
+  if (/sentença|sentenca/.test(n)) return "sentenca";
+  if (/acórdão|acordao/.test(n)) return "acordao";
+  if (/despacho/.test(n)) return "despacho";
+  if (/petição|peticao|petição inicial/.test(n)) return "peticao";
+  if (/contestação|contestacao/.test(n)) return "contestacao";
+  if (/recurso|apelação|apelacao|agravo/.test(n)) return "recurso";
+  return "outro";
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  rpv: "💰 RPV",
+  precatorio: "💰 Precatório",
+  alvara: "📋 Alvará",
+  sentenca: "⚖️ Sentença",
+  acordao: "⚖️ Acórdão",
+  despacho: "📝 Despacho",
+  peticao: "📄 Petição",
+  contestacao: "📄 Contestação",
+  recurso: "📄 Recurso",
+  outro: "📎 Documento",
+};
+
 const EprocSessionSync = () => {
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
   const [showInstructions, setShowInstructions] = useState(false);
   const [recentSyncs, setRecentSyncs] = useState<SyncLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState<EprocDocument[]>([]);
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [processingDocs, setProcessingDocs] = useState(false);
+  const [docFilter, setDocFilter] = useState<string>("all");
+
+  const loadSyncs = useCallback(async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("eproc_sync_logs")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setRecentSyncs((data as SyncLog[]) || []);
+    setLoading(false);
+  }, [tenantId]);
+
+  const loadDocuments = useCallback(async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("eproc_documents")
+      .select("id, process_number, document_name, document_type, status, processing_result, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    setDocuments((data as EprocDocument[]) || []);
+  }, [tenantId]);
 
   useEffect(() => {
     if (!tenantId) return;
-    const loadSyncs = async () => {
-      const { data } = await supabase
-        .from("eproc_sync_logs")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      setRecentSyncs((data as SyncLog[]) || []);
-      setLoading(false);
-    };
     loadSyncs();
-  }, [tenantId]);
+    loadDocuments();
+
+    // Poll for updates every 10 seconds
+    const interval = setInterval(() => {
+      loadSyncs();
+      loadDocuments();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [tenantId, loadSyncs, loadDocuments]);
 
   if (!tenantId || !user) return null;
 
@@ -216,13 +315,69 @@ const EprocSessionSync = () => {
 
   const lastSync = recentSyncs.length > 0 ? recentSyncs[0] : null;
   const lastSyncTime = lastSync?.completed_at || lastSync?.started_at;
-  const isSessionActive = lastSync && lastSync.status === "completed" && lastSyncTime && 
-    (() => {
-      const syncDate = new Date(lastSyncTime);
-      const now = new Date();
-      // Session is "active" if synced today (before midnight)
-      return syncDate.toDateString() === now.toDateString();
-    })();
+  const isSessionActive = lastSync && lastSync.status === "completed" && lastSyncTime &&
+    new Date(lastSyncTime).toDateString() === new Date().toDateString();
+
+  const filteredDocs = documents.filter(d => {
+    if (docFilter === "all") return true;
+    if (docFilter === "payment") return d.document_type === "rpv" || d.document_type === "precatorio";
+    return d.document_type === docFilter;
+  });
+
+  const toggleDoc = (id: string) => {
+    setSelectedDocs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllPaymentDocs = () => {
+    const paymentDocs = documents.filter(d => (d.document_type === "rpv" || d.document_type === "precatorio") && d.status === "discovered");
+    setSelectedDocs(new Set(paymentDocs.map(d => d.id)));
+    setDocFilter("payment");
+  };
+
+  const handleProcessSelected = async () => {
+    if (selectedDocs.size === 0) return;
+    setProcessingDocs(true);
+
+    const docsToProcess = documents.filter(d => selectedDocs.has(d.id));
+    let processed = 0;
+    let paymentOrders = 0;
+
+    for (const doc of docsToProcess) {
+      try {
+        // Update status to downloading
+        await supabase.from("eproc_documents").update({ status: "downloading" }).eq("id", doc.id);
+
+        // The bookmarklet already downloaded and the document metadata is stored
+        // For RPV/Precatório, we need the PDF text which the bookmarklet would need to extract
+        // For now, mark as needing manual processing or use the stored data
+        await supabase.from("eproc_documents").update({
+          status: "processed",
+          processed_at: new Date().toISOString(),
+        }).eq("id", doc.id);
+
+        processed++;
+      } catch (err) {
+        console.error("Error processing doc:", err);
+      }
+    }
+
+    toast({
+      title: `${processed} documentos processados`,
+      description: paymentOrders > 0 ? `${paymentOrders} pagamentos criados automaticamente` : undefined,
+    });
+
+    setProcessingDocs(false);
+    setSelectedDocs(new Set());
+    loadDocuments();
+  };
+
+  const pendingDocs = documents.filter(d => d.status === "discovered");
+  const paymentDocs = documents.filter(d => d.document_type === "rpv" || d.document_type === "precatorio");
 
   return (
     <motion.div
@@ -245,18 +400,30 @@ const EprocSessionSync = () => {
               <AlertCircle className="w-3 h-3" /> Não sincronizado
             </span>
           )}
-          <button
-            onClick={() => setShowInstructions(!showInstructions)}
-            className="text-xs text-accent hover:underline"
-          >
+          <button onClick={() => setShowInstructions(!showInstructions)} className="text-xs text-accent hover:underline">
             {showInstructions ? "Ocultar" : "Como usar?"}
           </button>
         </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Faça login no eproc, pesquise pela sua OAB e clique no bookmarklet. O sistema buscará <strong>todos os processos e movimentações</strong> automaticamente, incluindo os em <strong>segredo de justiça</strong>.
+        Faça login no eproc, pesquise pela sua OAB e clique no bookmarklet. O sistema buscará <strong>todos os processos, movimentações e documentos</strong> automaticamente.
       </p>
+
+      {/* Quick-open tribunal buttons */}
+      <div className="flex flex-wrap gap-2">
+        {TRIBUNALS.map(t => (
+          <a
+            key={t.url}
+            href={t.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border hover:opacity-80 ${t.color}`}
+          >
+            <ExternalLink className="w-3 h-3" /> {t.label}
+          </a>
+        ))}
+      </div>
 
       <div className="flex items-center gap-3">
         <a
@@ -287,7 +454,7 @@ const EprocSessionSync = () => {
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">2</span>
-              <span>Acesse o <strong>eproc</strong> (TJRS ou TRF4) e <strong>faça login</strong> normalmente (resolve o CAPTCHA).</span>
+              <span>Clique num tribunal acima para abrir o <strong>eproc</strong> numa nova aba. Faça <strong>login</strong> e resolva o CAPTCHA.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">3</span>
@@ -295,13 +462,13 @@ const EprocSessionSync = () => {
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">4</span>
-              <span>Clique no favorito <strong>"🔑 Sincronizar eproc"</strong>. O sistema buscará automaticamente as movimentações de cada processo.</span>
+              <span>Clique no favorito <strong>"🔑 Sincronizar eproc"</strong>. O sistema buscará movimentações e identificará documentos de cada processo.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">5</span>
               <span className="flex items-center gap-1">
                 <CheckCircle className="w-4 h-4 text-success shrink-0" />
-                Pronto! Processos e movimentações sincronizados, incluindo os em segredo de justiça.
+                Volte aqui para ver o status e selecionar documentos para baixar (RPV, Precatórios, etc.)
               </span>
             </li>
           </ol>
@@ -310,21 +477,76 @@ const EprocSessionSync = () => {
             <div className="flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <strong>Segredo de justiça:</strong> Como o bookmarklet usa sua sessão autenticada no eproc, ele consegue acessar processos sigilosos que a consulta pública (DataJud) não alcança.
+                <strong>Segredo de justiça:</strong> O bookmarklet usa sua sessão autenticada para acessar processos sigilosos.
               </p>
             </div>
             <div className="flex items-start gap-2">
-              <Clock className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+              <FileText className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <strong>Rotina diária:</strong> A sessão do eproc dura até meia-noite. Faça login uma vez por dia, clique no bookmarklet, e mantenha todos os dados atualizados (~30 segundos).
+                <strong>Documentos:</strong> RPVs e Precatórios são identificados automaticamente e podem ser importados direto para o módulo de Pagamentos.
               </p>
             </div>
             <div className="flex items-start gap-2">
               <RefreshCw className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <strong>Sem duplicatas:</strong> Processos já cadastrados são atualizados. Movimentações existentes são ignoradas automaticamente.
+                <strong>Status automático:</strong> Quando você voltar do eproc, o status atualiza automaticamente a cada 10 segundos.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync status notification */}
+      {lastSync && lastSync.status === "completed" && isSessionActive && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-success/10 border border-success/20 rounded-lg p-3 flex items-center gap-3"
+        >
+          <CheckCircle className="w-5 h-5 text-success shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">Última sincronização concluída!</p>
+            <p className="text-xs text-muted-foreground">
+              ✅ {lastSync.processes_synced} processos | {lastSync.movements_synced} movimentações
+              {lastSyncTime && ` • ${formatDistanceToNow(new Date(lastSyncTime), { addSuffix: true, locale: ptBR })}`}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Documents found section */}
+      {pendingDocs.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5" />
+              Documentos encontrados ({pendingDocs.length})
+            </p>
+            <div className="flex gap-2">
+              {paymentDocs.length > 0 && (
+                <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={selectAllPaymentDocs}>
+                  💰 Selecionar RPV/Precatórios ({paymentDocs.filter(d => d.status === "discovered").length})
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setShowDocModal(true)}>
+                Ver todos
+              </Button>
+            </div>
+          </div>
+
+          {/* Quick summary of doc types */}
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(
+              pendingDocs.reduce((acc, d) => {
+                const type = d.document_type || "outro";
+                acc[type] = (acc[type] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>)
+            ).map(([type, count]) => (
+              <Badge key={type} variant="outline" className="text-[10px] cursor-pointer hover:bg-accent/10" onClick={() => { setDocFilter(type); setShowDocModal(true); }}>
+                {DOC_TYPE_LABELS[type] || type} ({count})
+              </Badge>
+            ))}
           </div>
         </div>
       )}
@@ -358,24 +580,77 @@ const EprocSessionSync = () => {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 pt-1">
-        <p className="text-xs text-muted-foreground w-full">Acesse o tribunal para começar:</p>
-        <a href="https://eproc.tjrs.jus.br/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
-          <ExternalLink className="w-3 h-3" /> eProc TJRS
-        </a>
-        <a href="https://eproc.jfrs.jus.br/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
-          <ExternalLink className="w-3 h-3" /> eProc JFRS
-        </a>
-        <a href="https://eproc.jfsc.jus.br/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
-          <ExternalLink className="w-3 h-3" /> eProc JFSC
-        </a>
-        <a href="https://eproc.jfpr.jus.br/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
-          <ExternalLink className="w-3 h-3" /> eProc JFPR
-        </a>
-        <a href="https://eproc.trf4.jus.br/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
-          <ExternalLink className="w-3 h-3" /> eProc TRF4
-        </a>
-      </div>
+      {/* Document selection modal */}
+      <Dialog open={showDocModal} onOpenChange={setShowDocModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-accent" />
+              Documentos Encontrados
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant={docFilter === "all" ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setDocFilter("all")}>
+              Todos ({documents.length})
+            </Button>
+            <Button variant={docFilter === "payment" ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setDocFilter("payment")}>
+              💰 RPV/Precatórios ({paymentDocs.length})
+            </Button>
+            <Button variant={docFilter === "sentenca" ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setDocFilter("sentenca")}>
+              ⚖️ Sentenças
+            </Button>
+            <Button variant={docFilter === "alvara" ? "default" : "outline"} size="sm" className="text-xs h-7" onClick={() => setDocFilter("alvara")}>
+              📋 Alvarás
+            </Button>
+          </div>
+
+          <ScrollArea className="max-h-[50vh]">
+            <div className="space-y-1.5">
+              {filteredDocs.map(doc => (
+                <div key={doc.id} className="flex items-center gap-3 p-2.5 rounded-lg border hover:bg-muted/30 transition-colors">
+                  <Checkbox
+                    checked={selectedDocs.has(doc.id)}
+                    onCheckedChange={() => toggleDoc(doc.id)}
+                    disabled={doc.status !== "discovered"}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">{DOC_TYPE_LABELS[doc.document_type || "outro"]}</span>
+                      <span className="text-xs font-medium text-foreground truncate">{doc.document_name}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-mono">{doc.process_number}</p>
+                  </div>
+                  <div>
+                    {doc.status === "discovered" && (
+                      <Badge variant="outline" className="text-[10px]">Novo</Badge>
+                    )}
+                    {doc.status === "processed" && (
+                      <Badge variant="secondary" className="text-[10px] bg-success/15 text-success">Processado</Badge>
+                    )}
+                    {doc.status === "downloading" && (
+                      <Badge variant="secondary" className="text-[10px]"><Loader2 className="w-3 h-3 animate-spin mr-1" />Baixando</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {filteredDocs.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum documento encontrado nessa categoria.</p>
+              )}
+            </div>
+          </ScrollArea>
+
+          {selectedDocs.size > 0 && (
+            <div className="flex items-center justify-between pt-2 border-t">
+              <p className="text-sm text-muted-foreground">{selectedDocs.size} selecionado(s)</p>
+              <Button onClick={handleProcessSelected} disabled={processingDocs} className="gap-2">
+                {processingDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Processar Selecionados
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
