@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { ClipboardCheck, ArrowRight, AlertTriangle, Clock } from "lucide-react";
+import { ClipboardCheck, ArrowRight, AlertTriangle, Clock, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import FulfillmentModal, { type FulfillmentEditData } from "@/components/FulfillmentModal";
 
 const CATEGORY_LABELS: Record<string, string> = {
   peticao: "Petição",
@@ -27,40 +29,72 @@ interface FulfillmentSummary {
   id: string;
   case_id: string;
   category: string;
+  description: string | null;
+  assigned_to: string;
   due_date: string;
   priority: string;
   status: string;
+  notes: string | null;
   process_number?: string;
 }
 
 const DashboardFulfillments = () => {
   const { tenantId } = useAuth();
+  const { toast } = useToast();
   const [items, setItems] = useState<FulfillmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editData, setEditData] = useState<FulfillmentEditData | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const fetchItems = async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("case_fulfillments")
+      .select("id, case_id, category, description, assigned_to, due_date, priority, status, notes")
+      .eq("tenant_id", tenantId)
+      .in("status", ["pendente", "em_andamento"])
+      .order("due_date", { ascending: true })
+      .limit(8);
+
+    if (!data || data.length === 0) { setItems([]); setLoading(false); return; }
+
+    const caseIds = [...new Set(data.map(d => d.case_id))];
+    const { data: cases } = await supabase.from("cases").select("id, process_number").in("id", caseIds);
+    const caseMap: Record<string, string> = {};
+    (cases || []).forEach(c => { caseMap[c.id] = c.process_number; });
+
+    setItems(data.map(d => ({ ...d, process_number: caseMap[d.case_id] || "—" })));
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (!tenantId) return;
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("case_fulfillments")
-        .select("id, case_id, category, due_date, priority, status")
-        .eq("tenant_id", tenantId)
-        .in("status", ["pendente", "em_andamento"])
-        .order("due_date", { ascending: true })
-        .limit(8);
-
-      if (!data || data.length === 0) { setItems([]); setLoading(false); return; }
-
-      const caseIds = [...new Set(data.map(d => d.case_id))];
-      const { data: cases } = await supabase.from("cases").select("id, process_number").in("id", caseIds);
-      const caseMap: Record<string, string> = {};
-      (cases || []).forEach(c => { caseMap[c.id] = c.process_number; });
-
-      setItems(data.map(d => ({ ...d, process_number: caseMap[d.case_id] || "—" })));
-      setLoading(false);
-    };
-    fetch();
+    fetchItems();
   }, [tenantId]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir este cumprimento?")) return;
+    const { error } = await supabase.from("case_fulfillments").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Excluído" });
+      fetchItems();
+    }
+  };
+
+  const handleEdit = (item: FulfillmentSummary) => {
+    setEditData({
+      id: item.id,
+      case_id: item.case_id,
+      category: item.category,
+      description: item.description,
+      assigned_to: item.assigned_to,
+      due_date: item.due_date,
+      priority: item.priority,
+      notes: item.notes,
+    });
+    setModalOpen(true);
+  };
 
   const isOverdue = (dueDate: string) => new Date(dueDate) < new Date(new Date().toISOString().split("T")[0]);
   const overdueCount = items.filter(i => isOverdue(i.due_date)).length;
@@ -92,25 +126,44 @@ const DashboardFulfillments = () => {
             {items.map(item => {
               const overdue = isOverdue(item.due_date);
               return (
-                <Link key={item.id} to="/cumprimentos" className={`block rounded-md border p-3 hover:border-accent/30 transition-all ${overdue ? "border-destructive/30" : ""}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-[10px]">{CATEGORY_LABELS[item.category] || item.category}</Badge>
-                    <span className="text-[10px] font-mono text-muted-foreground">{item.process_number}</span>
-                    {item.priority === "urgente" && <span className="text-[10px]">🔴</span>}
+                <div key={item.id} className={`rounded-md border p-3 transition-all ${overdue ? "border-destructive/30" : ""}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <Link to="/cumprimentos" className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-[10px]">{CATEGORY_LABELS[item.category] || item.category}</Badge>
+                        <span className="text-[10px] font-mono text-muted-foreground">{item.process_number}</span>
+                        {item.priority === "urgente" && <span className="text-[10px]">🔴</span>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        <span className={overdue ? "text-destructive font-medium" : ""}>
+                          {new Date(item.due_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </span>
+                        {overdue && <span className="text-destructive text-[10px]">Vencido</span>}
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Editar" onClick={() => handleEdit(item)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Excluir" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    <span className={overdue ? "text-destructive font-medium" : ""}>
-                      {new Date(item.due_date + "T12:00:00").toLocaleDateString("pt-BR")}
-                    </span>
-                    {overdue && <span className="text-destructive text-[10px]">Vencido</span>}
-                  </div>
-                </Link>
+                </div>
               );
             })}
           </div>
         )}
       </div>
+
+      <FulfillmentModal
+        open={modalOpen}
+        onOpenChange={(open) => { setModalOpen(open); if (!open) setEditData(null); }}
+        editData={editData}
+        onCreated={fetchItems}
+      />
     </motion.div>
   );
 };

@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { ClipboardCheck, Plus, Filter, CheckCircle2, Clock, AlertTriangle, Loader2, ArrowRight } from "lucide-react";
+import { ClipboardCheck, Plus, Filter, CheckCircle2, Clock, AlertTriangle, Loader2, ArrowRight, Pencil, Trash2, Paperclip, FileText, X, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
-import FulfillmentModal from "@/components/FulfillmentModal";
+import FulfillmentModal, { type FulfillmentEditData } from "@/components/FulfillmentModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const CATEGORY_LABELS: Record<string, string> = {
   peticao: "Petição",
@@ -66,6 +67,13 @@ interface ProfileInfo {
   full_name: string;
 }
 
+interface FulfillmentDoc {
+  id: string;
+  file_name: string;
+  file_url: string;
+  created_at: string;
+}
+
 const Cumprimentos = () => {
   const { tenantId, user } = useAuth();
   const { toast } = useToast();
@@ -77,6 +85,11 @@ const Cumprimentos = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [assignedFilter, setAssignedFilter] = useState("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editData, setEditData] = useState<FulfillmentEditData | null>(null);
+  const [attachModalId, setAttachModalId] = useState<string | null>(null);
+  const [attachDocs, setAttachDocs] = useState<FulfillmentDoc[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
     if (!tenantId) return;
@@ -110,7 +123,6 @@ const Cumprimentos = () => {
     const items = (data || []) as Fulfillment[];
     setFulfillments(items);
 
-    // Fetch case info
     const caseIds = [...new Set(items.map(f => f.case_id))];
     if (caseIds.length > 0) {
       const { data: caseData } = await supabase
@@ -122,7 +134,6 @@ const Cumprimentos = () => {
       setCases(map);
     }
 
-    // Fetch profile info
     const userIds = [...new Set([...items.map(f => f.assigned_to), ...items.map(f => f.assigned_by)])];
     if (userIds.length > 0) {
       const { data: profileData } = await supabase
@@ -141,7 +152,6 @@ const Cumprimentos = () => {
     fetchData();
   }, [tenantId, statusFilter, categoryFilter, assignedFilter]);
 
-  // Realtime
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -167,6 +177,76 @@ const Cumprimentos = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este cumprimento?")) return;
+    const { error } = await supabase.from("case_fulfillments").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Cumprimento excluído" });
+      fetchData();
+    }
+  };
+
+  const handleEdit = (f: Fulfillment) => {
+    setEditData({
+      id: f.id,
+      case_id: f.case_id,
+      category: f.category,
+      description: f.description,
+      assigned_to: f.assigned_to,
+      due_date: f.due_date,
+      priority: f.priority,
+      notes: f.notes,
+    });
+    setModalOpen(true);
+  };
+
+  const openAttachModal = async (fulfillmentId: string) => {
+    setAttachModalId(fulfillmentId);
+    const { data } = await supabase
+      .from("fulfillment_documents")
+      .select("id, file_name, file_url, created_at")
+      .eq("fulfillment_id", fulfillmentId)
+      .order("created_at", { ascending: false });
+    setAttachDocs((data as FulfillmentDoc[]) || []);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !attachModalId || !tenantId) return;
+    setUploading(true);
+
+    for (const file of Array.from(files)) {
+      const path = `fulfillments/${attachModalId}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("case-documents")
+        .upload(path, file);
+      if (uploadError) {
+        toast({ title: "Erro no upload", description: uploadError.message, variant: "destructive" });
+        continue;
+      }
+      const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+      await supabase.from("fulfillment_documents").insert({
+        fulfillment_id: attachModalId,
+        tenant_id: tenantId,
+        file_name: file.name,
+        file_url: urlData.publicUrl,
+        uploaded_by: user?.id,
+      });
+    }
+
+    toast({ title: "Documento(s) anexado(s)!" });
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    openAttachModal(attachModalId);
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    await supabase.from("fulfillment_documents").delete().eq("id", docId);
+    if (attachModalId) openAttachModal(attachModalId);
+  };
+
   const isOverdue = (dueDate: string, status: string) => {
     if (status === "concluido" || status === "cancelado") return false;
     return new Date(dueDate) < new Date(new Date().toISOString().split("T")[0]);
@@ -186,7 +266,7 @@ const Cumprimentos = () => {
             {overdueCount > 0 && <span className="ml-2 text-destructive font-medium">• {overdueCount} vencido(s)</span>}
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)} className="gap-2">
+        <Button onClick={() => { setEditData(null); setModalOpen(true); }} className="gap-2">
           <Plus className="w-4 h-4" /> Novo Cumprimento
         </Button>
       </div>
@@ -272,6 +352,7 @@ const Cumprimentos = () => {
                     )}
                     {c?.parties && <p className="text-xs text-muted-foreground mt-0.5">{c.parties}</p>}
                     {f.description && <p className="text-sm text-foreground mt-1">{f.description}</p>}
+                    {f.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">Obs: {f.notes}</p>}
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -281,7 +362,16 @@ const Cumprimentos = () => {
                       <span className="text-muted-foreground/50">por {profiles[f.assigned_by]?.full_name || "—"}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    <Button variant="ghost" size="sm" className="text-xs h-7 px-2" title="Anexar documento" onClick={() => openAttachModal(f.id)}>
+                      <Paperclip className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-xs h-7 px-2" title="Editar" onClick={() => handleEdit(f)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-destructive hover:text-destructive" title="Excluir" onClick={() => handleDelete(f.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                     {f.status === "pendente" && (
                       <>
                         <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => updateStatus(f.id, "em_andamento")}>
@@ -310,7 +400,61 @@ const Cumprimentos = () => {
         </div>
       )}
 
-      <FulfillmentModal open={modalOpen} onOpenChange={setModalOpen} onCreated={fetchData} />
+      <FulfillmentModal
+        open={modalOpen}
+        onOpenChange={(open) => { setModalOpen(open); if (!open) setEditData(null); }}
+        editData={editData}
+        onCreated={fetchData}
+      />
+
+      {/* Attach Documents Modal */}
+      <Dialog open={!!attachModalId} onOpenChange={(open) => { if (!open) setAttachModalId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Paperclip className="w-5 h-5 text-accent" />
+              Documentos Anexados
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {uploading ? "Enviando..." : "Anexar Documento"}
+              </Button>
+            </div>
+            {attachDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento anexado</p>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {attachDocs.map(doc => (
+                  <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-md border bg-muted/30">
+                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0 flex-1 text-sm text-foreground hover:text-accent truncate">
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{doc.file_name}</span>
+                    </a>
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteDoc(doc.id)}>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
