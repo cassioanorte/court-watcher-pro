@@ -46,7 +46,7 @@ interface TodayMovement {
 const Dashboard = () => {
   const { tenantId } = useAuth();
   const [agentsCount, setAgentsCount] = useState(0);
-  const [clientsCount, setClientsCount] = useState(0);
+  const [fulfillmentsCount, setFulfillmentsCount] = useState(0);
   const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [todayPubs, setTodayPubs] = useState<Publication[]>([]);
   const [todayMovements, setTodayMovements] = useState<TodayMovement[]>([]);
@@ -102,21 +102,17 @@ const Dashboard = () => {
       weekEnd.setDate(weekEnd.getDate() + 7);
       const weekEndStr = weekEnd.toISOString();
 
-      const [agentsRes, profilesRes, appointmentsRes, pubsRes] = await Promise.all([
+      const [agentsRes, fulfillmentsRes, appointmentsRes, pubsRes] = await Promise.all([
         supabase.from("ai_agents").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
-        supabase.from("profiles").select("user_id").eq("tenant_id", tenantId),
+        supabase.from("case_fulfillments").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "pendente"),
         supabase.from("appointments").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("start_at", new Date().toISOString()).lte("start_at", weekEndStr),
         supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url, case_id").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
       ]);
 
       setAgentsCount(agentsRes.count || 0);
+      setFulfillmentsCount(fulfillmentsRes.count || 0);
       setAppointmentsCount(appointmentsRes.count || 0);
       setTodayPubs((pubsRes.data || []) as Publication[]);
-
-      if (profilesRes.data && profilesRes.data.length > 0) {
-        const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", profilesRes.data.map(p => p.user_id));
-        setClientsCount((roles || []).filter(r => r.role === "client").length);
-      }
 
       setLoading(false);
     };
@@ -173,7 +169,7 @@ const Dashboard = () => {
       {/* Stat Cards with gradients */}
       <DashboardStatsCards
         agentsCount={agentsCount}
-        clientsCount={clientsCount}
+        fulfillmentsCount={fulfillmentsCount}
         appointmentsCount={appointmentsCount}
         loading={loading}
       />
@@ -192,9 +188,8 @@ const Dashboard = () => {
         <DashboardDeadlines />
       </div>
 
-      {/* Deadlines + Movements row */}
+      {/* Movements row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardDeadlines />
 
         {/* Today's Movements */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
