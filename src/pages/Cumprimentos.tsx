@@ -1,15 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { ClipboardCheck, Plus, Filter, CheckCircle2, Clock, AlertTriangle, Loader2, ArrowRight, Pencil, Trash2, Paperclip, FileText, X, Upload } from "lucide-react";
+import { ClipboardCheck, Plus, Filter, CheckCircle2, Clock, AlertTriangle, Loader2, ArrowRight, Pencil, Trash2, Paperclip, FileText, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import FulfillmentModal, { type FulfillmentEditData } from "@/components/FulfillmentModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 
 const CATEGORY_LABELS: Record<string, string> = {
   peticao: "Petição",
@@ -89,7 +90,7 @@ const Cumprimentos = () => {
   const [attachModalId, setAttachModalId] = useState<string | null>(null);
   const [attachDocs, setAttachDocs] = useState<FulfillmentDoc[]>([]);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   const fetchData = async () => {
     if (!tenantId) return;
@@ -212,12 +213,11 @@ const Cumprimentos = () => {
     setAttachDocs((data as FulfillmentDoc[]) || []);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !attachModalId || !tenantId) return;
+  const handleFilesUpload = async (files: File[]) => {
+    if (files.length === 0 || !attachModalId || !tenantId) return;
     setUploading(true);
 
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       const path = `fulfillments/${attachModalId}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("case-documents")
@@ -238,7 +238,6 @@ const Cumprimentos = () => {
 
     toast({ title: "Documento(s) anexado(s)!" });
     setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
     openAttachModal(attachModalId);
   };
 
@@ -417,24 +416,16 @@ const Cumprimentos = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {uploading ? "Enviando..." : "Anexar Documento"}
-              </Button>
-            </div>
+            <FileDropZone
+              onFile={(file) => handleFilesUpload([file])}
+              multiple
+              onFiles={handleFilesUpload}
+              loading={uploading}
+              loadingText="Enviando..."
+              label="Arraste documentos aqui ou clique para selecionar"
+              sublabel="PDF, Word, imagens e outros formatos"
+              compact
+            />
             {attachDocs.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhum documento anexado</p>
             ) : (
