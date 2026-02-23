@@ -31,6 +31,7 @@ interface Publication {
   content: string | null;
   organ: string | null;
   external_url: string | null;
+  case_id: string | null;
 }
 
 interface TodayMovement {
@@ -105,7 +106,7 @@ const Dashboard = () => {
         supabase.from("ai_agents").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id").eq("tenant_id", tenantId),
         supabase.from("appointments").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("start_at", new Date().toISOString()).lte("start_at", weekEndStr),
-        supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
+        supabase.from("dje_publications").select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url, case_id").eq("tenant_id", tenantId).eq("publication_date", today).order("created_at", { ascending: false }).limit(10),
       ]);
 
       setAgentsCount(agentsRes.count || 0);
@@ -140,7 +141,7 @@ const Dashboard = () => {
       const today = new Date().toISOString().split("T")[0];
       const { data } = await supabase
         .from("dje_publications")
-        .select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url")
+        .select("id, title, source, publication_type, process_number, read, publication_date, content, organ, external_url, case_id")
         .eq("tenant_id", tenantId)
         .eq("publication_date", today)
         .order("created_at", { ascending: false })
