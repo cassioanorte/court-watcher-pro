@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore, Shield } from "lucide-react";
+import { Search, Plus, Filter, RefreshCw, Download, Loader2, Pencil, Trash2, X, Save, AlertTriangle, CheckSquare, Square, MinusSquare, Archive, ArchiveRestore, Shield, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import NewProcessModal from "@/components/NewProcessModal";
 import ProcessAccessControl from "@/components/ProcessAccessControl";
 import ImportReview from "@/components/ImportReview";
+import FulfillmentModal from "@/components/FulfillmentModal";
 import type { Tables, Database } from "@/integrations/supabase/types";
 
 type ProcessSource = Database["public"]["Enums"]["process_source"];
@@ -49,6 +50,7 @@ const Processes = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"ativos" | "arquivados">("ativos");
   const [accessControlCase, setAccessControlCase] = useState<{ id: string; process_number: string } | null>(null);
+  const [fulfillmentCase, setFulfillmentCase] = useState<{ id: string; process_number: string } | null>(null);
   const { tenantId, role } = useAuth();
   const { toast } = useToast();
 
@@ -408,6 +410,13 @@ const Processes = () => {
                           </button>
                         )}
                         <button
+                          onClick={() => setFulfillmentCase({ id: p.id, process_number: p.process_number })}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+                          title="Encaminhar para cumprimento"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => handleArchiveToggle(p)}
                           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           title={(p as any).archived ? "Desarquivar" : "Arquivar"}
@@ -570,6 +579,16 @@ const Processes = () => {
       )}
 
       <NewProcessModal open={showNew} onClose={() => setShowNew(false)} onSuccess={fetchProcesses} />
+
+      {fulfillmentCase && (
+        <FulfillmentModal
+          open={!!fulfillmentCase}
+          onOpenChange={(open) => { if (!open) setFulfillmentCase(null); }}
+          caseId={fulfillmentCase.id}
+          processNumber={fulfillmentCase.process_number}
+          sourceType="manual"
+        />
+      )}
     </div>
   );
 };
