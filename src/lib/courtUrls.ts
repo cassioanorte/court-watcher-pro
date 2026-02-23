@@ -94,7 +94,8 @@ export function getAuthenticatedCourtUrl(processNumber: string, source?: string)
 
   // Justice 8 = Estadual
   if (justice === "8" && tribunal === "21") {
-    return `https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&num_processo=${encodeURIComponent(formatted)}`;
+    const d = processNumber.replace(/\D/g, "");
+    return `https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&acao_origem=pesquisa_processo_por_num_oab&acao_retorno=pesquisa_processo_por_num_oab&num_processo=${d}`;
   }
 
   // Justice 5 = Trabalho
