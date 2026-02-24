@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { ClipboardCheck, Plus, Filter, CheckCircle2, Clock, AlertTriangle, Loader2, ArrowRight, Pencil, Trash2, Paperclip, FileText, X } from "lucide-react";
+import { ClipboardCheck, Plus, Filter, CheckCircle2, Clock, AlertTriangle, Loader2, ArrowRight, Pencil, Trash2, Paperclip, FileText, X, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -361,9 +361,16 @@ const Cumprimentos = () => {
                       <span className="text-muted-foreground/50">por {profiles[f.assigned_by]?.full_name || "—"}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                    <Button variant="ghost" size="sm" className="text-xs h-7 px-2" title="Anexar documento" onClick={() => openAttachModal(f.id)}>
-                      <Paperclip className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                     {c && (
+                       <Button variant="ghost" size="sm" className="text-xs h-7 px-2" title="Ver processo" asChild>
+                         <Link to={`/processos/${c.id}`}>
+                           <ExternalLink className="w-3.5 h-3.5 mr-1" /> Processo
+                         </Link>
+                       </Button>
+                     )}
+                      <Button variant="ghost" size="sm" className="text-xs h-7 px-2" title="Anexar documento" onClick={() => openAttachModal(f.id)}>
+                        <Paperclip className="w-3.5 h-3.5" />
                     </Button>
                     <Button variant="ghost" size="sm" className="text-xs h-7 px-2" title="Editar" onClick={() => handleEdit(f)}>
                       <Pencil className="w-3.5 h-3.5" />
