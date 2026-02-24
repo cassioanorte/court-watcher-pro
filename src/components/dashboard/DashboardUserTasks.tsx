@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CheckSquare, Plus, Check, Trash2, CalendarDays, ChevronDown, ChevronRight, Briefcase, ListPlus } from "lucide-react";
+import { CheckSquare, Plus, Check, Trash2, CalendarDays, ChevronDown, ChevronRight, Briefcase, ListPlus, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +25,8 @@ const DashboardUserTasks = () => {
     setAdding(false);
   };
 
-  const handlePredefined = async (title: string) => {
-    setAdding(true);
-    const err = await addTask(title);
-    if (err) toast.error("Erro ao criar tarefa");
-    else toast.success("Tarefa criada!");
-    setAdding(false);
+  const handlePredefined = (title: string) => {
+    setNewTitle(title);
     setShowPredefined(false);
   };
 
@@ -124,6 +120,9 @@ const DashboardUserTasks = () => {
                     )}
                   </div>
                 </div>
+                <Link to={`/tarefas`} className="p-1 text-muted-foreground hover:text-accent shrink-0">
+                  <Edit2 className="w-3.5 h-3.5" />
+                </Link>
                 <button onClick={() => { deleteTask(t.id); toast.success("Tarefa excluída"); }} className="p-1 text-muted-foreground hover:text-destructive shrink-0">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
