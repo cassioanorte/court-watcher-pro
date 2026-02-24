@@ -54,7 +54,7 @@ const ProcessDetail = () => {
   const [partiesText, setPartiesText] = useState("");
   const [savingParties, setSavingParties] = useState(false);
   const [savingSummary, setSavingSummary] = useState(false);
-  const [savingNextStep, setSavingNextStep] = useState(false);
+  
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   // New message
