@@ -47,8 +47,6 @@ const ProcessDetail = () => {
   const [editingNextStep, setEditingNextStep] = useState(false);
   const [editingParties, setEditingParties] = useState(false);
   const [caseSummary, setCaseSummary] = useState("");
-  const [nextStep, setNextStep] = useState("");
-  const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
   const [caseNotes, setCaseNotes] = useState<any[]>([]);
   const [newNoteText, setNewNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
