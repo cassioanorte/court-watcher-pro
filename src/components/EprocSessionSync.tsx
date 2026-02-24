@@ -137,34 +137,44 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
 
   function parseMovs(html){
     var movs=[];
-    var pat=/(\\d{2}\\/\\d{2}\\/\\d{4})\\s*(\\d{2}:\\d{2}(?::\\d{2})?)?\\s*[-–|]\\s*([^<\\n]+)/g;
+    var text=html.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi,'');
+    text=text.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi,'');
+    text=text.replace(/if\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\}/g,'');
+    text=text.replace(/function\\s+\\w+[\\s\\S]*?\\}/g,'');
+    text=text.replace(/<[^>]*>/g,' ');
+    text=text.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+    text=text.replace(/\\s+/g,' ');
+    var evtPat=/(\\d{1,4})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)\\s+(.+?)(?=\\d{1,4}\\s+\\d{2}\\/\\d{2}\\/\\d{4}|$)/g;
     var m;
-    var text=html.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ');
-    while((m=pat.exec(text))!==null){
-      var ds=m[1].split('/');
-      var ts=m[2]?m[2].split(':'):[0,0];
+    while((m=evtPat.exec(text))!==null){
+      var ds=m[2].split('/');
+      var ts=m[3].split(':');
       var d=new Date(parseInt(ds[2]),parseInt(ds[1])-1,parseInt(ds[0]),parseInt(ts[0])||0,parseInt(ts[1])||0);
-      if(d.getFullYear()<1990||d.getFullYear()>2030)continue;
-      var title=m[3].trim().substring(0,500);
+      if(d.getFullYear()<1990||d.getFullYear()>2035)continue;
+      var title=m[4].trim().replace(/\\s+/g,' ').substring(0,500);
+      title=title.replace(/^\\s*[-–|]\\s*/,'');
       if(title.length<3)continue;
+      if(/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(title))continue;
+      if(title.indexOf('carregarTooltip')>=0||title.indexOf('infraTooltip')>=0||title.indexOf('window.')>=0)continue;
       movs.push({title:title,date:d.toISOString(),details:null});
     }
-    var rowPat=/<tr[^>]*>[\\s\\S]*?<td[^>]*>[\\s\\S]*?(\\d{2}\\/\\d{2}\\/\\d{4})[\\s\\S]*?<\\/td>[\\s\\S]*?<td[^>]*>([\\s\\S]*?)<\\/td>[\\s\\S]*?<\\/tr>/gi;
-    while((m=rowPat.exec(html))!==null){
-      var ds2=m[1].split('/');
-      var content=m[2].replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim();
-      if(content.length<3)continue;
-      var d2=new Date(parseInt(ds2[2]),parseInt(ds2[1])-1,parseInt(ds2[0]));
-      if(d2.getFullYear()<1990||d2.getFullYear()>2030)continue;
-      var exists=movs.some(function(x){return x.title===content&&x.date===d2.toISOString()});
-      if(!exists)movs.push({title:content,date:d2.toISOString(),details:null});
+    if(movs.length===0){
+      var simplePat=/(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)\\s+(.+?)(?=\\d{2}\\/\\d{2}\\/\\d{4}|$)/g;
+      while((m=simplePat.exec(text))!==null){
+        var ds2=m[1].split('/');
+        var d2=new Date(parseInt(ds2[2]),parseInt(ds2[1])-1,parseInt(ds2[0]));
+        if(d2.getFullYear()<1990||d2.getFullYear()>2035)continue;
+        var t2=m[3].trim().replace(/\\s+/g,' ').substring(0,500);
+        if(t2.length<3||t2.indexOf('carregarTooltip')>=0)continue;
+        movs.push({title:t2,date:d2.toISOString(),details:null});
+      }
     }
     return movs;
   }
 
   function parseDocs(html,procNum){
     var docs=[];
-    var linkPat=/<a[^>]+href=["']([^"']*(?:documento|anexo|download|arquivo)[^"']*)["'][^>]*>([^<]+)<\\/a>/gi;
+    var linkPat=/<a[^>]+href=["']([^"']+)["'][^>]*>([^<]*(?:PRECAT[OÓ]RIO|RPV|ALVAR[AÁ]|SENTEN[CÇ]A|DESPACHO|PETI[CÇ][AÃ]O|AC[OÓ]RD[AÃ]O|PET\\d|CONHON|HONOR|PRECAT|EVENTO|DOC\\d)[^<]*)<\\/a>/gi;
     var m;
     while((m=linkPat.exec(html))!==null){
       var name=m[2].trim();
@@ -173,14 +183,31 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
       if(url.startsWith('/'))url=location.origin+url;
       docs.push({process_number:procNum,document_name:name,document_url:url});
     }
-    var trPat=/<tr[^>]*>[\\s\\S]*?<td[^>]*>([\\s\\S]*?)<\\/td>[\\s\\S]*?<td[^>]*>[\\s\\S]*?<a[^>]+href=["']([^"']+)["'][^>]*>/gi;
-    while((m=trPat.exec(html))!==null){
-      var docName=m[1].replace(/<[^>]*>/g,'').trim();
+    var broadPat=/<a[^>]+href=["']([^"']*(?:acessar_documento|documento_consultar|documento_visualizar|componente_digital|download_documento|acao=documento|infra_css\\/imagens\\/gif)[^"']*)["'][^>]*>\\s*([^<]+)<\\/a>/gi;
+    while((m=broadPat.exec(html))!==null){
+      var docName=m[2].trim();
       if(docName.length<2)continue;
-      var docUrl=m[2];
+      var docUrl=m[1];
       if(docUrl.startsWith('/'))docUrl=location.origin+docUrl;
       var alreadyAdded=docs.some(function(d){return d.document_url===docUrl});
       if(!alreadyAdded)docs.push({process_number:procNum,document_name:docName,document_url:docUrl});
+    }
+    var imgDocPat=/<a[^>]+href=["']([^"']+)["'][^>]*>[\\s]*<img[^>]+(?:title|alt)=["']([^"']+)["'][^>]*>[\\s]*<\\/a>/gi;
+    while((m=imgDocPat.exec(html))!==null){
+      var imgName=m[2].trim();
+      if(imgName.length<2)continue;
+      var imgUrl=m[1];
+      if(imgUrl.startsWith('/'))imgUrl=location.origin+imgUrl;
+      var exists=docs.some(function(d){return d.document_url===imgUrl});
+      if(!exists)docs.push({process_number:procNum,document_name:imgName,document_url:imgUrl});
+    }
+    var iconDocPat=/<a[^>]+href=["']([^"']+)["'][^>]*title=["']([^"']*(?:precat|rpv|alvar|senten|petição|acordão|despacho)[^"']*)["'][^>]*>/gi;
+    while((m=iconDocPat.exec(html))!==null){
+      var tName=m[2].trim();
+      var tUrl=m[1];
+      if(tUrl.startsWith('/'))tUrl=location.origin+tUrl;
+      var ex2=docs.some(function(d){return d.document_url===tUrl});
+      if(!ex2)docs.push({process_number:procNum,document_name:tName,document_url:tUrl});
     }
     return docs;
   }
