@@ -485,9 +485,8 @@ const Publicacoes = () => {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                                       toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });
-                                      if (url) openViaBlank(url);
+                                      if (url) openViaBlank(url, pn.replace(/\D/g, ""));
                                     }}
                                     className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
                                     title={`Abrir ${pn} no eproc (copia nº)`}
@@ -616,9 +615,8 @@ const Publicacoes = () => {
                               eproc ? (
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                                     toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });
-                                    if (url) openViaBlank(url);
+                                    if (url) openViaBlank(url, pn.replace(/\D/g, ""));
                                   }}
                                   className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
                                 >
