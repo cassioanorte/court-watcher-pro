@@ -200,6 +200,11 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     setPriority("normal");
     setDescription("");
     setNotes("");
+    setPendingFiles([]);
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
