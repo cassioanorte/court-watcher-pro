@@ -156,7 +156,8 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
       if(title.length<3)continue;
       if(/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(title))continue;
       if(title.indexOf('carregarTooltip')>=0||title.indexOf('infraTooltip')>=0||title.indexOf('window.')>=0)continue;
-      movs.push({title:title,date:d.toISOString(),details:null});
+      var evtNum=m[1];
+      movs.push({title:'Evento ' + evtNum + ' - ' + title,date:d.toISOString(),details:null});
     }
     if(movs.length===0){
       var simplePat=/(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)\\s+(.+?)(?=\\d{2}\\/\\d{2}\\/\\d{4}|$)/g;
