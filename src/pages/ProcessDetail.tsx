@@ -49,9 +49,10 @@ const ProcessDetail = () => {
   const [caseSummary, setCaseSummary] = useState("");
   const [nextStep, setNextStep] = useState("");
   const [nextStepResponsibleId, setNextStepResponsibleId] = useState<string | null>(null);
-  const [nextStepDueDate, setNextStepDueDate] = useState<string>("");
-  const [caseTasks, setCaseTasks] = useState<any[]>([]);
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [caseNotes, setCaseNotes] = useState<any[]>([]);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [partiesText, setPartiesText] = useState("");
   const [savingParties, setSavingParties] = useState(false);
   const [savingSummary, setSavingSummary] = useState(false);
@@ -97,7 +98,7 @@ const ProcessDetail = () => {
         supabase.from("movements").select("*").eq("case_id", id).order("occurred_at", { ascending: false }),
         supabase.from("messages").select("*").eq("case_id", id).order("created_at", { ascending: true }),
         supabase.from("documents").select("*").eq("case_id", id).order("created_at", { ascending: false }),
-        supabase.from("task_assignments").select("*").eq("case_id", id).eq("completed", false).order("created_at", { ascending: false }),
+        supabase.from("case_notes").select("*").eq("case_id", id).order("created_at", { ascending: true }),
       ]);
       if (caseRes.data) {
         setCaseData(caseRes.data);
@@ -109,7 +110,7 @@ const ProcessDetail = () => {
       if (movRes.data) setMovements(movRes.data);
       if (msgRes.data) setMessages(msgRes.data);
       if (docRes.data) setDocuments(docRes.data);
-      if (taskRes.data) setCaseTasks(taskRes.data);
+      if (taskRes.data) setCaseNotes(taskRes.data);
       setLoading(false);
     };
     load();
@@ -187,56 +188,42 @@ const ProcessDetail = () => {
     setSavingSummary(false);
   };
 
-  const handleSaveNextStep = async () => {
-    if (!id) return;
-    setSavingNextStep(true);
-    if (!nextStep.trim()) {
-      toast({ title: "Preencha a descrição da tarefa", variant: "destructive" });
-      setSavingNextStep(false);
-      return;
-    }
+  const handleAddNote = async () => {
+    if (!id || !newNoteText.trim() || !tenantId) return;
+    setAddingNote(true);
     try {
-      // Create task assignment record
-      if (tenantId) {
-        const assignedTo = nextStepResponsibleId || user?.id;
-        const { data: newTask, error: taskError } = await supabase.from("task_assignments").insert({
-          tenant_id: tenantId,
-          case_id: id,
-          assigned_by: user?.id,
-          assigned_to: assignedTo,
-          task_description: nextStep.trim(),
-          process_number: caseData.process_number,
-          parties: caseData.parties || null,
-          due_date: nextStepDueDate || null,
-        } as any).select("*").single();
-
-        if (taskError) throw taskError;
-        if (newTask) setCaseTasks(prev => [newTask, ...prev]);
-
-        // Send notification if assigned to someone else
-        if (nextStepResponsibleId && nextStepResponsibleId !== user?.id) {
-          const dueDateText = nextStepDueDate ? ` | Prazo: ${new Date(nextStepDueDate + "T12:00:00").toLocaleDateString("pt-BR")}` : "";
-          await supabase.from("notifications").insert({
-            user_id: nextStepResponsibleId,
-            title: `Nova tarefa: ${nextStep}`,
-            body: `Processo ${caseData.process_number}${caseData.parties ? ` (${caseData.parties})` : ""}${dueDateText}`,
-            case_id: id,
-          });
-        }
-
-        // Also update the case's next_step field with the latest task
-        await supabase.from("cases").update({ next_step: nextStep.trim(), next_step_responsible_id: nextStepResponsibleId || null } as any).eq("id", id);
-        setCaseData((prev: any) => ({ ...prev, next_step: nextStep.trim(), next_step_responsible_id: nextStepResponsibleId }));
-      }
+      const { data, error } = await supabase.from("case_notes").insert({
+        case_id: id,
+        tenant_id: tenantId,
+        text: newNoteText.trim(),
+        created_by: user?.id,
+      } as any).select("*").single();
+      if (error) throw error;
+      if (data) setCaseNotes(prev => [...prev, data]);
+      setNewNoteText("");
       setEditingNextStep(false);
-      setNextStep("");
-      setNextStepResponsibleId(null);
-      setNextStepDueDate("");
-      toast({ title: "Tarefa adicionada!" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
-    setSavingNextStep(false);
+    setAddingNote(false);
+  };
+
+  const handleToggleNote = async (noteId: string, completed: boolean) => {
+    const { error } = await supabase.from("case_notes").update({ completed } as any).eq("id", noteId);
+    if (!error) {
+      setCaseNotes(prev => prev.map(n => n.id === noteId ? { ...n, completed } : n));
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    setDeletingNoteId(noteId);
+    const { error } = await supabase.from("case_notes").delete().eq("id", noteId);
+    if (!error) {
+      setCaseNotes(prev => prev.filter(n => n.id !== noteId));
+    } else {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    }
+    setDeletingNoteId(null);
   };
 
   const handleSendMessage = async () => {
