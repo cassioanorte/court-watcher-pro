@@ -330,7 +330,7 @@ const Dashboard = () => {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(pn.replace(/\D/g, ""));
-                              toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
+                              toast.success("Nº copiado! Cole na busca do eproc. Abrindo portal...");
                               window.open(url, "_blank");
                             }}
                             className="text-accent hover:text-accent/80 transition-colors inline-flex items-center gap-1 text-xs"
