@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Sav
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { getCourtUrl, getAuthenticatedCourtUrl } from "@/lib/courtUrls";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -453,17 +454,10 @@ const ProcessDetail = () => {
     return n;
   };
 
-  const tribunalUrls: Record<string, (n: string) => string> = {
-    TRF4_JFRS: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=RS&chkMostrarBaixados=S`,
-    TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
-    TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
-    TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
-    TJRS_1G: (n) => `https://eproc1g.tjrs.jus.br/eproc/`,
-    TJRS_2G: (n) => `https://eproc2g.tjrs.jus.br/eproc/`,
-  };
-
-  const isEprocSource = caseData.source === "TJRS_1G" || caseData.source === "TJRS_2G";
-  const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
+  const isEprocSource = caseData.source === "TJRS_1G" || caseData.source === "TJRS_2G" || caseData.source === "TRF4_JFRS" || caseData.source === "TRF4_JFSC" || caseData.source === "TRF4_JFPR" || caseData.source === "TRF4";
+  const tribunalUrl = isEprocSource
+    ? getAuthenticatedCourtUrl(caseData.process_number, caseData.source) ?? getCourtUrl(caseData.process_number, caseData.source)
+    : getCourtUrl(caseData.process_number, caseData.source);
 
   const tabs = [
     { key: "timeline" as const, label: "Timeline", icon: RefreshCw },
@@ -724,28 +718,21 @@ const ProcessDetail = () => {
           {refreshing ? "Consultando tribunais..." : "Atualizar movimentações"}
         </button>
         {tribunalUrl && (
-          isEprocSource ? (
-            <button
-              onClick={() => {
+          <a
+            href={tribunalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              if (isEprocSource) {
                 const num = caseData.process_number.replace(/\D/g, "");
                 navigator.clipboard.writeText(num);
                 toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
-                window.open(tribunalUrl, "_blank");
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" /> Abrir no eproc (copia nº)
-            </button>
-          ) : (
-            <a
-              href={tribunalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" /> Abrir no tribunal
-            </a>
-          )
+              }
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" /> {isEprocSource ? "Abrir no eproc (copia nº)" : "Abrir no tribunal"}
+          </a>
         )}
       </div>
 
