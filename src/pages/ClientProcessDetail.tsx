@@ -274,16 +274,10 @@ const ClientProcessDetail = () => {
     return n;
   };
 
-  const tribunalUrls: Record<string, (n: string) => string> = {
-    TRF4_JFRS: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=RS&chkMostrarBaixados=S`,
-    TRF4_JFSC: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=SC&chkMostrarBaixados=S`,
-    TRF4_JFPR: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=PR&chkMostrarBaixados=S`,
-    TRF4: (n) => `https://consulta.trf4.jus.br/trf4/controlador.php?acao=consulta_processual_resultado_pesquisa&selForma=NU&txtValor=${encodeURIComponent(formatCNJ(n))}&selOrigem=TRF&chkMostrarBaixados=S`,
-    TJRS_1G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
-    TJRS_2G: (n) => `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(n))}`,
-  };
-
-  const tribunalUrl = tribunalUrls[caseData.source]?.(caseData.process_number);
+  const isEprocSource = caseData.source === "TJRS_1G" || caseData.source === "TJRS_2G" || caseData.source === "TRF4_JFRS" || caseData.source === "TRF4_JFSC" || caseData.source === "TRF4_JFPR" || caseData.source === "TRF4";
+  const tribunalUrl = isEprocSource
+    ? getAuthenticatedCourtUrl(caseData.process_number, caseData.source) ?? getCourtUrl(caseData.process_number, caseData.source)
+    : getCourtUrl(caseData.process_number, caseData.source);
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: "timeline", label: "Timeline", icon: <Clock className="w-4 h-4" /> },
