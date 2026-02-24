@@ -117,7 +117,7 @@ const AdminDashboard = () => {
 
   const cards = [
     { label: "Escritórios", value: stats.tenants, icon: Building2, color: "from-violet-500 to-indigo-600", link: "/admin/escritorios" },
-    { label: "Usuários", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600", link: "/admin/usuarios" },
+    { label: "Usuários do Escritório", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600", link: "/admin/usuarios" },
     { label: "Logs de Atividade", value: stats.recentLogs, icon: Activity, color: "from-rose-500 to-pink-600", link: "/admin/atividade" },
   ];
 
