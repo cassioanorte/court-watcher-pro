@@ -300,7 +300,7 @@ const ClientProcessDetail = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="gradient-hero text-primary-foreground shrink-0">
+      <header className="gradient-hero text-sidebar-foreground shrink-0">
         <div className="max-w-lg mx-auto px-4 py-4">
           <Link to="/portal" className="inline-flex items-center gap-1 text-sm opacity-70 hover:opacity-100 transition-opacity mb-3">
             <ArrowLeft className="w-4 h-4" /> Voltar
