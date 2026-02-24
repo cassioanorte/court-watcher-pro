@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { ClipboardCheck, ArrowRight, AlertTriangle, Clock, Pencil, Trash2 } from "lucide-react";
+import { ClipboardCheck, ArrowRight, AlertTriangle, Clock, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -143,6 +143,11 @@ const DashboardFulfillments = () => {
                       </div>
                     </Link>
                     <div className="flex items-center gap-0.5 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Ver processo" asChild>
+                        <Link to={`/processos/${item.case_id}`}>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      </Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Editar" onClick={() => handleEdit(item)}>
                         <Pencil className="w-3.5 h-3.5" />
                       </Button>
