@@ -79,24 +79,24 @@ export function getAuthenticatedCourtUrl(processNumber: string, source?: string)
   const tribunal = digits.slice(14, 16);
 
   // Justice 4 = Federal (TRF4)
-  // Use the eproc search URL that works with an active session
+  // Open portal homepage — deep links create cross-site sessions that block documents
   if (justice === "4" && tribunal === "04") {
     const origin = digits.slice(16, 20);
     if (origin.startsWith("71") || origin.startsWith("50")) {
-      return `https://eproc.jfrs.jus.br/eprocV2/controlador.php?acao=processo_selecionar&acao_origem=processo_pesquisar&num_processo=${digits}`;
+      return `https://eproc.jfrs.jus.br/eprocV2/`;
     }
     if (origin.startsWith("72")) {
-      return `https://eproc.jfsc.jus.br/eprocV2/controlador.php?acao=processo_selecionar&acao_origem=processo_pesquisar&num_processo=${digits}`;
+      return `https://eproc.jfsc.jus.br/eprocV2/`;
     }
     if (origin.startsWith("70")) {
-      return `https://eproc.jfpr.jus.br/eprocV2/controlador.php?acao=processo_selecionar&acao_origem=processo_pesquisar&num_processo=${digits}`;
+      return `https://eproc.jfpr.jus.br/eprocV2/`;
     }
-    return `https://eproc.trf4.jus.br/eproc2trf4/controlador.php?acao=processo_selecionar&acao_origem=processo_pesquisar&num_processo=${digits}`;
+    return `https://eproc.trf4.jus.br/eproc2trf4/`;
   }
 
   // Justice 8 = Estadual (TJRS)
   if (justice === "8" && tribunal === "21") {
-    return `https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao=processo_selecionar&acao_origem=processo_pesquisar&num_processo=${digits}`;
+    return `https://eproc1g.tjrs.jus.br/eproc/`;
   }
 
   // Justice 5 = Trabalho
