@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2, Send } from "lucide-react";
-import { getCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
+import { getCourtUrl, getAuthenticatedCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -476,8 +476,8 @@ const Publicacoes = () => {
                     return (
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {processes.map((pn) => {
-                          const url = getCourtUrl(pn);
                           const eproc = isEprocProcess(pn);
+                          const url = eproc ? getAuthenticatedCourtUrl(pn) : getCourtUrl(pn);
                           return (
                             <span key={pn} className="inline-flex items-center gap-0.5">
                               {url && (
@@ -609,8 +609,8 @@ const Publicacoes = () => {
                   return (
                     <div className="space-y-1.5">
                       {processes.map((pn) => {
-                        const url = getCourtUrl(pn);
                         const eproc = isEprocProcess(pn);
+                        const url = eproc ? getAuthenticatedCourtUrl(pn) : getCourtUrl(pn);
                         return (
                           <div key={pn} className="flex items-center gap-2">
                             <span className="text-sm font-mono text-muted-foreground">{pn}</span>

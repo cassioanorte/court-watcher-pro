@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw, Send } from "lucide-react";
-import { getCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
+import { getCourtUrl, getAuthenticatedCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -230,8 +230,10 @@ const Dashboard = () => {
                       </Link>
                       <div className="flex items-center gap-1">
                         {(() => {
-                          const url = getCourtUrl(mov.process_number);
                           const eproc = isEprocProcess(mov.process_number);
+                          const url = eproc
+                            ? getAuthenticatedCourtUrl(mov.process_number)
+                            : getCourtUrl(mov.process_number);
                           if (!url) return null;
                           return eproc ? (
                             <a
@@ -367,8 +369,10 @@ const Dashboard = () => {
               <div className="space-y-1.5 mt-2">
                 <p className="text-xs font-medium text-muted-foreground">Processos identificados:</p>
                 {numbers.map((pn) => {
-                  const url = getCourtUrl(pn, selectedPub?.source);
                   const eproc = isEprocProcess(pn);
+                  const url = eproc
+                    ? getAuthenticatedCourtUrl(pn)
+                    : getCourtUrl(pn, selectedPub?.source);
                   return (
                     <div key={pn} className="flex items-center gap-2">
                       <span className="text-xs font-mono text-foreground">{pn}</span>
