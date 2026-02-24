@@ -78,7 +78,7 @@ const ClientPortal = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="gradient-hero text-primary-foreground">
+      <header className="gradient-hero text-sidebar-foreground">
         <div className="max-w-lg mx-auto px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
