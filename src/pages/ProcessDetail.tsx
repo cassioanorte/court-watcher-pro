@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Sav
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { getCourtUrl, getAuthenticatedCourtUrl } from "@/lib/courtUrls";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";

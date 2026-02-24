@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { cn } from "@/lib/utils";
+import { getCourtUrl, getAuthenticatedCourtUrl } from "@/lib/courtUrls";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
