@@ -36,6 +36,8 @@ function parseMovementsFromHtml(html: string): ParsedMovement[] {
 
     const dateCell = stripTags(cells[1] || "");
     const descCell = stripTags(cells[2] || "");
+    // Documents column is typically the last cell (index 4 or 5)
+    const docsCell = stripTags(cells[cells.length - 1] || "");
     const datePat = /(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)/;
     const dm = datePat.exec(dateCell);
     if (!dm) continue;
@@ -48,9 +50,16 @@ function parseMovementsFromHtml(html: string): ParsedMovement[] {
     if (title.length < 2) continue;
     if (title.includes("carregarTooltip") || title.includes("infraTooltip") || title.includes("window.")) continue;
 
+    // Clean document names - filter out empty/noise entries
+    const docNames = docsCell
+      .split(/\s{2,}/)
+      .map(s => s.trim())
+      .filter(s => s.length > 1 && !s.includes("carregarTooltip") && !s.includes("window."));
+    const docsStr = docNames.length > 0 ? docNames.join(", ") : null;
+
     movements.push({
       title: `Evento ${evtNum} - ${title}`,
-      details: null,
+      details: docsStr ? `Documentos: ${docsStr}` : null,
       occurred_at: new Date(y, m - 1, d, h || 0, min || 0).toISOString(),
     });
   }
