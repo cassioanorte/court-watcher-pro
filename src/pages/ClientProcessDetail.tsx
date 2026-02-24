@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { cn } from "@/lib/utils";
-import { getCourtUrl } from "@/lib/courtUrls";
+import { getCourtUrl, formatCNJ } from "@/lib/courtUrls";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -275,7 +275,21 @@ const ClientProcessDetail = () => {
     return n;
   };
 
-  const tribunalUrl = getCourtUrl(caseData.process_number, caseData.source);
+  // Client portal: TJRS uses CNJ public portal instead of eproc (eproc requires lawyer credentials)
+  const getClientCourtUrl = (processNumber: string, source?: string): string | null => {
+    const digits = processNumber.replace(/\D/g, "");
+    if (digits.length >= 20) {
+      const justice = digits[13];
+      const tribunal = digits.slice(14, 16);
+      // TJRS (justice 8, tribunal 21) → CNJ public portal
+      if (justice === "8" && tribunal === "21") {
+        return `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(formatCNJ(processNumber))}`;
+      }
+    }
+    return getCourtUrl(processNumber, source);
+  };
+
+  const tribunalUrl = getClientCourtUrl(caseData.process_number, caseData.source);
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: "timeline", label: "Timeline", icon: <Clock className="w-4 h-4" /> },
