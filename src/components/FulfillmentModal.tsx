@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, X, FileText } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 
 const CATEGORIES = [
   { value: "peticao", label: "Petição" },
