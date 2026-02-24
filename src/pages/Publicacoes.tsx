@@ -461,20 +461,37 @@ const Publicacoes = () => {
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {processes.map((pn) => {
                           const url = getCourtUrl(pn);
+                          const eproc = isEprocProcess(pn);
                           return (
                             <span key={pn} className="inline-flex items-center gap-0.5">
                               {url && (
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
-                                  title={`Abrir ${pn} no tribunal`}
-                                >
-                                  <Scale className="w-3 h-3" />
-                                  {processes.length > 1 ? pn.slice(-13) : "Tribunal"}
-                                </a>
+                                eproc ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(pn.replace(/\D/g, ""));
+                                      toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
+                                      window.open(url, "_blank");
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                                    title={`Abrir ${pn} no eproc (copia nº)`}
+                                  >
+                                    <Scale className="w-3 h-3" />
+                                    {processes.length > 1 ? pn.slice(-13) : "eproc (copia nº)"}
+                                  </button>
+                                ) : (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                                    title={`Abrir ${pn} no tribunal`}
+                                  >
+                                    <Scale className="w-3 h-3" />
+                                    {processes.length > 1 ? pn.slice(-13) : "Tribunal"}
+                                  </a>
+                                )
                               )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); setFulfillmentModal({ open: true, processNumber: pn, sourceId: pub.id }); }}
