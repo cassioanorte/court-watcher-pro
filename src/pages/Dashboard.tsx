@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import DashboardCalendar from "@/components/DashboardCalendar";
 import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
 import DashboardReminders from "@/components/dashboard/DashboardReminders";
+import DashboardUserTasks from "@/components/dashboard/DashboardUserTasks";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
 
@@ -179,16 +180,20 @@ const Dashboard = () => {
         loading={loading}
       />
 
-      {/* Fulfillments + Reminders + Pipeline */}
+      {/* Fulfillments + Tasks + Reminders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardFulfillments />
-        <DashboardReminders />
+        <DashboardUserTasks />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardReminders />
+
         <DashboardCrmPipeline />
-        <DashboardDeadlines />
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardDeadlines />
 
       {/* Movements row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
