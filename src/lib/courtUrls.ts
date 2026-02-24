@@ -126,10 +126,13 @@ export function isEprocProcess(processNumber: string): boolean {
  * which eproc uses to restrict document access in the session.
  */
 export function openViaBlank(url: string): void {
-  const w = window.open("about:blank", "_blank");
+  const w = window.open("about:blank", "_blank", "noopener,noreferrer");
   if (w) {
-    // Navigate from the blank page context — no cross-site headers
-    w.location.replace(url);
+    // Write a self-contained HTML page that redirects — fully breaks referrer chain
+    w.document.write(
+      `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${url.replace(/"/g, '&quot;')}"><script>window.location.replace("${url.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}");<\/script></head><body></body></html>`
+    );
+    w.document.close();
   } else {
     // Popup blocked — fallback to copying URL
     navigator.clipboard.writeText(url);
