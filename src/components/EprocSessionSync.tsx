@@ -229,10 +229,15 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
     var base=location.origin+location.pathname.replace(/controlador\\.php.*/,'controlador.php');
     var url=base+'?acao=processo_selecionar&num_processo='+encodeURIComponent(num)+'&hash=';
     fetch(url,{credentials:'include'}).then(function(r){return r.text()}).then(function(html){
+      console.log('[LexSync] HTML length for '+num+': '+html.length);
+      console.log('[LexSync] Has trEvento: '+(html.indexOf('trEvento')>=0));
+      console.log('[LexSync] Sample: '+html.substring(0,500));
       var movs=parseMovs(html);
       var docs=parseDocs(html,num);
+      console.log('[LexSync] Parsed '+movs.length+' movs, '+docs.length+' docs for '+num);
       cb({process_number:num,parties:meta.parties,subject:meta.subject,movements:movs,documents:docs});
-    }).catch(function(){
+    }).catch(function(e){
+      console.error('[LexSync] Fetch error for '+num+': '+e.message);
       cb({process_number:num,parties:meta.parties,subject:meta.subject,movements:[],documents:[]});
     });
   }
