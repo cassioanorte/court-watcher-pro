@@ -305,7 +305,14 @@ const ContatoDetail = () => {
     }
   };
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
+  const formatDate = (d: string) => {
+    // For date-only strings (YYYY-MM-DD), split to avoid timezone shift
+    const dateOnly = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnly) {
+      return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+    }
+    return new Date(d).toLocaleDateString("pt-BR");
+  };
 
   const handleCopyQualificacao = () => {
     const c = contact;
