@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Newspaper, RefreshCw, Eye, EyeOff, Filter, ExternalLink, Search, Trash2, CheckSquare, Square, Scale, Sparkles, Brain, Clock, ArrowRight, Loader2, Send } from "lucide-react";
-import { getCourtUrl, getAuthenticatedCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
+import { getCourtUrl, getAuthenticatedCourtUrl, extractProcessNumbers, isEprocProcess, openViaBlank } from "@/lib/courtUrls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -482,21 +482,19 @@ const Publicacoes = () => {
                             <span key={pn} className="inline-flex items-center gap-0.5">
                               {url && (
                                 eproc ? (
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                                       toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });
+                                      if (url) openViaBlank(url);
                                     }}
                                     className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
                                     title={`Abrir ${pn} no eproc (copia nº)`}
                                   >
                                     <Scale className="w-3 h-3" />
                                     {processes.length > 1 ? pn.slice(-13) : "eproc (copia nº)"}
-                                  </a>
+                                  </button>
                                 ) : (
                                   <a
                                     href={url}
@@ -616,19 +614,17 @@ const Publicacoes = () => {
                             <span className="text-sm font-mono text-muted-foreground">{pn}</span>
                             {url && (
                               eproc ? (
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                                     toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });
+                                    if (url) openViaBlank(url);
                                   }}
                                   className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
                                 >
                                   <Scale className="w-3 h-3" />
                                   Abrir no eproc (copia nº)
-                                </a>
+                                </button>
                               ) : (
                                 <a
                                   href={url}

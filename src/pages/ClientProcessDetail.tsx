@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { cn } from "@/lib/utils";
-import { getCourtUrl, getAuthenticatedCourtUrl } from "@/lib/courtUrls";
+import { getCourtUrl, getAuthenticatedCourtUrl, openViaBlank } from "@/lib/courtUrls";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -321,21 +321,19 @@ const ClientProcessDetail = () => {
         {/* Tabs */}
         <div className="flex gap-1 bg-muted/50 rounded-lg p-1 mb-4 shrink-0">
           {tribunalUrl && (
-            <a
-              href={tribunalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
               onClick={() => {
                 if (isEprocSource) {
                   const num = caseData.process_number.replace(/\D/g, "");
                   navigator.clipboard.writeText(num);
                 }
+                openViaBlank(tribunalUrl);
               }}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-accent hover:bg-card hover:shadow-sm transition-all"
             >
               <ExternalLink className="w-4 h-4" />
               Tribunal
-            </a>
+            </button>
           )}
           {tabs.map((tab) => (
             <button
