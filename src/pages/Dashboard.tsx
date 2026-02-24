@@ -228,14 +228,46 @@ const Dashboard = () => {
                       <Link to={`/processos/${mov.case_id}`}>
                         <Badge variant="outline" className="text-[10px] font-mono hover:text-accent">{mov.process_number}</Badge>
                       </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
-                        onClick={() => setFulfillmentModal({ open: true, caseId: mov.case_id, processNumber: mov.process_number, sourceType: "movement", sourceId: mov.id })}
-                      >
-                        <Send className="w-3 h-3" /> Encaminhar
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const url = getCourtUrl(mov.process_number);
+                          const eproc = isEprocProcess(mov.process_number);
+                          if (!url) return null;
+                          return eproc ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                              onClick={() => {
+                                navigator.clipboard.writeText(mov.process_number.replace(/\D/g, ""));
+                                toast.success("Nº copiado! Cole na busca do eproc. Abrindo portal...");
+                                window.open(url, "_blank");
+                              }}
+                              title="Abrir no eproc (copia nº)"
+                            >
+                              <ExternalLink className="w-3 h-3" /> Tribunal
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                              onClick={() => window.open(url, "_blank")}
+                              title="Ver no tribunal"
+                            >
+                              <ExternalLink className="w-3 h-3" /> Tribunal
+                            </Button>
+                          );
+                        })()}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                          onClick={() => setFulfillmentModal({ open: true, caseId: mov.case_id, processNumber: mov.process_number, sourceType: "movement", sourceId: mov.id })}
+                        >
+                          <Send className="w-3 h-3" /> Encaminhar
+                        </Button>
+                      </div>
                     </div>
                     <Link to={`/processos/${mov.case_id}`}>
                       <p className="text-sm text-foreground font-medium line-clamp-1">{mov.title}</p>
