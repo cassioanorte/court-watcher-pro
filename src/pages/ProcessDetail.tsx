@@ -101,8 +101,6 @@ const ProcessDetail = () => {
       if (caseRes.data) {
         setCaseData(caseRes.data);
         setCaseSummary(caseRes.data.case_summary || "");
-        setNextStep(caseRes.data.next_step || "");
-        setNextStepResponsibleId(caseRes.data.next_step_responsible_id || null);
         setPartiesText(caseRes.data.parties || "");
       }
       if (movRes.data) setMovements(movRes.data);
@@ -408,7 +406,7 @@ const ProcessDetail = () => {
       if (updated) {
         setCaseData(updated);
         setCaseSummary(updated.case_summary || "");
-        setNextStep(updated.next_step || "");
+        
         setPartiesText(updated.parties || "");
       }
       toast({ title: "Processo atualizado!" });
