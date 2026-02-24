@@ -239,7 +239,7 @@ const Dashboard = () => {
                             <a
                               href={url}
                               target="_blank"
-                              rel="noopener"
+                              rel="noopener noreferrer"
                               onClick={() => {
                                 navigator.clipboard.writeText(mov.process_number.replace(/\D/g, ""));
                                 toast.success("Nº copiado! Cole na busca do eproc.");
@@ -381,7 +381,7 @@ const Dashboard = () => {
                           <a
                             href={url}
                             target="_blank"
-                            rel="noopener"
+                            rel="noopener noreferrer"
                             onClick={() => {
                               navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                               toast.success("Nº copiado! Cole na busca do eproc.");

@@ -721,7 +721,7 @@ const ProcessDetail = () => {
           <a
             href={tribunalUrl}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             onClick={() => {
               if (isEprocSource) {
                 const num = caseData.process_number.replace(/\D/g, "");
