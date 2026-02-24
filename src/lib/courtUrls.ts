@@ -128,8 +128,10 @@ export function openInTribunal(
   source?: string,
   onCopied?: () => void
 ): { url: string | null; isEproc: boolean } {
-  const url = getCourtUrl(processNumber, source);
   const eproc = isEprocProcess(processNumber);
+  const url = eproc
+    ? getAuthenticatedCourtUrl(processNumber) ?? getCourtUrl(processNumber, source)
+    : getCourtUrl(processNumber, source);
   if (eproc && url) {
     const num = processNumber.replace(/\D/g, "");
     navigator.clipboard.writeText(num);
