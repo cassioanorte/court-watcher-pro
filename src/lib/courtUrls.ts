@@ -107,6 +107,39 @@ export function getAuthenticatedCourtUrl(processNumber: string, source?: string)
 }
 
 /**
+ * Check if a process number points to an eproc-based tribunal (TJRS, TRF4/JF).
+ * These portals require session hashes, so direct links redirect to home.
+ */
+export function isEprocProcess(processNumber: string): boolean {
+  const digits = processNumber.replace(/\D/g, "");
+  if (digits.length < 20) return false;
+  const justice = digits[13];
+  const tribunal = digits.slice(14, 16);
+  // TRF4 / JF (justice 4, tribunal 04) or TJRS (justice 8, tribunal 21)
+  return (justice === "4" && tribunal === "04") || (justice === "8" && tribunal === "21");
+}
+
+/**
+ * Open a process in the tribunal, handling eproc portals by copying the number first.
+ * Returns true if handled (eproc copy+open), false if it's a normal link.
+ */
+export function openInTribunal(
+  processNumber: string,
+  source?: string,
+  onCopied?: () => void
+): { url: string | null; isEproc: boolean } {
+  const url = getCourtUrl(processNumber, source);
+  const eproc = isEprocProcess(processNumber);
+  if (eproc && url) {
+    const num = processNumber.replace(/\D/g, "");
+    navigator.clipboard.writeText(num);
+    onCopied?.();
+    window.open(url, "_blank");
+  }
+  return { url, isEproc: eproc };
+}
+
+/**
  * Extract all process numbers from a text (content + title).
  */
 export function extractProcessNumbers(text: string): string[] {
