@@ -148,8 +148,32 @@ export function openInTribunal(
     : getCourtUrl(processNumber, source);
   if (eproc && url) {
     const num = processNumber.replace(/\D/g, "");
-    navigator.clipboard.writeText(num);
-    onCopied?.();
+    // Copy number BEFORE opening window — clipboard requires user gesture context
+    try {
+      navigator.clipboard.writeText(num).then(() => onCopied?.()).catch(() => {
+        // Fallback: use deprecated execCommand
+        const ta = document.createElement("textarea");
+        ta.value = num;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        onCopied?.();
+      });
+    } catch {
+      // Sync fallback
+      const ta = document.createElement("textarea");
+      ta.value = num;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      onCopied?.();
+    }
     openViaBlank(url);
   }
   return { url, isEproc: eproc };
