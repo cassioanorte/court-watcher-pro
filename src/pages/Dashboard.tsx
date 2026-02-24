@@ -238,9 +238,8 @@ const Dashboard = () => {
                           return eproc ? (
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(mov.process_number.replace(/\D/g, ""));
                                 toast.success("Nº copiado! Cole na busca do eproc.");
-                                openViaBlank(url);
+                                openViaBlank(url, mov.process_number.replace(/\D/g, ""));
                               }}
                               title="Abrir no eproc (copia nº)"
                               className="inline-flex items-center gap-1 h-6 px-2 text-[10px] text-muted-foreground hover:text-accent transition-colors rounded-md hover:bg-accent/10"

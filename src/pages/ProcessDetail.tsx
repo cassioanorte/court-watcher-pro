@@ -721,12 +721,11 @@ const ProcessDetail = () => {
           <button
             onClick={(e) => {
               e.preventDefault();
-              if (isEprocSource) {
-                const num = caseData.process_number.replace(/\D/g, "");
-                navigator.clipboard.writeText(num);
+              const num = isEprocSource ? caseData.process_number.replace(/\D/g, "") : undefined;
+              if (num) {
                 toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
               }
-              openViaBlank(tribunalUrl);
+              openViaBlank(tribunalUrl, num);
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
