@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ThemeSelector from "@/components/ThemeSelector";
+import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
 
 type ClientCase = {
   id: string;
@@ -22,6 +23,7 @@ const ClientPortal = () => {
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [tenantName, setTenantName] = useState("Portal Jurídico");
+  const [tenantLogoUrl, setTenantLogoUrl] = useState<string | null>(null);
   const [tenantWhatsapp, setTenantWhatsapp] = useState<string | null>(null);
   const [tenantWebsite, setTenantWebsite] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ const ClientPortal = () => {
           .eq("client_user_id", user.id),
         supabase
           .from("tenants")
-          .select("name, whatsapp, website")
+          .select("name, whatsapp, website, logo_url")
           .eq("id", tenantId)
           .single(),
       ]);
@@ -45,6 +47,7 @@ const ClientPortal = () => {
       if (casesRes.data) setCases(casesRes.data);
       if (tenantRes.data) {
         setTenantName(tenantRes.data.name || "Portal Jurídico");
+        setTenantLogoUrl(tenantRes.data.logo_url || null);
         setTenantWhatsapp((tenantRes.data as any).whatsapp || null);
         setTenantWebsite((tenantRes.data as any).website || null);
       }
@@ -78,12 +81,13 @@ const ClientPortal = () => {
       <header className="gradient-hero text-primary-foreground">
         <div className="max-w-lg mx-auto px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg gradient-accent flex items-center justify-center">
-              <Scale className="w-5 h-5 text-accent-foreground" />
-            </div>
+            <img
+              src={tenantLogoUrl || defaultLogo}
+              alt={tenantName}
+              className="h-9 w-9 rounded-lg object-contain"
+            />
             <div>
-              <h1 className="text-sm font-bold tracking-wide">Portal Jurídico</h1>
-              <p className="text-[10px] opacity-60 uppercase tracking-widest">{tenantName}</p>
+              <h1 className="text-sm font-bold tracking-wide">{tenantName}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
