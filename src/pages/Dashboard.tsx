@@ -10,7 +10,7 @@ import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
 import DashboardReminders from "@/components/dashboard/DashboardReminders";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
-import DashboardTaskNotifications from "@/components/dashboard/DashboardTaskNotifications";
+
 import DashboardFulfillments from "@/components/dashboard/DashboardFulfillments";
 import FulfillmentModal from "@/components/FulfillmentModal";
 import { Badge } from "@/components/ui/badge";
