@@ -126,13 +126,8 @@ export function isEprocProcess(processNumber: string): boolean {
  * which eproc uses to restrict document access in the session.
  */
 export function openViaBlank(url: string): void {
-  // Use a Blob with meta-refresh to fully strip referrer/origin headers
-  const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${url.replace(/"/g, '&quot;')}"><meta name="referrer" content="no-referrer"></head><body></body></html>`;
-  const blob = new Blob([html], { type: "text/html" });
-  const blobUrl = URL.createObjectURL(blob);
-  const w = window.open(blobUrl, "_blank");
-  // Clean up blob after a short delay
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  // Open with noreferrer to strip Referer header and avoid cross-site session tainting
+  const w = window.open(url, "_blank", "noreferrer");
   if (!w) {
     navigator.clipboard.writeText(url);
   }
