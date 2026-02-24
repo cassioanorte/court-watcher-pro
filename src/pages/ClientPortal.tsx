@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Scale, Bell, Clock, ArrowRight, Globe, Phone, Sun, Moon } from "lucide-react";
+import { Scale, Bell, Clock, ArrowRight, Globe, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useColorMode } from "@/hooks/useColorMode";
+import ThemeSelector from "@/components/ThemeSelector";
 
 type ClientCase = {
   id: string;
@@ -18,7 +18,6 @@ type ClientCase = {
 
 const ClientPortal = () => {
   const { user, profile, tenantId, signOut } = useAuth();
-  const { mode, toggle } = useColorMode();
   const navigate = useNavigate();
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,9 +87,7 @@ const ClientPortal = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={toggle} className="opacity-80 hover:opacity-100 transition-opacity" title={mode === "dark" ? "Modo claro" : "Modo escuro"}>
-              {mode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            <ThemeSelector compact />
             <button className="relative">
               <Bell className="w-5 h-5 opacity-80" />
             </button>

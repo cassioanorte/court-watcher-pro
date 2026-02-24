@@ -2,13 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Scale, Eye, EyeOff, Sun, Moon } from "lucide-react";
+import { Scale, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
-import { useColorMode } from "@/hooks/useColorMode";
+import ThemeSelector from "@/components/ThemeSelector";
 
 const ClientAuth = () => {
-  const { mode, toggle } = useColorMode();
   const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -68,13 +67,9 @@ const ClientAuth = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
-      <button
-        onClick={toggle}
-        className="absolute top-4 right-4 p-2 rounded-lg bg-card border text-foreground hover:bg-muted transition-colors"
-        title={mode === "dark" ? "Modo claro" : "Modo escuro"}
-      >
-        {mode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-      </button>
+      <div className="absolute top-4 right-4">
+        <ThemeSelector />
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
