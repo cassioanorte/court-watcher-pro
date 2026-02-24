@@ -234,29 +234,29 @@ const Dashboard = () => {
                           const eproc = isEprocProcess(mov.process_number);
                           if (!url) return null;
                           return eproc ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener"
                               onClick={() => {
                                 navigator.clipboard.writeText(mov.process_number.replace(/\D/g, ""));
-                                toast.success("Nº copiado! Cole na busca do eproc. Abrindo portal...");
-                                window.open(url, "_blank");
+                                toast.success("Nº copiado! Cole na busca do eproc.");
                               }}
                               title="Abrir no eproc (copia nº)"
+                              className="inline-flex items-center gap-1 h-6 px-2 text-[10px] text-muted-foreground hover:text-accent transition-colors rounded-md hover:bg-accent/10"
                             >
                               <ExternalLink className="w-3 h-3" /> Tribunal
-                            </Button>
+                            </a>
                           ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-accent"
-                              onClick={() => window.open(url, "_blank")}
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               title="Ver no tribunal"
+                              className="inline-flex items-center gap-1 h-6 px-2 text-[10px] text-muted-foreground hover:text-accent transition-colors rounded-md hover:bg-accent/10"
                             >
                               <ExternalLink className="w-3 h-3" /> Tribunal
-                            </Button>
+                            </a>
                           );
                         })()}
                         <Button
@@ -374,17 +374,19 @@ const Dashboard = () => {
                       <span className="text-xs font-mono text-foreground">{pn}</span>
                       {url && (
                         eproc ? (
-                          <button
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener"
                             onClick={() => {
                               navigator.clipboard.writeText(pn.replace(/\D/g, ""));
-                              toast.success("Nº copiado! Cole na busca do eproc. Abrindo portal...");
-                              window.open(url, "_blank");
+                              toast.success("Nº copiado! Cole na busca do eproc.");
                             }}
                             className="text-accent hover:text-accent/80 transition-colors inline-flex items-center gap-1 text-xs"
                             title="Abrir no eproc (copia nº)"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
+                          </a>
                         ) : (
                           <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 transition-colors" title="Ver no tribunal">
                             <ExternalLink className="w-3.5 h-3.5" />

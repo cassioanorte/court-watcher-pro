@@ -482,19 +482,21 @@ const Publicacoes = () => {
                             <span key={pn} className="inline-flex items-center gap-0.5">
                               {url && (
                                 eproc ? (
-                                  <button
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       navigator.clipboard.writeText(pn.replace(/\D/g, ""));
-                                      toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
-                                      window.open(url, "_blank");
+                                      toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });
                                     }}
                                     className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-l border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
                                     title={`Abrir ${pn} no eproc (copia nº)`}
                                   >
                                     <Scale className="w-3 h-3" />
                                     {processes.length > 1 ? pn.slice(-13) : "eproc (copia nº)"}
-                                  </button>
+                                  </a>
                                 ) : (
                                   <a
                                     href={url}
@@ -614,17 +616,19 @@ const Publicacoes = () => {
                             <span className="text-sm font-mono text-muted-foreground">{pn}</span>
                             {url && (
                               eproc ? (
-                                <button
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener"
                                   onClick={() => {
                                     navigator.clipboard.writeText(pn.replace(/\D/g, ""));
-                                    toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
-                                    window.open(url, "_blank");
+                                    toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });
                                   }}
                                   className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
                                 >
                                   <Scale className="w-3 h-3" />
                                   Abrir no eproc (copia nº)
-                                </button>
+                                </a>
                               ) : (
                                 <a
                                   href={url}
