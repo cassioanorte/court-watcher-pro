@@ -485,7 +485,7 @@ const Publicacoes = () => {
                                   <a
                                     href={url}
                                     target="_blank"
-                                    rel="noopener"
+                                    rel="noopener noreferrer"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       navigator.clipboard.writeText(pn.replace(/\D/g, ""));
@@ -619,7 +619,7 @@ const Publicacoes = () => {
                                 <a
                                   href={url}
                                   target="_blank"
-                                  rel="noopener"
+                                  rel="noopener noreferrer"
                                   onClick={() => {
                                     navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                                     toast({ title: "Nº copiado!", description: "Cole na busca do eproc." });

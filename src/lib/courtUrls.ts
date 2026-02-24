@@ -137,7 +137,7 @@ export function openInTribunal(
     const num = processNumber.replace(/\D/g, "");
     navigator.clipboard.writeText(num);
     onCopied?.();
-    window.open(url, "_blank");
+    window.open(url, "_blank", "noopener,noreferrer");
   }
   return { url, isEproc: eproc };
 }
