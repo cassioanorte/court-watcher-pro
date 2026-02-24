@@ -323,11 +323,8 @@ const ClientProcessDetail = () => {
           {tribunalUrl && (
             <button
               onClick={() => {
-                if (isEprocSource) {
-                  const num = caseData.process_number.replace(/\D/g, "");
-                  navigator.clipboard.writeText(num);
-                }
-                openViaBlank(tribunalUrl);
+                const num = isEprocSource ? caseData.process_number.replace(/\D/g, "") : undefined;
+                openViaBlank(tribunalUrl, num);
               }}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-accent hover:bg-card hover:shadow-sm transition-all"
             >

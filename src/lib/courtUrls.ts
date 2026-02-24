@@ -125,9 +125,28 @@ export function isEprocProcess(processNumber: string): boolean {
  * This prevents the browser from sending Sec-Fetch-Site: cross-site headers,
  * which eproc uses to restrict document access in the session.
  */
-export function openViaBlank(url: string): void {
+export function openViaBlank(url: string, copyText?: string): void {
+  // Copy text to clipboard with robust fallback BEFORE opening window
+  if (copyText) {
+    try {
+      navigator.clipboard.writeText(copyText).catch(() => copyFallback(copyText));
+    } catch {
+      copyFallback(copyText);
+    }
+  }
   // Open with noreferrer to strip Referer header and avoid cross-site session tainting
   window.open(url, "_blank", "noreferrer");
+}
+
+function copyFallback(text: string): void {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
 }
 
 /**
@@ -145,33 +164,8 @@ export function openInTribunal(
     : getCourtUrl(processNumber, source);
   if (eproc && url) {
     const num = processNumber.replace(/\D/g, "");
-    // Copy number BEFORE opening window — clipboard requires user gesture context
-    try {
-      navigator.clipboard.writeText(num).then(() => onCopied?.()).catch(() => {
-        // Fallback: use deprecated execCommand
-        const ta = document.createElement("textarea");
-        ta.value = num;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        onCopied?.();
-      });
-    } catch {
-      // Sync fallback
-      const ta = document.createElement("textarea");
-      ta.value = num;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      onCopied?.();
-    }
-    openViaBlank(url);
+    openViaBlank(url, num);
+    onCopied?.();
   }
   return { url, isEproc: eproc };
 }
