@@ -18,6 +18,7 @@ type ClientCase = {
 
 const ClientPortal = () => {
   const { user, profile, tenantId, signOut } = useAuth();
+  const { mode, toggle } = useColorMode();
   const navigate = useNavigate();
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +87,10 @@ const ClientPortal = () => {
               <p className="text-[10px] opacity-60 uppercase tracking-widest">{tenantName}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button onClick={toggle} className="opacity-80 hover:opacity-100 transition-opacity" title={mode === "dark" ? "Modo claro" : "Modo escuro"}>
+              {mode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <button className="relative">
               <Bell className="w-5 h-5 opacity-80" />
             </button>
