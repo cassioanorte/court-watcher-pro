@@ -346,6 +346,51 @@ export type Database = {
           },
         ]
       }
+      case_notes: {
+        Row: {
+          case_id: string
+          completed: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          tenant_id: string
+          text: string
+        }
+        Insert: {
+          case_id: string
+          completed?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tenant_id: string
+          text: string
+        }
+        Update: {
+          case_id?: string
+          completed?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tenant_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_notes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           archived: boolean
