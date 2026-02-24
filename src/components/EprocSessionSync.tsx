@@ -137,37 +137,48 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
 
   function parseMovs(html){
     var movs=[];
-    var text=html.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi,'');
-    text=text.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi,'');
-    text=text.replace(/if\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\}/g,'');
-    text=text.replace(/function\\s+\\w+[\\s\\S]*?\\}/g,'');
-    text=text.replace(/<[^>]*>/g,' ');
-    text=text.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
-    text=text.replace(/\\s+/g,' ');
-    var evtPat=/(\\d{1,4})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)\\s+(.+?)(?=\\d{1,4}\\s+\\d{2}\\/\\d{2}\\/\\d{4}|$)/g;
-    var m;
-    while((m=evtPat.exec(text))!==null){
-      var ds=m[2].split('/');
-      var ts=m[3].split(':');
+    var stripTags=function(s){return s.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/\\s+/g,' ').trim()};
+    var trPat=/<tr[^>]*id=["']?trEvento(\\d+)["']?[^>]*>([\\s\\S]*?)<\\/tr>/gi;
+    var tdPat=/<td[^>]*>([\\s\\S]*?)<\\/td>/gi;
+    var tr;
+    while((tr=trPat.exec(html))!==null){
+      var evtNum=tr[1];
+      var cells=[];
+      var td;
+      tdPat.lastIndex=0;
+      var rowHtml=tr[2];
+      while((td=tdPat.exec(rowHtml))!==null){cells.push(td[1]);}
+      if(cells.length<3)continue;
+      var dateCell=stripTags(cells[1]||'');
+      var descCell=stripTags(cells[2]||'');
+      var datePat=/(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)/;
+      var dm=datePat.exec(dateCell);
+      if(!dm)continue;
+      var ds=dm[1].split('/');
+      var ts=dm[2].split(':');
       var d=new Date(parseInt(ds[2]),parseInt(ds[1])-1,parseInt(ds[0]),parseInt(ts[0])||0,parseInt(ts[1])||0);
       if(d.getFullYear()<1990||d.getFullYear()>2035)continue;
-      var title=m[4].trim().replace(/\\s+/g,' ').substring(0,500);
-      title=title.replace(/^\\s*[-–|]\\s*/,'');
-      if(title.length<3)continue;
-      if(/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(title))continue;
+      var title=descCell.substring(0,500);
+      if(title.length<2)continue;
       if(title.indexOf('carregarTooltip')>=0||title.indexOf('infraTooltip')>=0||title.indexOf('window.')>=0)continue;
-      var evtNum=m[1];
-      movs.push({title:'Evento ' + evtNum + ' - ' + title,date:d.toISOString(),details:null});
+      movs.push({title:'Evento '+evtNum+' - '+title,date:d.toISOString(),details:null});
     }
     if(movs.length===0){
-      var simplePat=/(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)\\s+(.+?)(?=\\d{2}\\/\\d{2}\\/\\d{4}|$)/g;
-      while((m=simplePat.exec(text))!==null){
-        var ds2=m[1].split('/');
-        var d2=new Date(parseInt(ds2[2]),parseInt(ds2[1])-1,parseInt(ds2[0]));
+      var text=html.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi,'');
+      text=text.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi,'');
+      text=text.replace(/<[^>]*>/g,' ');
+      text=text.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&');
+      text=text.replace(/\\s+/g,' ');
+      var evtPat=/(\\d{1,4})\\s+(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)\\s+(.+?)(?=\\d{1,4}\\s+\\d{2}\\/\\d{2}\\/\\d{4}|$)/g;
+      var m;
+      while((m=evtPat.exec(text))!==null){
+        var ds2=m[2].split('/');
+        var ts2=m[3].split(':');
+        var d2=new Date(parseInt(ds2[2]),parseInt(ds2[1])-1,parseInt(ds2[0]),parseInt(ts2[0])||0,parseInt(ts2[1])||0);
         if(d2.getFullYear()<1990||d2.getFullYear()>2035)continue;
-        var t2=m[3].trim().replace(/\\s+/g,' ').substring(0,500);
+        var t2=m[4].trim().replace(/\\s+/g,' ').substring(0,500);
         if(t2.length<3||t2.indexOf('carregarTooltip')>=0)continue;
-        movs.push({title:t2,date:d2.toISOString(),details:null});
+        movs.push({title:'Evento '+m[1]+' - '+t2,date:d2.toISOString(),details:null});
       }
     }
     return movs;
