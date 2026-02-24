@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw, Send } from "lucide-react";
-import { getCourtUrl, extractProcessNumbers } from "@/lib/courtUrls";
+import { getCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
