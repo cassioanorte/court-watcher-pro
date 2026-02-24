@@ -15,51 +15,93 @@ interface ParsedMovement {
 function parseMovementsFromHtml(html: string): ParsedMovement[] {
   const movements: ParsedMovement[] = [];
 
-  // TRF4 eproc pattern: dates followed by movement descriptions
-  // Pattern 1: DD/MM/YYYY HH:MM:SS - Title
-  const dateLinePattern = /(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)\s*[-–|]\s*(.+?)(?:<|$)/gm;
-  let match;
-  while ((match = dateLinePattern.exec(html)) !== null) {
-    const [, dateStr, timeStr, title] = match;
-    const cleaned = title.replace(/<[^>]*>/g, "").trim();
-    if (cleaned.length < 3) continue;
-    const [d, m, y] = dateStr.split("/").map(Number);
-    const [h, min] = timeStr.split(":").map(Number);
-    if (y < 1990 || y > 2030 || m < 1 || m > 12) continue;
+  // Pattern 1: eproc table rows with trEvento IDs (most reliable)
+  const trPattern = /<tr[^>]*id=["']?trEvento(\d+)["']?[^>]*>([\s\S]*?)<\/tr>/gi;
+  const tdPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+  const stripTags = (s: string) =>
+    s.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+
+  let trMatch;
+  while ((trMatch = trPattern.exec(html)) !== null) {
+    const evtNum = trMatch[1];
+    const rowHtml = trMatch[2];
+    const cells: string[] = [];
+    let tdMatch;
+    tdPattern.lastIndex = 0;
+    while ((tdMatch = tdPattern.exec(rowHtml)) !== null) {
+      cells.push(tdMatch[1]);
+    }
+    if (cells.length < 3) continue;
+
+    const dateCell = stripTags(cells[1] || "");
+    const descCell = stripTags(cells[2] || "");
+    const datePat = /(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)/;
+    const dm = datePat.exec(dateCell);
+    if (!dm) continue;
+
+    const [d, m, y] = dm[1].split("/").map(Number);
+    const [h, min] = dm[2].split(":").map(Number);
+    if (y < 1990 || y > 2035 || m < 1 || m > 12) continue;
+
+    const title = descCell.substring(0, 500);
+    if (title.length < 2) continue;
+    if (title.includes("carregarTooltip") || title.includes("infraTooltip") || title.includes("window.")) continue;
+
     movements.push({
-      title: cleaned,
+      title: `Evento ${evtNum} - ${title}`,
       details: null,
       occurred_at: new Date(y, m - 1, d, h || 0, min || 0).toISOString(),
     });
   }
 
-  // Pattern 2: table rows with date cells (common in eproc/TJRS)
-  const rowPattern = /<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?(\d{2}\/\d{2}\/\d{4})[\s\S]*?<\/td>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>[\s\S]*?<\/tr>/gi;
-  while ((match = rowPattern.exec(html)) !== null) {
-    const dateStr = match[1];
-    const content = match[2].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    if (content.length < 3) continue;
+  if (movements.length > 0) return movements;
+
+  // Pattern 2: fallback - extract event number + date + description from plain text
+  const plainText = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ");
+
+  const evtPat = /(\d{1,4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)\s+(.+?)(?=\d{1,4}\s+\d{2}\/\d{2}\/\d{4}|$)/g;
+  let match;
+  while ((match = evtPat.exec(plainText)) !== null) {
+    const evtNum = match[1];
+    const dateStr = match[2];
+    const timeStr = match[3];
+    const title = match[4].trim().substring(0, 500);
+    if (title.length < 3) continue;
+    if (title.includes("carregarTooltip") || title.includes("infraTooltip")) continue;
+
     const [d, m, y] = dateStr.split("/").map(Number);
-    if (y < 1990 || y > 2030 || m < 1 || m > 12) continue;
-    // Avoid duplicates
-    const iso = new Date(y, m - 1, d).toISOString();
-    if (!movements.some((mv) => mv.title === content && mv.occurred_at === iso)) {
-      movements.push({ title: content, details: null, occurred_at: iso });
-    }
+    const [h, min] = timeStr.split(":").map(Number);
+    if (y < 1990 || y > 2035 || m < 1 || m > 12) continue;
+
+    movements.push({
+      title: `Evento ${evtNum} - ${title}`,
+      details: null,
+      occurred_at: new Date(y, m - 1, d, h || 0, min || 0).toISOString(),
+    });
   }
 
-  // Pattern 3: plain text DD/MM/YYYY - Title (from stripped text)
-  const plainText = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
-  const plainPattern = /(\d{2}\/\d{2}\/\d{4})\s*[-–|:]\s*(.+?)(?=\d{2}\/\d{2}\/\d{4}|$)/g;
-  while ((match = plainPattern.exec(plainText)) !== null) {
-    const dateStr = match[1];
-    const title = match[2].trim().substring(0, 500);
-    if (title.length < 3) continue;
-    const [d, m, y] = dateStr.split("/").map(Number);
-    if (y < 1990 || y > 2030 || m < 1 || m > 12) continue;
-    const iso = new Date(y, m - 1, d).toISOString();
-    if (!movements.some((mv) => mv.title === title && mv.occurred_at === iso)) {
-      movements.push({ title, details: null, occurred_at: iso });
+  // Pattern 3: simple date pattern without event number (last resort)
+  if (movements.length === 0) {
+    const simplePat = /(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)\s+(.+?)(?=\d{2}\/\d{2}\/\d{4}|$)/g;
+    while ((match = simplePat.exec(plainText)) !== null) {
+      const dateStr = match[1];
+      const timeStr = match[2];
+      const title = match[3].trim().substring(0, 500);
+      if (title.length < 3) continue;
+
+      const [d, m, y] = dateStr.split("/").map(Number);
+      const [h, min] = timeStr.split(":").map(Number);
+      if (y < 1990 || y > 2035 || m < 1 || m > 12) continue;
+
+      movements.push({
+        title,
+        details: null,
+        occurred_at: new Date(y, m - 1, d, h || 0, min || 0).toISOString(),
+      });
     }
   }
 
