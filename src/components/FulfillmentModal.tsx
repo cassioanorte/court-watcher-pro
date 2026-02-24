@@ -70,6 +70,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   const [saving, setSaving] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [cases, setCases] = useState<{ id: string; process_number: string }[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [category, setCategory] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
