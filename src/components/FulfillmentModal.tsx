@@ -335,7 +335,8 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
                 </div>
               )}
             </div>
-          )
+          )}
+
           <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {isEditing ? "Salvar Alterações" : "Encaminhar"}
