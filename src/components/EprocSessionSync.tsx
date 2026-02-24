@@ -151,6 +151,7 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
       if(cells.length<3)continue;
       var dateCell=stripTags(cells[1]||'');
       var descCell=stripTags(cells[2]||'');
+      var docsCell=stripTags(cells[cells.length-1]||'');
       var datePat=/(\\d{2}\\/\\d{2}\\/\\d{4})\\s+(\\d{2}:\\d{2}(?::\\d{2})?)/;
       var dm=datePat.exec(dateCell);
       if(!dm)continue;
@@ -161,7 +162,9 @@ function getEprocSyncBookmarkletCode(tenantId: string, userId: string): string {
       var title=descCell.substring(0,500);
       if(title.length<2)continue;
       if(title.indexOf('carregarTooltip')>=0||title.indexOf('infraTooltip')>=0||title.indexOf('window.')>=0)continue;
-      movs.push({title:'Evento '+evtNum+' - '+title,date:d.toISOString(),details:null});
+      var docNames=docsCell.split(/\\s{2,}/).map(function(s){return s.trim()}).filter(function(s){return s.length>1&&s.indexOf('carregarTooltip')<0&&s.indexOf('window.')<0});
+      var docsStr=docNames.length>0?'Documentos: '+docNames.join(', '):null;
+      movs.push({title:'Evento '+evtNum+' - '+title,date:d.toISOString(),details:docsStr});
     }
     if(movs.length===0){
       var text=html.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi,'');
