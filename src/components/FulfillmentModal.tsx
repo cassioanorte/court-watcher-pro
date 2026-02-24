@@ -308,6 +308,34 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             <Input placeholder="Observações adicionais..." value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
+          {!isEditing && (
+            <div className="space-y-1.5">
+              <Label>Anexar Documentos</Label>
+              <FileDropZone
+                onFile={(file) => setPendingFiles(prev => [...prev, file])}
+                multiple
+                onFiles={(files) => setPendingFiles(prev => [...prev, ...files])}
+                label="Arraste documentos aqui ou clique para selecionar"
+                sublabel="PDF, Word, imagens e outros formatos"
+                compact
+              />
+              {pendingFiles.length > 0 && (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {pendingFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded border bg-muted/30 text-sm">
+                      <span className="flex items-center gap-1.5 truncate min-w-0">
+                        <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{file.name}</span>
+                      </span>
+                      <button onClick={() => removePendingFile(idx)} className="text-muted-foreground hover:text-destructive shrink-0">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
           <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {isEditing ? "Salvar Alterações" : "Encaminhar"}
