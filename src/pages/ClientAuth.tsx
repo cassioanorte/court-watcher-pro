@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Scale, Eye, EyeOff } from "lucide-react";
+import { Scale, Eye, EyeOff, Sun, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
+import { useColorMode } from "@/hooks/useColorMode";
 
 const ClientAuth = () => {
   const [cpf, setCpf] = useState("");
