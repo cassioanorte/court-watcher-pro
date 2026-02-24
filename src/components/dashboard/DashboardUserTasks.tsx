@@ -4,17 +4,21 @@ import { CheckSquare, Plus, Check, Trash2, CalendarDays, ChevronDown, ChevronRig
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useUserTasks, PREDEFINED_TASKS } from "@/hooks/useUserTasks";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useUserTasks, PREDEFINED_TASKS, type UserTask } from "@/hooks/useUserTasks";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const DashboardUserTasks = () => {
-  const { activeTasks, completedTasks, loading, toggleTask, deleteTask, addTask } = useUserTasks();
+  const { activeTasks, completedTasks, loading, toggleTask, deleteTask, addTask, updateTask, cases } = useUserTasks();
   const [newTitle, setNewTitle] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
   const [showPredefined, setShowPredefined] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [editingTask, setEditingTask] = useState<UserTask | null>(null);
 
   const handleAdd = async () => {
     if (!newTitle.trim()) return;
@@ -28,6 +32,19 @@ const DashboardUserTasks = () => {
   const handlePredefined = (title: string) => {
     setNewTitle(title);
     setShowPredefined(false);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingTask) return;
+    await updateTask(editingTask.id, {
+      title: editingTask.title,
+      description: editingTask.description,
+      due_date: editingTask.due_date,
+      due_time: editingTask.due_time,
+      case_id: editingTask.case_id,
+    });
+    toast.success("Tarefa atualizada!");
+    setEditingTask(null);
   };
 
   const isOverdue = (t: { due_date: string | null; completed: boolean }) =>
@@ -120,9 +137,9 @@ const DashboardUserTasks = () => {
                     )}
                   </div>
                 </div>
-                <Link to={`/tarefas`} className="p-1 text-muted-foreground hover:text-accent shrink-0">
+                <button onClick={() => setEditingTask({ ...t })} className="p-1 text-muted-foreground hover:text-accent shrink-0">
                   <Edit2 className="w-3.5 h-3.5" />
-                </Link>
+                </button>
                 <button onClick={() => { deleteTask(t.id); toast.success("Tarefa excluída"); }} className="p-1 text-muted-foreground hover:text-destructive shrink-0">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -165,6 +182,47 @@ const DashboardUserTasks = () => {
           )}
         </div>
       )}
+
+      {/* Edit task dialog */}
+      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Tarefa</DialogTitle>
+          </DialogHeader>
+          {editingTask && (
+            <div className="space-y-3 mt-2">
+              <Input value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} />
+              <Textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value || null })} rows={2} placeholder="Descrição" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Prazo</label>
+                  <Input type="date" value={editingTask.due_date || ""} onChange={(e) => setEditingTask({ ...editingTask, due_date: e.target.value || null })} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Hora</label>
+                  <Input type="time" value={editingTask.due_time || ""} onChange={(e) => setEditingTask({ ...editingTask, due_time: e.target.value || null })} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Vincular processo</label>
+                <Select value={editingTask.case_id || "none"} onValueChange={(v) => setEditingTask({ ...editingTask, case_id: v === "none" ? null : v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {cases.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setEditingTask(null)}>Cancelar</Button>
+                <Button size="sm" onClick={handleEditSave}>Salvar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
