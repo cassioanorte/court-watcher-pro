@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, X, FileText } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 
 const CATEGORIES = [
   { value: "peticao", label: "Petição" },
@@ -69,6 +70,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   const [saving, setSaving] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [cases, setCases] = useState<{ id: string; process_number: string }[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [category, setCategory] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
@@ -148,7 +150,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
         if (error) throw error;
         toast({ title: "Cumprimento atualizado!" });
       } else {
-        const { error } = await supabase.from("case_fulfillments").insert({
+        const { error, data: inserted } = await supabase.from("case_fulfillments").insert({
           case_id: selectedCaseId,
           tenant_id: tenantId!,
           category,
@@ -161,8 +163,24 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           source_id: sourceId || null,
           priority,
           notes: notes || null,
-        });
+        }).select("id").single();
         if (error) throw error;
+        // Upload pending files
+        if (inserted && pendingFiles.length > 0) {
+          for (const file of pendingFiles) {
+            const path = `fulfillments/${inserted.id}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
+            if (uploadError) continue;
+            const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+            await supabase.from("fulfillment_documents").insert({
+              fulfillment_id: inserted.id,
+              tenant_id: tenantId!,
+              file_name: file.name,
+              file_url: urlData.publicUrl,
+              uploaded_by: user?.id,
+            });
+          }
+        }
         toast({ title: "Cumprimento criado!", description: "O responsável foi notificado." });
       }
       onOpenChange(false);
@@ -182,6 +200,11 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     setPriority("normal");
     setDescription("");
     setNotes("");
+    setPendingFiles([]);
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -284,6 +307,35 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
             <Label>Observações</Label>
             <Input placeholder="Observações adicionais..." value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
+
+          {!isEditing && (
+            <div className="space-y-1.5">
+              <Label>Anexar Documentos</Label>
+              <FileDropZone
+                onFile={(file) => setPendingFiles(prev => [...prev, file])}
+                multiple
+                onFiles={(files) => setPendingFiles(prev => [...prev, ...files])}
+                label="Arraste documentos aqui ou clique para selecionar"
+                sublabel="PDF, Word, imagens e outros formatos"
+                compact
+              />
+              {pendingFiles.length > 0 && (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {pendingFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded border bg-muted/30 text-sm">
+                      <span className="flex items-center gap-1.5 truncate min-w-0">
+                        <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{file.name}</span>
+                      </span>
+                      <button onClick={() => removePendingFile(idx)} className="text-muted-foreground hover:text-destructive shrink-0">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
