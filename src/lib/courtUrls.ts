@@ -127,10 +127,7 @@ export function isEprocProcess(processNumber: string): boolean {
  */
 export function openViaBlank(url: string): void {
   // Open with noreferrer to strip Referer header and avoid cross-site session tainting
-  const w = window.open(url, "_blank", "noreferrer");
-  if (!w) {
-    navigator.clipboard.writeText(url);
-  }
+  window.open(url, "_blank", "noreferrer");
 }
 
 /**
