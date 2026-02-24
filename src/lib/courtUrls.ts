@@ -121,6 +121,22 @@ export function isEprocProcess(processNumber: string): boolean {
 }
 
 /**
+ * Open a URL via an about:blank intermediary to avoid cross-site session tainting.
+ * This prevents the browser from sending Sec-Fetch-Site: cross-site headers,
+ * which eproc uses to restrict document access in the session.
+ */
+export function openViaBlank(url: string): void {
+  const w = window.open("about:blank", "_blank");
+  if (w) {
+    // Navigate from the blank page context — no cross-site headers
+    w.location.replace(url);
+  } else {
+    // Popup blocked — fallback to copying URL
+    navigator.clipboard.writeText(url);
+  }
+}
+
+/**
  * Open a process in the tribunal, handling eproc portals by copying the number first.
  * Returns true if handled (eproc copy+open), false if it's a normal link.
  */
@@ -137,7 +153,7 @@ export function openInTribunal(
     const num = processNumber.replace(/\D/g, "");
     navigator.clipboard.writeText(num);
     onCopied?.();
-    window.open(url, "_blank", "noopener,noreferrer");
+    openViaBlank(url);
   }
   return { url, isEproc: eproc };
 }
