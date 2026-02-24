@@ -325,6 +325,12 @@ const ClientProcessDetail = () => {
               href={tribunalUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                if (isEprocSource) {
+                  const num = caseData.process_number.replace(/\D/g, "");
+                  navigator.clipboard.writeText(num);
+                }
+              }}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-accent hover:bg-card hover:shadow-sm transition-all"
             >
               <ExternalLink className="w-4 h-4" />
