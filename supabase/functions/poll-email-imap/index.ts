@@ -20,10 +20,14 @@ Deno.serve(async (req) => {
 
     let targetTenantId: string | null = null;
     let isCron = false;
+    let requestedLookbackDays: number | null = null;
     try {
       const body = await req.json();
       targetTenantId = body.tenant_id || null;
       isCron = body.mode === 'cron';
+      if (body.lookback_days && typeof body.lookback_days === 'number') {
+        requestedLookbackDays = Math.min(Math.max(body.lookback_days, 1), 60);
+      }
     } catch { /* no body */ }
 
     let query = serviceClient
