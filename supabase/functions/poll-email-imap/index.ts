@@ -20,10 +20,14 @@ Deno.serve(async (req) => {
 
     let targetTenantId: string | null = null;
     let isCron = false;
+    let requestedLookbackDays: number | null = null;
     try {
       const body = await req.json();
       targetTenantId = body.tenant_id || null;
       isCron = body.mode === 'cron';
+      if (body.lookback_days && typeof body.lookback_days === 'number') {
+        requestedLookbackDays = Math.min(Math.max(body.lookback_days, 1), 60);
+      }
     } catch { /* no body */ }
 
     let query = serviceClient
@@ -55,7 +59,7 @@ Deno.serve(async (req) => {
 
       try {
         console.log(`Processing mailbox for tenant ${cred.tenant_id}: ${cred.imap_user}@${cred.imap_host}`);
-        const lookbackDays = isCron ? 1 : 1;
+        const lookbackDays = requestedLookbackDays || (isCron ? 1 : 1);
         const result = await processMailbox(serviceClient, cred, lookbackDays, startTime, MAX_RUNTIME_MS);
         results.push({ tenant_id: cred.tenant_id, ...result });
 

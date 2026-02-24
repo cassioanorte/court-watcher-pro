@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface Publication {
@@ -128,12 +129,15 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [fetchTodayMovements]);
 
-  const refreshPubs = useCallback(async () => {
+  const [pubLookback, setPubLookback] = useState(1);
+
+  const refreshPubs = useCallback(async (lookbackOverride?: number) => {
     if (!tenantId) return;
     setRefreshingPubs(true);
     try {
+      const days = lookbackOverride ?? pubLookback;
       await supabase.functions.invoke("poll-email-imap", {
-        body: { tenant_id: tenantId },
+        body: { tenant_id: tenantId, lookback_days: days },
       });
       const today = new Date().toISOString().split("T")[0];
       const { data } = await supabase
@@ -150,7 +154,7 @@ const Dashboard = () => {
     } finally {
       setRefreshingPubs(false);
     }
-  }, [tenantId]);
+  }, [tenantId, pubLookback]);
 
   const handlePubClick = async (pub: Publication) => {
     setSelectedPub(pub);
@@ -260,7 +264,18 @@ const Dashboard = () => {
               )}
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={refreshPubs} disabled={refreshingPubs} className="text-muted-foreground text-xs h-7 px-2 gap-1">
+              <Select value={String(pubLookback)} onValueChange={(v) => setPubLookback(Number(v))}>
+                <SelectTrigger className="h-7 w-[90px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Hoje</SelectItem>
+                  <SelectItem value="7">7 dias</SelectItem>
+                  <SelectItem value="15">15 dias</SelectItem>
+                  <SelectItem value="30">30 dias</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="ghost" size="sm" onClick={() => refreshPubs()} disabled={refreshingPubs} className="text-muted-foreground text-xs h-7 px-2 gap-1">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshingPubs ? "animate-spin" : ""}`} />
                 {refreshingPubs ? "Verificando..." : "Atualizar"}
               </Button>

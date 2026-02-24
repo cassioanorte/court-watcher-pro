@@ -156,15 +156,18 @@ const Publicacoes = () => {
     fetchPublications();
   }, [tenantId, sourceFilter, readFilter]);
 
-  const handleSync = async () => {
+  const [syncLookback, setSyncLookback] = useState<number>(1);
+
+  const handleSync = async (lookbackOverride?: number) => {
     setSyncing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Não autenticado");
 
+      const days = lookbackOverride ?? syncLookback;
       const { data, error } = await supabase.functions.invoke("poll-email-imap", {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { tenant_id: tenantId },
+        body: { tenant_id: tenantId, lookback_days: days },
       });
 
       if (error) throw error;
@@ -282,14 +285,27 @@ const Publicacoes = () => {
             )}
           </p>
         </div>
-        <Button
-          onClick={handleSync}
-          disabled={syncing}
-          className="gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Verificando e-mails..." : "Verificar E-mails"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={String(syncLookback)} onValueChange={(v) => setSyncLookback(Number(v))}>
+            <SelectTrigger className="w-[130px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Hoje</SelectItem>
+              <SelectItem value="7">7 dias</SelectItem>
+              <SelectItem value="15">15 dias</SelectItem>
+              <SelectItem value="30">30 dias</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => handleSync()}
+            disabled={syncing}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Verificando..." : "Verificar E-mails"}
+          </Button>
+        </div>
       </div>
 
       {/* AI Credits indicator */}
