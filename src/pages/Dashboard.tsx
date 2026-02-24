@@ -374,17 +374,19 @@ const Dashboard = () => {
                       <span className="text-xs font-mono text-foreground">{pn}</span>
                       {url && (
                         eproc ? (
-                          <button
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener"
                             onClick={() => {
                               navigator.clipboard.writeText(pn.replace(/\D/g, ""));
-                              toast.success("Nº copiado! Cole na busca do eproc. Abrindo portal...");
-                              window.open(url, "_blank");
+                              toast.success("Nº copiado! Cole na busca do eproc.");
                             }}
                             className="text-accent hover:text-accent/80 transition-colors inline-flex items-center gap-1 text-xs"
                             title="Abrir no eproc (copia nº)"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
+                          </a>
                         ) : (
                           <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 transition-colors" title="Ver no tribunal">
                             <ExternalLink className="w-3.5 h-3.5" />
