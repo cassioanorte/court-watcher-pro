@@ -592,19 +592,34 @@ const Publicacoes = () => {
                     <div className="space-y-1.5">
                       {processes.map((pn) => {
                         const url = getCourtUrl(pn);
+                        const eproc = isEprocProcess(pn);
                         return (
                           <div key={pn} className="flex items-center gap-2">
                             <span className="text-sm font-mono text-muted-foreground">{pn}</span>
                             {url && (
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
-                              >
-                                <Scale className="w-3 h-3" />
-                                Abrir no tribunal
-                              </a>
+                              eproc ? (
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(pn.replace(/\D/g, ""));
+                                    toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
+                                    window.open(url, "_blank");
+                                  }}
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                                >
+                                  <Scale className="w-3 h-3" />
+                                  Abrir no eproc (copia nº)
+                                </button>
+                              ) : (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                                >
+                                  <Scale className="w-3 h-3" />
+                                  Abrir no tribunal
+                                </a>
+                              )
                             )}
                             <button
                               onClick={() => { setSelectedPub(null); setFulfillmentModal({ open: true, processNumber: pn, sourceId: selectedPub.id }); }}
