@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
       try {
         console.log(`Processing mailbox for tenant ${cred.tenant_id}: ${cred.imap_user}@${cred.imap_host}`);
-        const lookbackDays = requestedLookbackDays || (isCron ? 1 : 1);
+        const lookbackDays = requestedLookbackDays || 1;
         const result = await processMailbox(serviceClient, cred, lookbackDays, startTime, MAX_RUNTIME_MS);
         results.push({ tenant_id: cred.tenant_id, ...result });
 
