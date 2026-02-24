@@ -53,11 +53,10 @@ const Tarefas = () => {
     setTitle(""); setDescription(""); setDueDate(""); setDueTime(""); setCaseId(""); setShowForm(false);
   };
 
-  const handlePredefined = async (taskTitle: string) => {
-    const err = await addTask(taskTitle);
-    if (err) toast.error("Erro ao criar tarefa");
-    else toast.success("Tarefa criada!");
+  const handlePredefined = (taskTitle: string) => {
+    setTitle(taskTitle);
     setShowPredefined(false);
+    setShowForm(true);
   };
 
   const handleAddSubtask = async (taskId: string) => {
