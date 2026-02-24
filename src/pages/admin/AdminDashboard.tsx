@@ -35,20 +35,26 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [tenantsRes, profilesRes, casesRes, logsRes] = await Promise.all([
+      const [tenantsRes, profilesRes, casesRes, logsRes, rolesRes] = await Promise.all([
         supabase.from("tenants").select("id, name, slug, created_at"),
-        supabase.from("profiles").select("tenant_id"),
+        supabase.from("profiles").select("tenant_id, user_id"),
         supabase.from("cases").select("tenant_id"),
         supabase.from("audit_logs").select("id", { count: "exact", head: true }),
+        supabase.from("user_roles").select("user_id, role"),
       ]);
 
       const tenants = tenantsRes.data || [];
       const profiles = profilesRes.data || [];
       const cases = casesRes.data || [];
+      const roles = rolesRes.data || [];
+
+      // Count only staff users (owner/staff), not clients
+      const clientUserIds = new Set(roles.filter((r) => r.role === "client").map((r) => r.user_id));
+      const staffProfiles = profiles.filter((p) => !clientUserIds.has(p.user_id));
 
       setStats({
         tenants: tenants.length,
-        users: profiles.length,
+        users: staffProfiles.length,
         recentLogs: logsRes.count || 0,
       });
 
@@ -111,7 +117,7 @@ const AdminDashboard = () => {
 
   const cards = [
     { label: "Escritórios", value: stats.tenants, icon: Building2, color: "from-violet-500 to-indigo-600", link: "/admin/escritorios" },
-    { label: "Usuários", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600", link: "/admin/usuarios" },
+    { label: "Usuários do Escritório", value: stats.users, icon: Users, color: "from-emerald-500 to-teal-600", link: "/admin/usuarios" },
     { label: "Logs de Atividade", value: stats.recentLogs, icon: Activity, color: "from-rose-500 to-pink-600", link: "/admin/atividade" },
   ];
 
