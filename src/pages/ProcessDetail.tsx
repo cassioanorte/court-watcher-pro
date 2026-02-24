@@ -5,7 +5,7 @@ import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Sav
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
-import { getCourtUrl, getAuthenticatedCourtUrl } from "@/lib/courtUrls";
+import { getCourtUrl, getAuthenticatedCourtUrl, openViaBlank } from "@/lib/courtUrls";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -718,21 +718,20 @@ const ProcessDetail = () => {
           {refreshing ? "Consultando tribunais..." : "Atualizar movimentações"}
         </button>
         {tribunalUrl && (
-          <a
-            href={tribunalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => {
+          <button
+            onClick={(e) => {
+              e.preventDefault();
               if (isEprocSource) {
                 const num = caseData.process_number.replace(/\D/g, "");
                 navigator.clipboard.writeText(num);
                 toast({ title: "Nº copiado!", description: "Cole na busca do eproc. Abrindo portal..." });
               }
+              openViaBlank(tribunalUrl);
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <ExternalLink className="w-4 h-4" /> {isEprocSource ? "Abrir no eproc (copia nº)" : "Abrir no tribunal"}
-          </a>
+          </button>
         )}
       </div>
 

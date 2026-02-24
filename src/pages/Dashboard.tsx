@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Newspaper, ArrowRight, Activity, Clock, Eye, ExternalLink, RefreshCw, Send } from "lucide-react";
-import { getCourtUrl, getAuthenticatedCourtUrl, extractProcessNumbers, isEprocProcess } from "@/lib/courtUrls";
+import { getCourtUrl, getAuthenticatedCourtUrl, extractProcessNumbers, isEprocProcess, openViaBlank } from "@/lib/courtUrls";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -236,19 +236,17 @@ const Dashboard = () => {
                             : getCourtUrl(mov.process_number);
                           if (!url) return null;
                           return eproc ? (
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
                               onClick={() => {
                                 navigator.clipboard.writeText(mov.process_number.replace(/\D/g, ""));
                                 toast.success("Nº copiado! Cole na busca do eproc.");
+                                openViaBlank(url);
                               }}
                               title="Abrir no eproc (copia nº)"
                               className="inline-flex items-center gap-1 h-6 px-2 text-[10px] text-muted-foreground hover:text-accent transition-colors rounded-md hover:bg-accent/10"
                             >
                               <ExternalLink className="w-3 h-3" /> Tribunal
-                            </a>
+                            </button>
                           ) : (
                             <a
                               href={url}
