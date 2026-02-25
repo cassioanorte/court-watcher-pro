@@ -91,4 +91,31 @@ describe("rpvParser - múltiplos honorários", () => {
     expect(result.process_number).toBe("5000041-39.2018.8.21.0114");
     expect(result.entity).toBe("INSS");
   });
+
+  it("separa honorários mesmo com texto achatado sem dois-pontos", () => {
+    const flattenedPdfText = `
+      Requisição N° 26000001777 Processo Eletrônico Sim Aço de Execuç0 5000041-39.2018.8.21.0114
+      Total Requisitado (R$) 165.347,15 Requerido INSTITUTO NACIONAL DO SEGURO SOCIAL - INSS
+      Destaque dos Honorários Contratuais Sim Honorários
+      SPIER & ANORTE SOCIEDADE DE ADVOGADOS (18.382.306/0001-15)
+      Espécie RPV - Original Tipo Honorário Honorários de Sucumbência Data Base 08/2025
+      Valor Requisitado (Principal Corrigido + Juros + Selic) 3.972,24
+      SPIER & ANORTE SOCIEDADE DE ADVOGADOS (18.382.306/0001-15)
+      Espécie Precatório - Original Tipo Honorário Honorários Contratuais Data Base 08/2025
+      Valor Requisitado (Principal Corrigido + Juros + Selic) 44.897,50
+    `;
+
+    const result = parseMultiplePayments(flattenedPdfText);
+
+    expect(result.has_separated_fees).toBe(true);
+    expect(result.entries.length).toBeGreaterThanOrEqual(2);
+
+    const suc = result.entries.find((e) => e.fee_type === "sucumbencia");
+    const cont = result.entries.find((e) => e.fee_type === "contratuais");
+
+    expect(suc?.gross_amount).toBeCloseTo(3972.24, 2);
+    expect(cont?.gross_amount).toBeCloseTo(44897.5, 2);
+    expect(suc?.reference_date).toBe("2025-08-01");
+    expect(cont?.reference_date).toBe("2025-08-01");
+  });
 });

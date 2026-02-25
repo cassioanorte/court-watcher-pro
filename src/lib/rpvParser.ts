@@ -48,15 +48,29 @@ function parseDate(dateStr: string): string | null {
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
-function normalizeExtractedText(text: string): string {
-  return text
+type NormalizeOptions = {
+  preserveLineBreaks?: boolean;
+};
+
+function normalizeExtractedText(text: string, options: NormalizeOptions = {}): string {
+  const normalized = text
+    .replace(/\r\n?/g, "\n")
     .replace(/&#x26;|&amp;/gi, "&")
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
     .replace(/[\u00A0\u2007\u202F]/g, " ")
-    .replace(/[‐‑‒–—]/g, "-")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[‐‑‒–—]/g, "-");
+
+  if (options.preserveLineBreaks) {
+    return normalized
+      .replace(/[ \t\f\v]+/g, " ")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
+  }
+
+  return normalized.replace(/\s+/g, " ").trim();
 }
 
 function normalizeForMatch(text: string): string {
@@ -67,6 +81,13 @@ function normalizeForMatch(text: string): string {
     .replace(/[^\w\s:/.-]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function inferFeeType(text: string): "contratuais" | "sucumbencia" | null {
+  const normalized = normalizeForMatch(text);
+  if (normalized.includes("sucumb")) return "sucumbencia";
+  if (normalized.includes("contrat")) return "contratuais";
+  return null;
 }
 
 function extractCpf(text: string): string | null {
@@ -264,6 +285,7 @@ export function parseRpvText(text: string): RpvData {
  */
 export function parseMultiplePayments(text: string): MultiPaymentResult {
   const normalizedText = normalizeExtractedText(text);
+  const normalizedWithBreaks = normalizeExtractedText(text, { preserveLineBreaks: true });
   const singleResult = parseRpvText(normalizedText);
   const process_number = singleResult.process_number;
   const entity = singleResult.entity;
@@ -272,22 +294,45 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
   const totalMatch = normalizedText.match(/Total\s+Requisitado\s*\(?R?\$?\)?\s*:?\s*([\d.,]+)/i);
   const total_requisitado = totalMatch ? parseMoney(totalMatch[1]) : singleResult.gross_amount;
 
-  // Detect "Destaque dos Honorários Contratuais: Sim" — means fees are separated
-  const hasDestaque = /Destaque\s+dos\s+Honor[áa]rios\s+Contratuais\s*:\s*Sim/i.test(normalizedText);
+  // Detect explicit statement that fees are separated
+  const hasDestaque = /Destaque\s+dos\s+Honor[áa]rios\s+Contratuais\s*:\s*Sim/i.test(normalizedWithBreaks);
 
-  // Find every fee section by "Tipo Honorário" (robust to encoding glitches such as "HonorÃ¡rio")
   const feeSections: { index: number; fee_type: "contratuais" | "sucumbencia" }[] = [];
-  const tipoHonorRegex = /Tipo\s+(?:de\s+)?Honor[^:]{0,40}:\s*/gi;
+
+  const addFeeSection = (index: number, fee_type: "contratuais" | "sucumbencia") => {
+    if (index < 0) return;
+    const exists = feeSections.some(
+      (section) => section.fee_type === fee_type && Math.abs(section.index - index) < 80
+    );
+    if (!exists) feeSections.push({ index, fee_type });
+  };
+
+  // Strategy 1: sections that contain "Tipo Honorário"
+  const tipoHonorRegex = /Tipo\s*(?:de\s*)?Honor[^\n]{0,40}(?::|\s)\s*/gi;
   let tipoMatch: RegExpExecArray | null;
-
-  while ((tipoMatch = tipoHonorRegex.exec(normalizedText)) !== null) {
-    const labelWindow = normalizedText.slice(tipoHonorRegex.lastIndex, tipoHonorRegex.lastIndex + 160);
-    const normalizedLabelWindow = normalizeForMatch(labelWindow);
-    if (!/sucumb|contrat/.test(normalizedLabelWindow)) continue;
-
-    const fee_type = /sucumb/.test(normalizedLabelWindow) ? "sucumbencia" : "contratuais";
-    feeSections.push({ index: tipoMatch.index, fee_type });
+  while ((tipoMatch = tipoHonorRegex.exec(normalizedWithBreaks)) !== null) {
+    const windowText = normalizedWithBreaks.slice(tipoMatch.index, tipoMatch.index + 480);
+    const feeType = inferFeeType(windowText);
+    if (!feeType) continue;
+    if (!/Valor\s+Requisitado/i.test(windowText)) continue;
+    addFeeSection(tipoMatch.index, feeType);
   }
+
+  // Strategy 2 (fallback): explicit fee labels close to "Valor Requisitado"
+  if (feeSections.length < 2) {
+    const feeLabelRegex = /Honor[áa]rios?\s+(?:de\s+)?(Sucumb[êe]ncia|Contratuais?)/gi;
+    let feeLabelMatch: RegExpExecArray | null;
+
+    while ((feeLabelMatch = feeLabelRegex.exec(normalizedWithBreaks)) !== null) {
+      const windowText = normalizedWithBreaks.slice(feeLabelMatch.index, feeLabelMatch.index + 480);
+      if (!/Valor\s+Requisitado/i.test(windowText)) continue;
+
+      const feeType = /sucumb/i.test(feeLabelMatch[1]) ? "sucumbencia" : "contratuais";
+      addFeeSection(feeLabelMatch.index, feeType);
+    }
+  }
+
+  feeSections.sort((a, b) => a.index - b.index);
 
   if (feeSections.length === 0) {
     // No explicit honorário sections found — return single result
@@ -304,14 +349,17 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
 
   for (let i = 0; i < feeSections.length; i++) {
     const startIdx = feeSections[i].index;
-    const nextIdx = i + 1 < feeSections.length ? feeSections[i + 1].index : normalizedText.length;
+    const nextIdx = i + 1 < feeSections.length ? feeSections[i + 1].index : normalizedWithBreaks.length;
 
-    // We need context before and after "Tipo Honorário" to capture office name + espécie + values
-    const contextStart = Math.max(0, startIdx - 700);
-    const contextEnd = Math.min(normalizedText.length, nextIdx + 220);
-    const blockWithContext = normalizedText.substring(contextStart, contextEnd);
-    const blockAfterType = normalizedText.substring(startIdx, nextIdx);
-    const headerContext = normalizedText.substring(contextStart, Math.min(normalizedText.length, startIdx + 180));
+    // Capture context before and after the section marker
+    const contextStart = Math.max(0, startIdx - 1000);
+    const contextEnd = Math.min(normalizedWithBreaks.length, nextIdx + 320);
+    const blockWithContext = normalizedWithBreaks.substring(contextStart, contextEnd);
+    const blockAfterType = normalizedWithBreaks.substring(startIdx, nextIdx);
+    const headerContext = normalizedWithBreaks.substring(
+      contextStart,
+      Math.min(normalizedWithBreaks.length, startIdx + 260)
+    );
 
     const fee_type = feeSections[i].fee_type;
 
@@ -319,15 +367,22 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     let type: "rpv" | "precatorio" | null = null;
     let especieLabel: string | null = null;
 
-    const especieRegex = /Esp[^:]{0,20}:\s*(RPV|Precat[^\s]{0,6}rio)/gi;
-    let especieIter: RegExpExecArray | null;
-    while ((especieIter = especieRegex.exec(headerContext)) !== null) {
-      especieLabel = especieIter[1];
+    const especieRegex = /Esp[^:\n]{0,20}(?::|\s)\s*(RPV|Precat[^\s\n]{0,10}rio)/gi;
+    const especieBeforeMarker = normalizedWithBreaks.substring(
+      contextStart,
+      Math.min(normalizedWithBreaks.length, startIdx + 40)
+    );
+    const especieBeforeMatches = [...especieBeforeMarker.matchAll(especieRegex)];
+
+    if (especieBeforeMatches.length > 0) {
+      especieLabel = especieBeforeMatches[especieBeforeMatches.length - 1][1];
     }
 
     if (!especieLabel) {
-      const especieAfterMatch = blockAfterType.match(/Esp[^:]{0,20}:\s*(RPV|Precat[^\s]{0,6}rio)/i);
-      if (especieAfterMatch) especieLabel = especieAfterMatch[1];
+      const especieAfterMatches = [...blockAfterType.slice(0, 260).matchAll(especieRegex)];
+      if (especieAfterMatches.length > 0) {
+        especieLabel = especieAfterMatches[0][1];
+      }
     }
 
     if (especieLabel) {
@@ -339,52 +394,56 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     // Extract valor requisitado (per fee block)
     let gross_amount = extractMoneyValue(
       blockAfterType,
-      /Valor\s+Requisitado(?:\s*\([^)]*\))?\s*:\s*R?\$?\s*([\d.,]+)/i,
-      /Valor\s+Requisitado[^\d]{0,25}([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{2})?)/i,
+      /Valor\s+Requisitado(?:\s*\([^)]*\))?\s*(?::|\s)\s*R?\$?\s*([\d.,]+)/i,
+      /Valor\s+Requisitado[^\d]{0,40}([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{2})?)/i,
     );
     if (!gross_amount) {
       gross_amount = extractMoneyValue(
         blockWithContext,
-        /Valor\s+Requisitado(?:\s*\([^)]*\))?\s*:\s*R?\$?\s*([\d.,]+)/i,
-        /Valor\s+Requisitado[^\d]{0,25}([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{2})?)/i,
+        /Valor\s+Requisitado(?:\s*\([^)]*\))?\s*(?::|\s)\s*R?\$?\s*([\d.,]+)/i,
+        /Valor\s+Requisitado[^\d]{0,40}([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{2})?)/i,
       );
     }
 
-    // Extract office/beneficiary name + CNPJ/CPF shown below the "Honorários" heading
+    if (!gross_amount) continue;
+
+    // Extract office/beneficiary name + CNPJ/CPF
     let beneficiary_name: string | null = null;
     let beneficiary_cpf: string | null = null;
 
-    const officeCnpjPattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s+(?:de\s+)?Honor[áa]rio)/i;
-    const officeCpfPattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{3}\.\d{3}\.\d{3}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s+(?:de\s+)?Honor[áa]rio)/i;
+    const officeCnpjPattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,160}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s*(?:de\s*)?Honor|Valor\s+Requisitado)/i;
+    const officeCpfPattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,160}?)\s*\((\d{3}\.\d{3}\.\d{3}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s*(?:de\s*)?Honor|Valor\s+Requisitado)/i;
 
-    const officeMatch = headerContext.match(officeCnpjPattern) || headerContext.match(officeCpfPattern);
+    const officeMatch =
+      headerContext.match(officeCnpjPattern) ||
+      headerContext.match(officeCpfPattern) ||
+      blockWithContext.match(officeCnpjPattern) ||
+      blockWithContext.match(officeCpfPattern);
 
     if (officeMatch) {
       beneficiary_name = officeMatch[1].replace(/^#+\s*/, "").replace(/\s+/g, " ").trim();
       beneficiary_cpf = officeMatch[2];
     } else {
-      const officeWithDocRegex = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\)/gi;
+      const prevWindow = normalizedWithBreaks.substring(Math.max(0, startIdx - 1200), startIdx + 120);
+      const officeWithDocRegex = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,160}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\)/gi;
       let officeWithDocMatch: RegExpExecArray | null;
       let lastOfficeWithDoc: RegExpExecArray | null = null;
 
-      while ((officeWithDocMatch = officeWithDocRegex.exec(headerContext)) !== null) {
+      while ((officeWithDocMatch = officeWithDocRegex.exec(prevWindow)) !== null) {
         lastOfficeWithDoc = officeWithDocMatch;
       }
 
       if (lastOfficeWithDoc) {
         beneficiary_name = lastOfficeWithDoc[1].replace(/^#+\s*/, "").replace(/\s+/g, " ").trim();
         beneficiary_cpf = lastOfficeWithDoc[2];
-      } else {
-        const officeFallback = blockWithContext.match(/(?:escrit[oó]rio|sociedade\s+de\s+advogados?)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140})/i);
-        if (officeFallback) beneficiary_name = officeFallback[1].trim();
-        beneficiary_cpf = extractCpf(blockWithContext);
       }
     }
 
     // Data base (month/year)
     let reference_date: string | null = null;
-    const dataBaseMatch = blockAfterType.match(/Data\s+Base\s*:\s*(\d{2})\/(\d{4})/i)
-      || blockWithContext.match(/Data\s+Base\s*:\s*(\d{2})\/(\d{4})/i);
+    const dataBaseMatch =
+      blockAfterType.match(/Data\s+Base\s*(?::|\s)\s*(\d{2})\/(\d{4})/i) ||
+      blockWithContext.match(/Data\s+Base\s*(?::|\s)\s*(\d{2})\/(\d{4})/i);
     if (dataBaseMatch) reference_date = `${dataBaseMatch[2]}-${dataBaseMatch[1]}-01`;
 
     entries.push({
@@ -419,7 +478,7 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
   }
 
   const feeTypesFound = new Set(dedupedEntries.map(e => e.fee_type).filter(Boolean));
-  const hasSeparatedFees = dedupedEntries.length > 1 || hasDestaque || feeTypesFound.size > 1;
+  const hasSeparatedFees = dedupedEntries.length > 1 || (hasDestaque && feeTypesFound.size > 0) || feeTypesFound.size > 1;
 
   return {
     entries: dedupedEntries.length > 0 ? dedupedEntries : [singleResult],
@@ -442,13 +501,35 @@ export async function extractTextFromPdf(file: File): Promise<string> {
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
   let fullText = "";
+  const lineBreakThreshold = 2;
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(" ");
-    fullText += pageText + "\n";
+
+    let currentLine = "";
+    let lastY: number | null = null;
+    const lines: string[] = [];
+
+    for (const item of textContent.items as any[]) {
+      const str = String(item?.str || "").trim();
+      if (!str) continue;
+
+      const y = Number(item?.transform?.[5] ?? lastY ?? 0);
+
+      if (lastY !== null && Math.abs(y - lastY) > lineBreakThreshold) {
+        if (currentLine.trim()) lines.push(currentLine.trim());
+        currentLine = str;
+      } else {
+        currentLine = currentLine ? `${currentLine} ${str}` : str;
+      }
+
+      lastY = y;
+    }
+
+    if (currentLine.trim()) lines.push(currentLine.trim());
+
+    fullText += lines.join("\n") + "\n\n";
   }
 
   return fullText;
