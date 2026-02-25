@@ -402,23 +402,23 @@ const Financeiro = () => {
             </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {kpis.map((kpi, i) => (
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className={`bg-card rounded-lg p-5 shadow-card border ${"clickable" in kpi && kpi.clickable ? "cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" : ""}`}
+            className={`bg-card rounded-xl p-5 shadow-card border ${"clickable" in kpi && kpi.clickable ? "cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" : ""}`}
             onClick={"onClick" in kpi && kpi.onClick ? kpi.onClick as () => void : undefined}>
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{kpi.label}</p>
-                <p className="text-xl font-bold text-foreground mt-1 font-display truncate">{kpi.value}</p>
+                <p className="text-sm font-medium text-muted-foreground">{kpi.label}</p>
+                <p className="text-2xl font-bold text-foreground mt-1 font-display">{kpi.value}</p>
                 {"subtitle" in kpi && kpi.subtitle && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.subtitle}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</p>
                 )}
                 {"clickable" in kpi && kpi.clickable && (
-                  <p className="text-[10px] text-primary mt-1 flex items-center gap-0.5"><Plus className="w-3 h-3" /> Lançar despesa</p>
+                  <p className="text-xs text-primary mt-1.5 flex items-center gap-0.5"><Plus className="w-3 h-3" /> Lançar despesa</p>
                 )}
               </div>
-              <div className={`w-10 h-10 rounded-lg ${kpi.bgColor} flex items-center justify-center shrink-0`}>
+              <div className={`w-11 h-11 rounded-lg ${kpi.bgColor} flex items-center justify-center shrink-0`}>
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
               </div>
             </div>
