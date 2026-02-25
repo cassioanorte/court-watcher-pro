@@ -325,8 +325,10 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     let beneficiary_name: string | null = null;
     let beneficiary_cpf: string | null = null;
 
-    const officePattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s+(?:de\s+)?Honor[áa]rio)/i;
-    const officeMatch = headerContext.match(officePattern);
+    const officeCnpjPattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s+(?:de\s+)?Honor[áa]rio)/i;
+    const officeCpfPattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{3}\.\d{3}\.\d{3}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s+(?:de\s+)?Honor[áa]rio)/i;
+
+    const officeMatch = headerContext.match(officeCnpjPattern) || headerContext.match(officeCpfPattern);
 
     if (officeMatch) {
       beneficiary_name = officeMatch[1].replace(/^#+\s*/, "").trim();

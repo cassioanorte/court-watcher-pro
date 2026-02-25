@@ -1,0 +1,47 @@
+import { describe, it, expect } from "vitest";
+import { parseMultiplePayments } from "@/lib/rpvParser";
+
+describe("rpvParser - múltiplos honorários", () => {
+  it("separa sucumbência e contratuais com espécie/data base/valor", () => {
+    const text = `
+      Processo Eletrônico: Sim
+      Ação de Execução: 5000041-39.2018.8.21.0114
+      Total Requisitado (R$): 165.347,15
+      Requerido: INSTITUTO NACIONAL DO SEGURO SOCIAL - INSS
+      Beneficiário: FABIANO ISMAEL MODEL (600.752.680-19)
+      Espécie: Precatório - Original
+      Data Base: 08/2025
+      Valor Requisitado (Principal Corrigido + Juros + Selic): 116.477,41
+      Destaque dos Honorários Contratuais: Sim
+      Honorários
+      SPIER & ANORTE SOCIEDADE DE ADVOGADOS (18.382.306/0001-15)
+      Espécie: RPV - Original
+      Tipo Honorário: Honorários de Sucumbência
+      Data Base: 08/2025
+      Valor Requisitado (Principal Corrigido + Juros + Selic): 3.972,24
+      SPIER & ANORTE SOCIEDADE DE ADVOGADOS (18.382.306/0001-15)
+      Espécie: Precatório - Original
+      Tipo Honorário: Honorários Contratuais
+      Data Base: 08/2025
+      Valor Requisitado (Principal Corrigido + Juros + Selic): 44.897,50
+    `;
+
+    const result = parseMultiplePayments(text);
+
+    expect(result.has_separated_fees).toBe(true);
+    expect(result.entries).toHaveLength(2);
+
+    const suc = result.entries.find((e) => e.fee_type === "sucumbencia");
+    const cont = result.entries.find((e) => e.fee_type === "contratuais");
+
+    expect(suc?.gross_amount).toBeCloseTo(3972.24, 2);
+    expect(suc?.type).toBe("rpv");
+    expect(suc?.reference_date).toBe("2025-08-01");
+    expect(suc?.beneficiary_name).toContain("SPIER");
+
+    expect(cont?.gross_amount).toBeCloseTo(44897.5, 2);
+    expect(cont?.type).toBe("precatorio");
+    expect(cont?.reference_date).toBe("2025-08-01");
+    expect(cont?.beneficiary_name).toContain("SPIER");
+  });
+});
