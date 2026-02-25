@@ -656,12 +656,12 @@ const Pagamentos = () => {
 
   const fmt = (v: number) => v?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) || "R$ 0,00";
 
-  const activeOrders = orders.filter(o => o.status !== "cancelado");
+  const activeOrders = orders.filter(o => o.status !== "cancelado" && o.status !== "rascunho");
   const totals = activeOrders.reduce(
     (acc, o) => {
       const math = computePaymentOrderMath(o);
       return {
-        gross: acc.gross + math.gross,
+        gross: acc.gross + math.officeGross,
         office: acc.office + math.officeNet,
         client: acc.client + math.clientAmount,
         ir: acc.ir + math.taxAmount,
@@ -692,7 +692,7 @@ const Pagamentos = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Valor Bruto Total</p>
+          <p className="text-xs text-muted-foreground mb-1">Honorários Brutos (Escritório)</p>
           <p className="text-xl font-bold text-foreground">{fmt(totals.gross)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-xl border p-4">
@@ -704,8 +704,8 @@ const Pagamentos = () => {
           <p className="text-xl font-bold text-accent">{fmt(totals.office)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-xl border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Valor do Cliente</p>
-          <p className="text-xl font-bold text-foreground">{fmt(totals.client)}</p>
+          <p className="text-xs text-muted-foreground mb-1">Valor do Cliente (referência)</p>
+          <p className="text-xl font-bold text-muted-foreground">{fmt(totals.client)}</p>
         </motion.div>
       </div>
 
