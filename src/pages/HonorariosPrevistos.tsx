@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { openInTribunal, getCourtUrl } from "@/lib/courtUrls";
 import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, addDays, addMonths, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -355,23 +356,21 @@ const HonorariosPrevistos = () => {
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {o.document_url && (
+                        {o.process_number && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                            if (o.process_number) {
-                              const num = o.process_number;
-                              if (navigator.clipboard?.writeText) {
-                                navigator.clipboard.writeText(num).then(() => toast.success(`Nº ${num} copiado!`));
-                              } else {
-                                const ta = document.createElement("textarea");
-                                ta.value = num;
-                                document.body.appendChild(ta);
-                                ta.select();
-                                document.execCommand("copy");
-                                document.body.removeChild(ta);
-                                toast.success(`Nº ${num} copiado!`);
-                              }
+                            const { url, isEproc } = openInTribunal(
+                              o.process_number!,
+                              undefined,
+                              () => toast.success(`Nº ${o.process_number} copiado!`)
+                            );
+                            if (!isEproc && url) {
+                              // Copy number and open
+                              const num = o.process_number!;
+                              navigator.clipboard?.writeText(num)
+                                .then(() => toast.success(`Nº ${num} copiado!`))
+                                .catch(() => {});
+                              window.open(url, "_blank", "noopener,noreferrer");
                             }
-                            window.open(o.document_url!, "_blank", "noopener,noreferrer");
                           }}>
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
