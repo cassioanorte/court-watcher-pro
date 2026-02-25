@@ -23,6 +23,32 @@ function getSmtpConfig(smtpHost: string) {
   return { port: 587, tls: false };
 }
 
+async function sendPush(supabaseUrl: string, serviceRoleKey: string, targetUserId: string, title: string, body: string, tag: string) {
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/manage-push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({ action: "send", target_user_id: targetUserId, title, body, url: "/portal-cliente", tag }),
+    });
+  } catch (e) {
+    console.error("[push error]", e);
+  }
+}
+
+async function sendEmail(cred: any, toEmail: string, subject: string, html: string) {
+  try {
+    const smtpHost = getSmtpHost(cred.imap_host);
+    const cfg = getSmtpConfig(smtpHost);
+    const client = new SMTPClient({
+      connection: { hostname: smtpHost, port: cfg.port, tls: cfg.tls, auth: { username: cred.imap_user, password: cred.imap_password } },
+    });
+    await client.send({ from: cred.imap_user, to: toEmail, subject, html });
+    await client.close();
+  } catch (e) {
+    console.error("[email error]", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,154 +60,137 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
     const threeDaysFromNow = new Date(today);
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
     const targetDate = threeDaysFromNow.toISOString().split("T")[0];
 
-    console.log(`[billing-reminders] Checking for bills due on ${targetDate}`);
+    console.log(`[billing-reminders] Checking bills due ${targetDate} and scheduled notifications for ${todayStr}`);
 
-    // Find pending billing collections due in 3 days
-    const { data: dueBills, error: billErr } = await supabase
+    // ===== PART 1: Billing collections (existing logic) =====
+    const { data: dueBills } = await supabase
       .from("billing_collections")
       .select("id, tenant_id, client_user_id, amount, due_date, description, created_by")
       .eq("due_date", targetDate)
       .in("status", ["pending", "partial"]);
 
-    if (billErr) throw billErr;
+    // Get all relevant profiles
+    const allClientIds = new Set<string>();
+    (dueBills || []).forEach(b => allClientIds.add(b.client_user_id));
 
-    if (!dueBills || dueBills.length === 0) {
-      console.log("[billing-reminders] No bills due in 3 days");
-      return new Response(JSON.stringify({ sent: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log(`[billing-reminders] Found ${dueBills.length} bills due on ${targetDate}`);
-
-    // Get client names and emails
-    const clientIds = [...new Set(dueBills.map(b => b.client_user_id))];
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, email")
-      .in("user_id", clientIds);
-    const profileMap: Record<string, { name: string; email: string | null }> = {};
-    (profiles || []).forEach(p => {
-      profileMap[p.user_id] = { name: p.full_name, email: p.email };
-    });
-
-    // Get email credentials per tenant for sending emails
-    const tenantIds = [...new Set(dueBills.map(b => b.tenant_id))];
-    const { data: emailCreds } = await supabase
-      .from("email_credentials")
-      .select("tenant_id, imap_host, imap_user, imap_password, imap_port, use_tls")
-      .in("tenant_id", tenantIds)
+    // Get scheduled notifications due today
+    const { data: dueScheduled } = await supabase
+      .from("scheduled_notifications")
+      .select("*")
+      .eq("next_send_date", todayStr)
       .eq("is_active", true);
+
+    (dueScheduled || []).forEach(s => allClientIds.add(s.client_user_id));
+
+    const clientIdsArr = [...allClientIds];
+    const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", clientIdsArr.length > 0 ? clientIdsArr : ["__none__"]);
+    const profileMap: Record<string, { name: string; email: string | null }> = {};
+    (profiles || []).forEach(p => { profileMap[p.user_id] = { name: p.full_name, email: p.email }; });
+
+    // Get email creds per tenant
+    const allTenantIds = new Set<string>();
+    (dueBills || []).forEach(b => allTenantIds.add(b.tenant_id));
+    (dueScheduled || []).forEach(s => allTenantIds.add(s.tenant_id));
+    const tenantArr = [...allTenantIds];
+    const { data: emailCreds } = await supabase.from("email_credentials").select("tenant_id, imap_host, imap_user, imap_password, imap_port, use_tls").in("tenant_id", tenantArr.length > 0 ? tenantArr : ["__none__"]).eq("is_active", true);
     const emailCredMap: Record<string, any> = {};
     (emailCreds || []).forEach(c => { emailCredMap[c.tenant_id] = c; });
 
     let sentCount = 0;
 
-    for (const bill of dueBills) {
+    // Process billing collections
+    for (const bill of (dueBills || [])) {
       const clientInfo = profileMap[bill.client_user_id] || { name: "Cliente", email: null };
       const amount = Number(bill.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       const dueFormatted = bill.due_date.split("-").reverse().join("/");
       const markerTag = `[BILL:${bill.id}]`;
 
-      // Check if already notified
-      const { data: existing } = await supabase
-        .from("client_notifications")
-        .select("id")
-        .eq("client_user_id", bill.client_user_id)
-        .eq("tenant_id", bill.tenant_id)
-        .ilike("body", `%${markerTag}%`)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        console.log(`[billing-reminders] Already notified for bill ${bill.id}, skipping`);
-        continue;
-      }
+      const { data: existing } = await supabase.from("client_notifications").select("id").eq("client_user_id", bill.client_user_id).eq("tenant_id", bill.tenant_id).ilike("body", `%${markerTag}%`).limit(1);
+      if (existing && existing.length > 0) continue;
 
       const title = `Lembrete de pagamento — ${bill.description || "Cobrança"}`;
       const body = `Olá ${clientInfo.name}, este é um lembrete automático de que o pagamento de ${amount} referente a "${bill.description || "cobrança"}" vence em ${dueFormatted}. Por favor, efetue o pagamento até a data de vencimento. ${markerTag}`;
 
-      // 1. In-app notification
-      await supabase.from("client_notifications").insert({
-        tenant_id: bill.tenant_id,
-        client_user_id: bill.client_user_id,
-        sent_by: bill.created_by,
-        type: "billing",
-        title,
-        body,
-      });
+      await supabase.from("client_notifications").insert({ tenant_id: bill.tenant_id, client_user_id: bill.client_user_id, sent_by: bill.created_by, type: "billing", title, body });
+      await sendPush(supabaseUrl, serviceRoleKey, bill.client_user_id, `💰 ${title}`, `Pagamento de ${amount} vence em ${dueFormatted}`, `billing-${bill.id}`);
 
-      // 2. Push notification
-      try {
-        const pushUrl = `${supabaseUrl}/functions/v1/manage-push`;
-        await fetch(pushUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceRoleKey}`,
-          },
-          body: JSON.stringify({
-            action: "send",
-            target_user_id: bill.client_user_id,
-            title: `💰 ${title}`,
-            body: `Pagamento de ${amount} vence em ${dueFormatted}`,
-            url: "/portal-cliente",
-            tag: `billing-${bill.id}`,
-          }),
-        });
-        console.log(`[billing-reminders] Push sent for bill ${bill.id}`);
-      } catch (pushErr) {
-        console.error(`[billing-reminders] Push error for bill ${bill.id}:`, pushErr);
-      }
-
-      // 3. Email notification
       const cred = emailCredMap[bill.tenant_id];
       if (cred && clientInfo.email) {
-        try {
-          const smtpHost = getSmtpHost(cred.imap_host);
-          const smtpConfig = getSmtpConfig(smtpHost);
-          const client = new SMTPClient({
-            connection: {
-              hostname: smtpHost,
-              port: smtpConfig.port,
-              tls: smtpConfig.tls,
-              auth: { username: cred.imap_user, password: cred.imap_password },
-            },
-          });
-
-          await client.send({
-            from: cred.imap_user,
-            to: clientInfo.email,
-            subject: `🔔 ${title}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #1a1a1a;">Lembrete de Pagamento</h2>
-                <p>Olá <strong>${clientInfo.name}</strong>,</p>
-                <p>Este é um lembrete automático sobre o seu pagamento:</p>
-                <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 16px 0;">
-                  <p style="margin: 4px 0;"><strong>Descrição:</strong> ${bill.description || "Cobrança"}</p>
-                  <p style="margin: 4px 0;"><strong>Valor:</strong> ${amount}</p>
-                  <p style="margin: 4px 0;"><strong>Vencimento:</strong> ${dueFormatted}</p>
-                </div>
-                <p>Por favor, efetue o pagamento até a data de vencimento para evitar encargos.</p>
-                <p style="color: #666; font-size: 12px; margin-top: 24px;">Este é um e-mail automático. Em caso de dúvidas, entre em contato com seu escritório.</p>
-              </div>
-            `,
-          });
-          await client.close();
-          console.log(`[billing-reminders] Email sent to ${clientInfo.email} for bill ${bill.id}`);
-        } catch (emailErr) {
-          console.error(`[billing-reminders] Email error for bill ${bill.id}:`, emailErr);
-        }
+        await sendEmail(cred, clientInfo.email, `🔔 ${title}`, `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#1a1a1a;">Lembrete de Pagamento</h2>
+            <p>Olá <strong>${clientInfo.name}</strong>,</p>
+            <p>Este é um lembrete automático sobre o seu pagamento:</p>
+            <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0;">
+              <p style="margin:4px 0;"><strong>Descrição:</strong> ${bill.description || "Cobrança"}</p>
+              <p style="margin:4px 0;"><strong>Valor:</strong> ${amount}</p>
+              <p style="margin:4px 0;"><strong>Vencimento:</strong> ${dueFormatted}</p>
+            </div>
+            <p>Por favor, efetue o pagamento até a data de vencimento.</p>
+            <p style="color:#666;font-size:12px;margin-top:24px;">Este é um e-mail automático.</p>
+          </div>`);
       }
-
       sentCount++;
     }
 
-    return new Response(JSON.stringify({ sent: sentCount, checked: dueBills.length }), {
+    // ===== PART 2: Scheduled notifications =====
+    let scheduledSent = 0;
+    for (const sn of (dueScheduled || [])) {
+      const clientInfo = profileMap[sn.client_user_id] || { name: "Cliente", email: null };
+      const toEmail = sn.email_override || clientInfo.email;
+      const cred = emailCredMap[sn.tenant_id];
+
+      // In-app notification
+      await supabase.from("client_notifications").insert({
+        tenant_id: sn.tenant_id,
+        client_user_id: sn.client_user_id,
+        sent_by: sn.created_by,
+        type: "reminder",
+        title: sn.title,
+        body: sn.message,
+      });
+
+      // Push
+      if (sn.channel === "all" || sn.channel === "push") {
+        await sendPush(supabaseUrl, serviceRoleKey, sn.client_user_id, `🔔 ${sn.title}`, sn.message, `sched-${sn.id}`);
+      }
+
+      // Email
+      if ((sn.channel === "all" || sn.channel === "email") && cred && toEmail) {
+        await sendEmail(cred, toEmail, `🔔 ${sn.title}`, `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#1a1a1a;">${sn.title}</h2>
+            <p>Olá <strong>${clientInfo.name}</strong>,</p>
+            <p>${sn.message}</p>
+            <p style="color:#666;font-size:12px;margin-top:24px;">Este é um e-mail automático.</p>
+          </div>`);
+      }
+
+      // Update sent_count and next_send_date
+      const newSentCount = sn.sent_count + 1;
+      const finished = newSentCount >= sn.repeat_count;
+      const nextDate = new Date(sn.next_send_date + "T12:00:00");
+      nextDate.setMonth(nextDate.getMonth() + 1);
+      nextDate.setDate(sn.day_of_month);
+
+      await supabase.from("scheduled_notifications").update({
+        sent_count: newSentCount,
+        is_active: !finished,
+        next_send_date: nextDate.toISOString().split("T")[0],
+        updated_at: new Date().toISOString(),
+      }).eq("id", sn.id);
+
+      scheduledSent++;
+    }
+
+    console.log(`[billing-reminders] Sent ${sentCount} billing + ${scheduledSent} scheduled notifications`);
+
+    return new Response(JSON.stringify({ billing_sent: sentCount, scheduled_sent: scheduledSent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

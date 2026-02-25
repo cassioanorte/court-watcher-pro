@@ -11,6 +11,7 @@ import DashboardReminders from "@/components/dashboard/DashboardReminders";
 import DashboardUserTasks from "@/components/dashboard/DashboardUserTasks";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
 import DashboardDeadlines from "@/components/dashboard/DashboardDeadlines";
+import DashboardNotificador from "@/components/dashboard/DashboardNotificador";
 
 import DashboardFulfillments from "@/components/dashboard/DashboardFulfillments";
 import FulfillmentModal from "@/components/FulfillmentModal";
@@ -193,6 +194,7 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardDeadlines />
+        <DashboardNotificador />
       </div>
 
       {/* Movements row */}
