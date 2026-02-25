@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { extractTextFromPdf, parseRpvText, type RpvData } from "@/lib/rpvParser";
+import { extractTextFromPdf, parseRpvText, parseMultiplePayments, type RpvData } from "@/lib/rpvParser";
 import { FeeDistributionSection } from "@/components/FeeDistributionSection";
 import { createCashFlowEntriesOnSacado, removeCashFlowEntriesOnUnsacado } from "@/lib/cashFlowAutoEntries";
 
@@ -211,16 +211,74 @@ const Pagamentos = () => {
         return;
       }
 
-      const parsed = parseRpvText(pdfText);
-      const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
+      // Try multi-payment parsing first
+      const multiResult = parseMultiplePayments(pdfText);
+      
+      if (multiResult.has_separated_fees && multiResult.entries.length > 1) {
+        // Multiple payment entries found (e.g. sucumbência + contratuais)
+        // Auto-create all entries directly
+        let created = 0;
+        // Find matching case
+        let matchedCaseId: string | null = null;
+        if (multiResult.process_number && cases.length > 0) {
+          const cleanNum = multiResult.process_number.replace(/\D/g, "");
+          const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
+          if (matchedCase) matchedCaseId = matchedCase.id;
+        }
 
-      if (hasData) {
-        applyRpvData(parsed);
-        setFormAiExtracted(false);
-        setFormAiRaw(null);
-        toast.success("Dados extraídos automaticamente do PDF!");
+        for (const entry of multiResult.entries) {
+          const { error } = await supabase.from("payment_orders" as any).insert({
+            tenant_id: tenantId,
+            created_by: user.id,
+            case_id: matchedCaseId,
+            type: entry.type || "precatorio",
+            status: "aguardando",
+            gross_amount: entry.gross_amount || 0,
+            office_fees_percent: 0,
+            office_amount: entry.office_amount || 0,
+            client_amount: 0,
+            court_costs: 0,
+            social_security: 0,
+            income_tax: 0,
+            document_url: urlData.publicUrl,
+            document_name: file.name,
+            beneficiary_name: entry.beneficiary_name || null,
+            beneficiary_cpf: entry.beneficiary_cpf || null,
+            process_number: multiResult.process_number || null,
+            court: null,
+            entity: multiResult.entity || null,
+            reference_date: entry.reference_date || null,
+            expected_payment_date: null,
+            ai_extracted: false,
+            ai_raw_data: null,
+            notes: `Honorários ${entry.fee_type === "sucumbencia" ? "de sucumbência" : "contratuais"} — extraído automaticamente. Pendente de conferência.`,
+            ownership_type: "escritorio",
+            fee_type: entry.fee_type || "contratuais",
+            tax_percent: 10.9,
+          });
+          if (!error) created++;
+        }
+
+        if (created > 0) {
+          toast.success(`${created} registro(s) de honorários criados automaticamente! Confira os valores.`);
+          resetForm();
+          fetchOrders();
+        } else {
+          toast.error("Erro ao criar registros automáticos.");
+        }
       } else {
-        toast.info("Poucos dados encontrados no PDF. Preencha manualmente.");
+        // Single payment — use existing flow
+        const parsed = multiResult.entries[0] || parseRpvText(pdfText);
+        const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
+
+        if (hasData) {
+          applyRpvData(parsed);
+          setFormAiExtracted(false);
+          setFormAiRaw(null);
+          toast.success("Dados extraídos automaticamente do PDF!");
+        } else {
+          toast.info("Poucos dados encontrados no PDF. Preencha manualmente.");
+        }
       }
     } catch (err) {
       console.error("PDF extraction error:", err);
