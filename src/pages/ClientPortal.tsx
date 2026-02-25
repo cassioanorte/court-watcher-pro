@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, Clock, ArrowRight, Globe, Phone } from "lucide-react";
+import { Bell, BellRing, Clock, ArrowRight, Globe, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ThemeSelector from "@/components/ThemeSelector";
 import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
 
@@ -57,6 +58,19 @@ const ClientPortal = () => {
     fetchData();
   }, [user, tenantId]);
 
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: subscribePush, loading: pushLoading } = usePushNotifications();
+
+  // Auto-prompt push subscription after first load
+  useEffect(() => {
+    if (pushSupported && !pushSubscribed && !loading && cases.length > 0) {
+      // Small delay to not overwhelm user on first load
+      const timer = setTimeout(() => {
+        subscribePush();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [pushSupported, pushSubscribed, loading, cases.length, subscribePush]);
+
   const firstName = profile?.full_name?.split(" ")[0] || "Cliente";
 
   const getTimeAgo = (dateStr: string) => {
@@ -92,9 +106,24 @@ const ClientPortal = () => {
           </div>
           <div className="flex items-center gap-2">
             <ThemeSelector compact />
-            <button className="relative">
-              <Bell className="w-5 h-5 opacity-80" />
-            </button>
+            {pushSupported && (
+              <button
+                onClick={() => subscribePush()}
+                className="relative"
+                title={pushSubscribed ? "Notificações ativadas" : "Ativar notificações"}
+              >
+                {pushSubscribed ? (
+                  <BellRing className="w-5 h-5 opacity-80 text-emerald-400" />
+                ) : (
+                  <Bell className="w-5 h-5 opacity-80 animate-pulse" />
+                )}
+              </button>
+            )}
+            {!pushSupported && (
+              <button className="relative">
+                <Bell className="w-5 h-5 opacity-80" />
+              </button>
+            )}
             <button
               onClick={async () => { await signOut(); navigate("/portal/login"); }}
               className="text-[10px] opacity-70 hover:opacity-100 uppercase tracking-wide"
