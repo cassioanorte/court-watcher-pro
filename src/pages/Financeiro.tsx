@@ -205,8 +205,10 @@ const Financeiro = () => {
 
   // Payment orders totals
   const activeOrders = paymentOrders.filter(o => ["aguardando", "liberado", "sacado"].includes(o.status));
-  const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
-  const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
+  const forecastOrders = paymentOrders.filter(o => ["aguardando", "liberado"].includes(o.status));
+  const totalHonorariosPrevistos = forecastOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0);
+  const totalBrutoRpv = forecastOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).gross, 0);
+  const totalHonorariosParaRateio = activeOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0);
 
   // IR a pagar — calcula usando tax_percent sobre honorários brutos
   const totalIrAPagar = activeOrders
@@ -245,8 +247,8 @@ const Financeiro = () => {
   // Fee distribution tracking
   const distributionSummary = useMemo(() => {
     const totalDistributed = feeDistributions.reduce((s, d) => s + (Number(d.amount) || 0), 0);
-    const pendingDistribution = totalHonorariosPrevistos - totalDistributed;
-    const percentDistributed = totalHonorariosPrevistos > 0 ? (totalDistributed / totalHonorariosPrevistos) * 100 : 0;
+    const pendingDistribution = totalHonorariosParaRateio - totalDistributed;
+    const percentDistributed = totalHonorariosParaRateio > 0 ? (totalDistributed / totalHonorariosParaRateio) * 100 : 0;
 
     // By lawyer
     const byLawyer: Record<string, { name: string; total: number }> = {};
@@ -257,10 +259,10 @@ const Financeiro = () => {
 
     // Orders with no distribution
     const distributedOrderIds = new Set(feeDistributions.map(d => d.payment_order_id));
-    const ordersWithoutDist = activeOrders.filter(o => !distributedOrderIds.has(o.id) && Number(o.office_amount) > 0);
+    const ordersWithoutDist = activeOrders.filter(o => !distributedOrderIds.has(o.id) && computePaymentOrderMath(o as any).officeNet > 0);
 
     return { totalDistributed, pendingDistribution, percentDistributed, byLawyer, ordersWithoutDist };
-  }, [feeDistributions, activeOrders, totalHonorariosPrevistos]);
+  }, [feeDistributions, activeOrders, totalHonorariosParaRateio]);
 
   // RPV vs Precatório chart
   const rpvVsPrecatorio = useMemo(() => {
