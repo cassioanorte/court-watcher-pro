@@ -1746,6 +1746,81 @@ export type Database = {
           },
         ]
       }
+      scheduled_notifications: {
+        Row: {
+          case_id: string | null
+          channel: string
+          client_user_id: string
+          created_at: string
+          created_by: string
+          day_of_month: number
+          email_override: string | null
+          id: string
+          is_active: boolean
+          message: string
+          next_send_date: string
+          repeat_count: number
+          sent_count: number
+          start_date: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          case_id?: string | null
+          channel?: string
+          client_user_id: string
+          created_at?: string
+          created_by: string
+          day_of_month?: number
+          email_override?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          next_send_date: string
+          repeat_count?: number
+          sent_count?: number
+          start_date: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          case_id?: string | null
+          channel?: string
+          client_user_id?: string
+          created_at?: string
+          created_by?: string
+          day_of_month?: number
+          email_override?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          next_send_date?: string
+          repeat_count?: number
+          sent_count?: number
+          start_date?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_notifications_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_case_access: {
         Row: {
           access_mode: Database["public"]["Enums"]["case_access_mode"]
