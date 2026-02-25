@@ -372,11 +372,18 @@ const DocumentosEproc = () => {
       const selectedFinancialDocs = selectedDocs.filter((doc) => FINANCIAL_TYPES.has(doc.doc_type));
       if (selectedFinancialDocs.length > 0 && parsedDocsCount === 0) {
         if (pdfReadFailures > 0) {
-          throw new Error(
-            'Não consegui ler o PDF no eproc. Recrie o bookmarklet "📄 Capturar Documentos" e tente novamente para preencher valores, espécie e beneficiário automaticamente.',
-          );
+          toast({
+            title: "Leitura automática indisponível",
+            description:
+              'Não consegui ler o PDF no eproc em tempo real; vou seguir com cadastro básico e você pode complementar os valores depois.',
+          });
+        } else {
+          toast({
+            title: "Interpretação automática falhou",
+            description:
+              "Não consegui extrair os dados financeiros neste documento; vou seguir com o cadastro para não bloquear seu fluxo.",
+          });
         }
-        throw new Error("Não consegui interpretar os dados financeiros do PDF automaticamente neste processo.");
       }
 
       if (selectedFinancialDocs.length > 0 && parsedDocsCount < selectedFinancialDocs.length) {

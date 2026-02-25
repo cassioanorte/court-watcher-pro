@@ -104,6 +104,49 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
     return btoa(binary);
   };
 
+  var toAbsoluteUrl=function(url,baseUrl){
+    try{return new URL(url,baseUrl||window.location.href).href;}catch(e){return url;}
+  };
+
+  var extractPdfUrlFromHtml=function(html,baseUrl){
+    if(!html) return null;
+    var patterns=[
+      /(?:src|href)\s*=\s*["']([^"']+\.pdf[^"']*)["']/i,
+      /(?:src|href)\s*=\s*["']([^"']*(?:acao_documento|documento|download)[^"']*)["']/i,
+      /window\.open\(\s*["']([^"']+)["']/i,
+      /location\.href\s*=\s*["']([^"']+)["']/i
+    ];
+
+    for(var p=0;p<patterns.length;p++){
+      var match=html.match(patterns[p]);
+      if(match&&match[1]) return toAbsoluteUrl(match[1],baseUrl);
+    }
+
+    return null;
+  };
+
+  var fetchPdfResult=function(url){
+    return fetch(url,{credentials:'include'})
+      .then(function(resp){
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+
+        var contentType='';
+        try{contentType=(resp.headers&&resp.headers.get('content-type'))||'';}catch(e){contentType='';}
+        var normalizedType=String(contentType||'').toLowerCase();
+        var finalUrl=resp.url||url;
+
+        if(normalizedType.indexOf('application/pdf')>=0){
+          return resp.arrayBuffer().then(function(buffer){
+            return {buffer:buffer,contentType:contentType,finalUrl:finalUrl};
+          });
+        }
+
+        return resp.text().then(function(html){
+          return {html:html,contentType:contentType,finalUrl:finalUrl};
+        });
+      });
+  };
+
   var onMessage=function(ev){
     if(!ev||!ev.data) return;
 
@@ -123,12 +166,24 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
 
     if(!requestId||!docUrl) return;
 
-    fetch(docUrl,{credentials:'include'})
-      .then(function(resp){
-        if(!resp.ok) throw new Error('HTTP '+resp.status);
-        return resp.arrayBuffer();
+    var resolvedDocUrl=toAbsoluteUrl(docUrl,window.location.href);
+
+    fetchPdfResult(resolvedDocUrl)
+      .then(function(result){
+        if(result&&result.buffer) return result;
+
+        var nestedUrl=extractPdfUrlFromHtml(result&&result.html?result.html:'',result&&result.finalUrl?result.finalUrl:resolvedDocUrl);
+        if(!nestedUrl){
+          throw new Error('Resposta sem PDF (content-type: '+((result&&result.contentType)||'desconhecido')+').');
+        }
+
+        return fetchPdfResult(nestedUrl).then(function(nested){
+          if(nested&&nested.buffer) return nested;
+          throw new Error('Não foi possível localizar o PDF final.');
+        });
       })
-      .then(function(buffer){
+      .then(function(result){
+        var buffer=result.buffer;
         if(buffer.byteLength>8*1024*1024){
           throw new Error('Arquivo PDF acima do limite de 8MB para extração automática.');
         }
