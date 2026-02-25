@@ -48,6 +48,17 @@ function parseDate(dateStr: string): string | null {
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
+function normalizeExtractedText(text: string): string {
+  return text
+    .replace(/&#x26;|&amp;/gi, "&")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractCpf(text: string): string | null {
   // CPF after label
   const match = text.match(/CPF[:\s]*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})/i);
@@ -85,13 +96,12 @@ function extractMoneyValue(text: string, ...patterns: RegExp[]): number | null {
 }
 
 export function parseRpvText(text: string): RpvData {
-  const t = text.replace(/\s+/g, " ");
-  const tLower = t.toLowerCase();
+  const t = normalizeExtractedText(text);
 
   // Determine type
   let type: "rpv" | "precatorio" | null = null;
-  if (/precatório|precatorio|PRECATÓRIO/i.test(text)) type = "precatorio";
-  if (/RPV|requisição de pequeno valor|requisicao de pequeno valor/i.test(text)) type = "rpv";
+  if (/precatório|precatorio|PRECATÓRIO/i.test(t)) type = "precatorio";
+  if (/RPV|requisição de pequeno valor|requisicao de pequeno valor/i.test(t)) type = "rpv";
 
   // Beneficiary name
   let beneficiary_name: string | null = null;
@@ -227,35 +237,30 @@ export function parseRpvText(text: string): RpvData {
  * Works with flat text from pdfjs-dist (no reliable newlines).
  */
 export function parseMultiplePayments(text: string): MultiPaymentResult {
-  const singleResult = parseRpvText(text);
+  const normalizedText = normalizeExtractedText(text);
+  const singleResult = parseRpvText(normalizedText);
   const process_number = singleResult.process_number;
   const entity = singleResult.entity;
 
   // Extract total requisitado
-  const totalMatch = text.match(/Total\s+Requisitado\s*\(?R?\$?\)?\s*:?\s*([\d.,]+)/i);
+  const totalMatch = normalizedText.match(/Total\s+Requisitado\s*\(?R?\$?\)?\s*:?\s*([\d.,]+)/i);
   const total_requisitado = totalMatch ? parseMoney(totalMatch[1]) : singleResult.gross_amount;
 
   // Detect "Destaque dos Honorários Contratuais: Sim" — means fees are separated
-  const hasDestaque = /Destaque\s+dos\s+Honor[áa]rios\s+Contratuais\s*:\s*Sim/i.test(text);
+  const hasDestaque = /Destaque\s+dos\s+Honor[áa]rios\s+Contratuais\s*:\s*Sim/i.test(normalizedText);
 
-  // Split text into honorários blocks using regex
-  // Each "Honorários" section starts with a firm name, has Tipo Honorário, Valor Requisitado, etc.
-  // We look for "Tipo Honorário:" or "Tipo Honorário :" patterns
-  const honorarioSections: string[] = [];
-  
-  // Strategy: find all occurrences of "Tipo Honorário" and extract surrounding context
-  const tipoHonRegex = /Tipo\s+Honor[áa]rio\s*:\s*(Honor[áa]rios?\s+(?:de\s+)?(?:Sucumb[êe]ncia|Contratuais?))/gi;
-  let tipoMatch;
-  const tipoPositions: { index: number; fee_type: string }[] = [];
-  
-  while ((tipoMatch = tipoHonRegex.exec(text)) !== null) {
-    const label = tipoMatch[1];
-    let fee_type = "contratuais";
-    if (/sucumb/i.test(label)) fee_type = "sucumbencia";
-    tipoPositions.push({ index: tipoMatch.index, fee_type });
+  // Find every fee section by "Tipo Honorário"
+  const feeSections: { index: number; fee_type: "contratuais" | "sucumbencia" }[] = [];
+  const tipoHonorRegex = /Tipo\s+(?:de\s+)?Honor[áa]rio(?:s)?\s*:\s*([^\n\r]{0,80}?Honor[áa]rios?[^:\n\r]{0,80})/gi;
+  let tipoMatch: RegExpExecArray | null;
+
+  while ((tipoMatch = tipoHonorRegex.exec(normalizedText)) !== null) {
+    const label = tipoMatch[1] || "";
+    const fee_type = /sucumb/i.test(label) ? "sucumbencia" : "contratuais";
+    feeSections.push({ index: tipoMatch.index, fee_type });
   }
 
-  if (tipoPositions.length === 0) {
+  if (feeSections.length === 0) {
     // No explicit honorário sections found — return single result
     return {
       entries: [singleResult],
@@ -268,48 +273,74 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
 
   const entries: RpvData[] = [];
 
-  for (let i = 0; i < tipoPositions.length; i++) {
-    const startIdx = tipoPositions[i].index;
-    const endIdx = i + 1 < tipoPositions.length ? tipoPositions[i + 1].index : text.length;
-    // Also look backwards from startIdx to find the firm name / CNPJ
-    // Search backwards up to 500 chars or previous section end
-    const lookbackStart = i > 0 ? tipoPositions[i - 1].index + 100 : Math.max(0, startIdx - 500);
-    const blockWithContext = text.substring(lookbackStart, endIdx);
-    const blockAfter = text.substring(startIdx, endIdx);
+  for (let i = 0; i < feeSections.length; i++) {
+    const startIdx = feeSections[i].index;
+    const nextIdx = i + 1 < feeSections.length ? feeSections[i + 1].index : normalizedText.length;
 
-    const fee_type = tipoPositions[i].fee_type;
+    // We need context before and after "Tipo Honorário" to capture office name + espécie + values
+    const contextStart = Math.max(0, startIdx - 700);
+    const contextEnd = Math.min(normalizedText.length, nextIdx + 220);
+    const blockWithContext = normalizedText.substring(contextStart, contextEnd);
+    const blockAfterType = normalizedText.substring(startIdx, nextIdx);
+    const headerContext = normalizedText.substring(contextStart, Math.min(normalizedText.length, startIdx + 180));
 
-    // Determine espécie (RPV or Precatório)
+    const fee_type = feeSections[i].fee_type;
+
+    // Extract espécie (RPV/Precatório)
     let type: "rpv" | "precatorio" | null = null;
-    const especieMatch = blockAfter.match(/Esp[ée]cie\s*:\s*(RPV|Precat[óo]rio)/i);
-    if (especieMatch) {
-      type = /RPV/i.test(especieMatch[1]) ? "rpv" : "precatorio";
+    let especieLabel: string | null = null;
+
+    const especieRegex = /Esp[ée]cie\s*:\s*(RPV|Precat[óo]rio)/gi;
+    let especieIter: RegExpExecArray | null;
+    while ((especieIter = especieRegex.exec(headerContext)) !== null) {
+      especieLabel = especieIter[1];
     }
 
-    // Extract valor requisitado
-    let gross_amount: number | null = null;
-    const valorMatch = blockAfter.match(/Valor\s+Requisitado\s*\([^)]*\)\s*:\s*([\d.,]+)/i);
-    if (valorMatch) gross_amount = parseMoney(valorMatch[1]);
+    if (!especieLabel) {
+      const especieAfterMatch = blockAfterType.match(/Esp[ée]cie\s*:\s*(RPV|Precat[óo]rio)/i);
+      if (especieAfterMatch) especieLabel = especieAfterMatch[1];
+    }
+
+    if (especieLabel) {
+      type = /RPV/i.test(especieLabel) ? "rpv" : "precatorio";
+    } else if (singleResult.type) {
+      type = singleResult.type;
+    }
+
+    // Extract valor requisitado (per fee block)
+    let gross_amount = extractMoneyValue(
+      blockAfterType,
+      /Valor\s+Requisitado(?:\s*\([^)]*\))?\s*:\s*R?\$?\s*([\d.,]+)/i,
+      /Valor\s+Requisitado[^\d]{0,25}([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{2})?)/i,
+    );
     if (!gross_amount) {
-      const simpleMatch = blockAfter.match(/Valor\s+Requisitado[:\s]*([\d.,]+)/i);
-      if (simpleMatch) gross_amount = parseMoney(simpleMatch[1]);
+      gross_amount = extractMoneyValue(
+        blockWithContext,
+        /Valor\s+Requisitado(?:\s*\([^)]*\))?\s*:\s*R?\$?\s*([\d.,]+)/i,
+        /Valor\s+Requisitado[^\d]{0,25}([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d{2})?)/i,
+      );
     }
 
-    // Extract beneficiary/firm name
+    // Extract office/beneficiary name + CNPJ/CPF shown below the "Honorários" heading
     let beneficiary_name: string | null = null;
-    // Look for CNPJ pattern and name before it
-    const cnpjPattern = blockWithContext.match(/([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s&.]+?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\)/);
-    if (cnpjPattern) beneficiary_name = cnpjPattern[1].trim();
-
-    // CNPJ or CPF
     let beneficiary_cpf: string | null = null;
-    const cnpjMatch = blockWithContext.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
-    if (cnpjMatch) beneficiary_cpf = cnpjMatch[1];
-    else beneficiary_cpf = extractCpf(blockWithContext);
 
-    // Data base
+    const officePattern = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\)\s*(?:Esp[ée]cie|Tipo\s+(?:de\s+)?Honor[áa]rio)/i;
+    const officeMatch = headerContext.match(officePattern);
+
+    if (officeMatch) {
+      beneficiary_name = officeMatch[1].replace(/^#+\s*/, "").trim();
+      beneficiary_cpf = officeMatch[2];
+    } else {
+      const officeFallback = blockWithContext.match(/(?:escrit[oó]rio|sociedade\s+de\s+advogados?)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140})/i);
+      if (officeFallback) beneficiary_name = officeFallback[1].trim();
+      beneficiary_cpf = extractCpf(blockWithContext);
+    }
+
+    // Data base (month/year)
     let reference_date: string | null = null;
-    const dataBaseMatch = blockAfter.match(/Data\s+Base\s*:\s*(\d{2})\/(\d{4})/i);
+    const dataBaseMatch = blockAfterType.match(/Data\s+Base\s*:\s*(\d{2})\/(\d{4})/i)
+      || blockWithContext.match(/Data\s+Base\s*:\s*(\d{2})\/(\d{4})/i);
     if (dataBaseMatch) reference_date = `${dataBaseMatch[2]}-${dataBaseMatch[1]}-01`;
 
     entries.push({
@@ -333,12 +364,25 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     });
   }
 
+  // Deduplicate possible overlapping matches
+  const dedupedEntries: RpvData[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const key = `${entry.fee_type || ""}:${entry.gross_amount || 0}:${entry.reference_date || ""}:${entry.beneficiary_name || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    dedupedEntries.push(entry);
+  }
+
+  const feeTypesFound = new Set(dedupedEntries.map(e => e.fee_type).filter(Boolean));
+  const hasSeparatedFees = dedupedEntries.length > 1 || hasDestaque || feeTypesFound.size > 1;
+
   return {
-    entries,
+    entries: dedupedEntries.length > 0 ? dedupedEntries : [singleResult],
     process_number,
     entity,
     total_requisitado,
-    has_separated_fees: entries.length > 0 && (hasDestaque || entries.length >= 2),
+    has_separated_fees: dedupedEntries.length > 0 ? hasSeparatedFees : false,
   };
 }
 
