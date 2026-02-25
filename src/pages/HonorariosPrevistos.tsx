@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 import { motion } from "framer-motion";
-import { Banknote, Calendar, ArrowLeft, TrendingUp, Filter, Clock, CheckCircle2, FileText, ExternalLink } from "lucide-react";
+import { Banknote, Calendar, ArrowLeft, TrendingUp, Filter, Clock, CheckCircle2, FileText, ExternalLink, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -245,6 +245,7 @@ const HonorariosPrevistos = () => {
                 <th className="text-right p-3 font-medium text-muted-foreground">Líquido</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Pgto previsto</th>
                 <th className="text-center p-3 font-medium text-muted-foreground">Documento</th>
+                <th className="text-center p-3 font-medium text-muted-foreground">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -291,11 +292,24 @@ const HonorariosPrevistos = () => {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
+                    <td className="p-3 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/pagamentos?edit=${o.id}`);
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Editar
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
               {filteredOrders.length === 0 && ordersWithoutDate.length === 0 && (
-                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhum honorário previsto no período selecionado</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhum honorário previsto no período selecionado</td></tr>
               )}
             </tbody>
           </table>
