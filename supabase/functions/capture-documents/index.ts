@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
           case_id: caseId,
           status: "rascunho",
           ownership_type: "cliente",
-          fee_type: "contratual",
+          fee_type: "contratuais",
           ai_extracted: false,
           document_name: doc.name,
           document_url: doc.url,

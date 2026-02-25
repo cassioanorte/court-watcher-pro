@@ -40,6 +40,9 @@ interface PaymentOrder {
   notes: string | null;
   case_id: string | null;
   created_at: string;
+  ownership_type: string;
+  fee_type: string;
+  tax_percent: number | null;
 }
 
 interface CaseOption {
@@ -187,8 +190,23 @@ const PaymentOrdersTracker = () => {
     const costs = parseFloat(String(editForm.court_costs)) || 0;
     const soc = parseFloat(String(editForm.social_security)) || 0;
     const tax = parseFloat(String(editForm.income_tax)) || 0;
-    const officeCalc = Math.round(gross * feeP / 100 * 100) / 100;
-    const clientCalc = Math.round((gross - officeCalc - costs - soc - tax) * 100) / 100;
+    const ownership = editForm.ownership_type || "cliente";
+    const taxP = parseFloat(String(editForm.tax_percent)) || 0;
+
+    let officeCalc: number;
+    let clientCalc: number;
+    let taxCalc: number;
+
+    if (ownership === "escritorio") {
+      taxCalc = Math.round(gross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((gross - taxCalc) * 100) / 100;
+      clientCalc = 0;
+    } else {
+      const officeGross = Math.round(gross * feeP / 100 * 100) / 100;
+      taxCalc = Math.round(officeGross * taxP / 100 * 100) / 100;
+      officeCalc = Math.round((officeGross - taxCalc) * 100) / 100;
+      clientCalc = Math.round((gross - officeGross - costs - soc) * 100) / 100;
+    }
 
     const updates = {
       type: editForm.type,
@@ -203,7 +221,7 @@ const PaymentOrdersTracker = () => {
       client_amount: clientCalc,
       court_costs: costs,
       social_security: soc,
-      income_tax: tax,
+      income_tax: taxCalc,
       expected_payment_date: editForm.expected_payment_date || null,
       reference_date: editForm.reference_date || null,
       notes: editForm.notes || null,
@@ -212,6 +230,9 @@ const PaymentOrdersTracker = () => {
       document_name: editForm.document_name || null,
       ai_extracted: editForm.ai_extracted || false,
       ai_raw_data: editForm.ai_raw_data || null,
+      ownership_type: ownership,
+      fee_type: editForm.fee_type || "contratuais",
+      tax_percent: taxP,
     };
 
     const { error } = await supabase.from("payment_orders" as any).update(updates).eq("id", editForm.id);
@@ -453,6 +474,35 @@ const PaymentOrdersTracker = () => {
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Entidade Devedora</label>
                 <Input value={editForm.entity || ""} onChange={e => setEditForm(f => ({ ...f, entity: e.target.value }))} placeholder="INSS, União..." />
+              </div>
+            </div>
+
+            <hr className="border-border" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Classificação</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Titularidade</label>
+                <Select value={editForm.ownership_type || "cliente"} onValueChange={v => setEditForm(f => ({ ...f, ownership_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cliente">Do Cliente</SelectItem>
+                    <SelectItem value="escritorio">Destacado (Escritório)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tipo Honorários</label>
+                <Select value={editForm.fee_type || "contratuais"} onValueChange={v => setEditForm(f => ({ ...f, fee_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contratuais">Contratuais</SelectItem>
+                    <SelectItem value="sucumbencia">Sucumbência</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Imposto (%)</label>
+                <Input type="number" step="0.1" value={editForm.tax_percent ?? 10.9} onChange={e => setEditForm(f => ({ ...f, tax_percent: parseFloat(e.target.value) || 0 }))} />
               </div>
             </div>
 

@@ -775,7 +775,7 @@ const Pagamentos = () => {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="contratuais">Contratuais</SelectItem>
-                    <SelectItem value="sucumbenciais">Sucumbenciais</SelectItem>
+                    <SelectItem value="sucumbencia">Sucumbência</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1036,8 +1036,8 @@ const Pagamentos = () => {
                   <Select value={editForm.fee_type || "contratuais"} onValueChange={v => setEditForm(f => ({ ...f, fee_type: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="contratuais">Contratuais</SelectItem>
-                      <SelectItem value="sucumbenciais">Sucumbenciais</SelectItem>
+                    <SelectItem value="contratuais">Contratuais</SelectItem>
+                    <SelectItem value="sucumbencia">Sucumbência</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
