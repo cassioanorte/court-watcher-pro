@@ -23,6 +23,7 @@ type Appointment = {
 };
 
 type ClientInfo = {
+  user_id: string;
   full_name: string;
   phone: string | null;
   email: string | null;
@@ -95,7 +96,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, phone, email")
+      .select("user_id, full_name, phone, email")
       .eq("user_id", caseData.client_user_id)
       .single();
 
@@ -167,6 +168,7 @@ const CaseAppointments = ({ caseId, tenantId }: { caseId: string; tenantId: stri
         body: {
           clientEmail: clientInfo.email,
           clientName: clientInfo.full_name,
+          clientUserId: clientInfo.user_id,
           appointmentTitle: savedAppointment.title,
           appointmentDate: savedAppointment.date,
           startTime: savedAppointment.startTime,
