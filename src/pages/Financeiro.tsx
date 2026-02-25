@@ -204,7 +204,7 @@ const Financeiro = () => {
   };
 
   // Payment orders totals
-  const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
+  const activeOrders = paymentOrders.filter(o => ["aguardando", "liberado", "sacado"].includes(o.status));
   const totalHonorariosPrevistos = activeOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
   const totalBrutoRpv = activeOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
 
