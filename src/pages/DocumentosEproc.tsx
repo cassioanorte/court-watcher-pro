@@ -17,6 +17,7 @@ interface DocItem {
   fee_type?: "contratuais" | "sucumbencia";
   parsed_single?: ParsedPaymentData;
   parsed_entries?: ParsedPaymentData[];
+  pdf_read_error?: string;
 }
 
 interface PayloadData {
@@ -114,7 +115,7 @@ const requestPdfFromOpener = (doc: DocItem): Promise<PdfRequestResult> => {
       }
     };
 
-    const timeoutId = window.setTimeout(() => finish({ file: null, error: "timeout_fetch_pdf" }), 12000);
+    const timeoutId = window.setTimeout(() => finish({ file: null, error: "timeout_fetch_pdf" }), 25000);
 
     window.addEventListener("message", onMessage);
 
@@ -154,7 +155,7 @@ const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<EnrichRes
     const pdfResult = await requestPdfFromOpener(doc);
     if (!pdfResult.file) {
       pdfReadFailures++;
-      enriched.push(doc);
+      enriched.push({ ...doc, pdf_read_error: pdfResult.error || "leitura_falhou" });
       continue;
     }
 
