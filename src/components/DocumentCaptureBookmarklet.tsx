@@ -32,7 +32,9 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
         if(upper.indexOf('RPV')>=0||upper.indexOf('REQUISIÇÃO DE PEQUENO VALOR')>=0||upper.indexOf('REQUISICAO DE PEQUENO VALOR')>=0) tipo='rpv';
         else if(upper.indexOf('PRECATÓRIO')>=0||upper.indexOf('PRECATORIO')>=0) tipo='precatorio';
         else if(upper.indexOf('ALVARÁ')>=0||upper.indexOf('ALVARA')>=0) tipo='alvara';
-        docs.push({name:name.substring(0,200),url:href,event_number:evtNum,doc_type:tipo});
+        var feeType='contratuais';
+        if(upper.indexOf('SUCUMB')>=0) feeType='sucumbencia';
+        docs.push({name:name.substring(0,200),url:href,event_number:evtNum,doc_type:tipo,fee_type:feeType});
       }
     }
   }
@@ -49,7 +51,9 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
         if(u.indexOf('RPV')>=0||u.indexOf('REQUISIÇÃO DE PEQUENO VALOR')>=0) tipo2='rpv';
         else if(u.indexOf('PRECATÓRIO')>=0||u.indexOf('PRECATORIO')>=0) tipo2='precatorio';
         else if(u.indexOf('ALVARÁ')>=0||u.indexOf('ALVARA')>=0) tipo2='alvara';
-        docs.push({name:n.substring(0,200),url:h,event_number:'',doc_type:tipo2});
+        var feeType2='contratuais';
+        if(u.indexOf('SUCUMB')>=0) feeType2='sucumbencia';
+        docs.push({name:n.substring(0,200),url:h,event_number:'',doc_type:tipo2,fee_type:feeType2});
       }
     }
   }
