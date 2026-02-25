@@ -377,7 +377,8 @@ const PaymentOrdersTracker = () => {
     return true;
   });
 
-  const pending = orders.filter(o => o.status === "rascunho" || o.status === "aguardando" || o.status === "liberado");
+  const drafts = orders.filter(o => o.status === "rascunho");
+  const pending = orders.filter(o => o.status === "aguardando" || o.status === "liberado");
   const paid = orders.filter(o => o.status === "sacado");
   const pendingTotal = pending.reduce((s, o) => s + (o.gross_amount || 0), 0);
   const paidTotal = paid.reduce((s, o) => s + (o.gross_amount || 0), 0);
