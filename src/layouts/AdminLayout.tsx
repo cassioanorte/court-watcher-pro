@@ -7,6 +7,7 @@ import { useThemeLoader, getLogoFilter, DEFAULT_THEME, type ThemeColors } from "
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTaskNotifications } from "@/hooks/useTaskNotifications";
+import { usePaymentMovementAlerts } from "@/hooks/usePaymentMovementAlerts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 
@@ -36,6 +37,8 @@ const AdminLayout = () => {
   const { tenantId, profile, role, user } = useAuth();
   // Realtime popup notifications for task assignments
   useTaskNotifications();
+  // Realtime alerts for movements on cases with pending payment orders
+  usePaymentMovementAlerts();
   const [tenantName, setTenantName] = useState("LEX IMPERIUM");
   const [tenantLogo, setTenantLogo] = useState<string | null>(null);
   const [logoFilter, setLogoFilter] = useState("");
