@@ -36,10 +36,24 @@ const DocumentosEproc = () => {
 
   useEffect(() => {
     try {
-      const raw = searchParams.get("data");
-      if (!raw) { setError("Nenhum dado recebido."); return; }
-      const parsed = JSON.parse(decodeURIComponent(raw)) as PayloadData;
-      if (!parsed.docs?.length) { setError("Nenhum documento encontrado."); return; }
+      // Try localStorage first (new method), fallback to URL params (legacy)
+      let parsed: PayloadData | null = null;
+      
+      const stored = localStorage.getItem("lex_doc_capture");
+      if (stored) {
+        parsed = JSON.parse(stored) as PayloadData;
+        localStorage.removeItem("lex_doc_capture");
+      } else {
+        const raw = searchParams.get("data");
+        if (raw) {
+          parsed = JSON.parse(decodeURIComponent(raw)) as PayloadData;
+        }
+      }
+
+      if (!parsed || !parsed.docs?.length) {
+        setError("Nenhum documento encontrado. Certifique-se de usar o bookmarklet na página do processo.");
+        return;
+      }
       setData(parsed);
       // Auto-select financial documents
       const autoSelect = new Set<number>();
@@ -48,7 +62,7 @@ const DocumentosEproc = () => {
       });
       setSelected(autoSelect);
     } catch {
-      setError("Erro ao processar dados.");
+      setError("Erro ao processar dados. Tente usar o bookmarklet novamente.");
     }
   }, [searchParams]);
 
@@ -94,7 +108,7 @@ const DocumentosEproc = () => {
       });
       if (err) throw err;
       setResult(res);
-      toast({ title: "Documentos processados!", description: `${res.documents_saved || 0} documentos salvos, ${res.payment_orders_created || 0} lançamentos financeiros criados.` });
+      toast({ title: "Documentos processados!", description: `${res.documents_saved || 0} novos, ${res.documents_skipped || 0} já existentes, ${res.payment_orders_created || 0} lançamentos financeiros.` });
     } catch (e: any) {
       setError(e.message || "Erro ao processar");
     } finally {
@@ -122,11 +136,16 @@ const DocumentosEproc = () => {
           <h1 className="text-xl font-bold text-foreground">Processamento Concluído!</h1>
           <div className="bg-card rounded-lg border p-4 space-y-2 text-sm text-left">
             <p><strong>Processo:</strong> {data?.process_number}</p>
-            <p><strong>Documentos salvos:</strong> {result.documents_saved || 0}</p>
-            <p><strong>Já existentes:</strong> {result.documents_skipped || 0}</p>
+            <p><strong>Documentos novos salvos:</strong> {result.documents_saved || 0}</p>
+            <p><strong>Já existentes (ignorados):</strong> {result.documents_skipped || 0}</p>
             {(result.payment_orders_created || 0) > 0 && (
               <p className="text-green-600 font-medium">
                 💰 {result.payment_orders_created} lançamento(s) financeiro(s) criado(s) — pendente(s) de conferência
+              </p>
+            )}
+            {(result.payment_orders_skipped || 0) > 0 && (
+              <p className="text-muted-foreground">
+                {result.payment_orders_skipped} lançamento(s) financeiro(s) já existente(s)
               </p>
             )}
           </div>

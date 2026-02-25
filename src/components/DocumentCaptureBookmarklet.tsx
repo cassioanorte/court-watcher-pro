@@ -8,7 +8,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 function getDocCaptureBookmarkletCode(tenantId: string): string {
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-  // Bookmarklet extracts document links from eproc event rows and opens popup
+  // Bookmarklet extracts document links from eproc event rows and stores in localStorage to avoid URL length limits
   const code = `
 (function(){
   var docs=[];
@@ -55,8 +55,8 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
   }
   if(docs.length===0){alert('📄 Nenhum documento identificado na página.\\n\\nCertifique-se de estar na página de detalhes do processo no eproc.');return;}
   var payload=JSON.stringify({docs:docs,process_number:cnj,tenant_id:'${tenantId}',source_url:window.location.href});
-  var encoded=encodeURIComponent(payload);
-  var url='${appUrl}/documentos-eproc?data='+encoded;
+  try{localStorage.setItem('lex_doc_capture',payload);}catch(e){}
+  var url='${appUrl}/documentos-eproc';
   var w=Math.min(800,screen.width-100);
   var h2=Math.min(700,screen.height-100);
   var left=(screen.width-w)/2;

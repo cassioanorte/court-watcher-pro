@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
     let documentsSaved = 0;
     let documentsSkipped = 0;
     let paymentOrdersCreated = 0;
+    let paymentOrdersSkipped = 0;
 
     for (const doc of documents) {
       const uniqueHash = generateHash(`${tenant_id}:${process_number}:${doc.name}:${doc.event_number}`);
@@ -97,13 +98,28 @@ Deno.serve(async (req) => {
 
       if (!inserted) {
         documentsSkipped++;
-        continue;
+      } else {
+        documentsSaved++;
       }
 
-      documentsSaved++;
-
-      // For financial documents, create payment order
+      // For financial documents, ALWAYS try to create payment order (even if doc already existed)
       if ((doc.doc_type === "rpv" || doc.doc_type === "precatorio" || doc.doc_type === "alvara") && userId) {
+        // Check if payment order already exists for this doc
+        const poHash = `${tenant_id}:${process_number}:${doc.name}`;
+        const { data: existingPO } = await supabase
+          .from("payment_orders")
+          .select("id")
+          .eq("tenant_id", tenant_id)
+          .eq("process_number", process_number)
+          .eq("document_name", doc.name)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingPO) {
+          paymentOrdersSkipped++;
+          continue;
+        }
+
         const poType = doc.doc_type === "alvara" ? "alvara" : doc.doc_type;
         const { error: poErr } = await supabase.from("payment_orders").insert({
           tenant_id,
@@ -128,7 +144,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[capture-documents] Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}`);
+    console.log(`[capture-documents] Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}`);
 
     return new Response(
       JSON.stringify({
@@ -136,6 +152,7 @@ Deno.serve(async (req) => {
         documents_saved: documentsSaved,
         documents_skipped: documentsSkipped,
         payment_orders_created: paymentOrdersCreated,
+        payment_orders_skipped: paymentOrdersSkipped,
         case_id: caseId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
