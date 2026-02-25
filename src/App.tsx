@@ -45,6 +45,7 @@ import Calculadoras from "./pages/Calculadoras";
 import Cumprimentos from "./pages/Cumprimentos";
 import Tarefas from "./pages/Tarefas";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
+import DocumentosEproc from "./pages/DocumentosEproc";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -108,6 +109,7 @@ const App = () => (
             <Route path="/lead-form" element={<LeadCapture />} />
             <Route path="/lp/:slug" element={<LandingPagePublic />} />
             <Route path="/google-calendar-callback" element={<GoogleCalendarCallback />} />
+            <Route path="/documentos-eproc" element={<DocumentosEproc />} />
 
             {/* Admin / Staff routes */}
             <Route path="/" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>

@@ -10,6 +10,7 @@ import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
 import MassImportBookmarklet from "@/components/MassImportBookmarklet";
 import ExtractDataBookmarklet from "@/components/ExtractDataBookmarklet";
+import DocumentCaptureBookmarklet from "@/components/DocumentCaptureBookmarklet";
 import EprocSessionSync from "@/components/EprocSessionSync";
 import { type ThemeColors, DEFAULT_THEME, applyTheme, applyLogoOnly, getLogoFilter } from "@/hooks/useTheme";
 import { extractColorsFromImage, generateThemePresetsFromColors } from "@/lib/extractColors";
@@ -603,6 +604,7 @@ const Settings = () => {
       <EprocSessionSync />
       <MassImportBookmarklet />
       <BookmarkletSetup />
+      <DocumentCaptureBookmarklet />
       <ExtractDataBookmarklet />
       {/* EprocCredentials oculto — mantido no código caso volte a ser útil */}
       {/* <EprocCredentials /> */}
