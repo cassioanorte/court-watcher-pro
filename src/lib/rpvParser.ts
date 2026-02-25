@@ -59,6 +59,16 @@ function normalizeExtractedText(text: string): string {
     .trim();
 }
 
+function normalizeForMatch(text: string): string {
+  return normalizeExtractedText(text)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s:/.-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractCpf(text: string): string | null {
   // CPF after label
   const match = text.match(/CPF[:\s]*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})/i);
@@ -98,10 +108,21 @@ function extractMoneyValue(text: string, ...patterns: RegExp[]): number | null {
 export function parseRpvText(text: string): RpvData {
   const t = normalizeExtractedText(text);
 
-  // Determine type
+  const tMatch = normalizeForMatch(t);
+
+  // Determine type using first occurrence in the text to avoid RPV mentions
+  // in honorários sections overriding a precatório document type.
   let type: "rpv" | "precatorio" | null = null;
-  if (/precatório|precatorio|PRECATÓRIO/i.test(t)) type = "precatorio";
-  if (/RPV|requisição de pequeno valor|requisicao de pequeno valor/i.test(t)) type = "rpv";
+  const idxPrecatorio = tMatch.search(/\bprecatorio\b/);
+  const idxRpv = tMatch.search(/\brpv\b|requisicao de pequeno valor/);
+
+  if (idxPrecatorio >= 0 && idxRpv >= 0) {
+    type = idxPrecatorio <= idxRpv ? "precatorio" : "rpv";
+  } else if (idxPrecatorio >= 0) {
+    type = "precatorio";
+  } else if (idxRpv >= 0) {
+    type = "rpv";
+  }
 
   // Beneficiary name
   let beneficiary_name: string | null = null;
@@ -153,10 +174,11 @@ export function parseRpvText(text: string): RpvData {
 
   // Money values - try multiple patterns
   const gross_amount = extractMoneyValue(t,
+    /(?:total\s+requisitado)(?:\s*\([^)]*\))?[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:valor\s+total\s+devido)[^)]*\)\s*([\d.,]+)/i,
     /(?:valor\s+total\s+devido)[^\d]*([\d.,]+)/i,
-    /(?:valor\s+(?:bruto|total|principal|líquido da requisição|da requisição|requisitado))[:\s]*R?\$?\s*([\d.,]+)/i,
-    /(?:total\s+(?:bruto|geral|da\s+requisição))[:\s]*R?\$?\s*([\d.,]+)/i,
+    /(?:valor\s+(?:bruto|total|principal|l[ií]quido\s+da\s+requisi[çc][ãa]o|da\s+requisi[çc][ãa]o|requisitado))(?:\s*\([^)]*\))?[:\s]*R?\$?\s*([\d.,]+)/i,
+    /(?:total\s+(?:bruto|geral|da\s+requisi[çc][ãa]o))(?:\s*\([^)]*\))?[:\s]*R?\$?\s*([\d.,]+)/i,
     /(?:montante|quantia)[:\s]*R?\$?\s*([\d.,]+)/i,
   );
 
@@ -200,8 +222,12 @@ export function parseRpvText(text: string): RpvData {
 
   // Dates
   let reference_date: string | null = null;
-  const refDateMatch = t.match(/(?:data\s+(?:base|do\s+cálculo|de\s+refer[êe]ncia))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
+  const refDateMatch = t.match(/(?:data\s+(?:base|do\s+c[áa]lculo|de\s+refer[êe]ncia))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
   if (refDateMatch) reference_date = parseDate(refDateMatch[1]);
+  if (!reference_date) {
+    const refMonthYearMatch = t.match(/(?:data\s+(?:base|do\s+c[áa]lculo|de\s+refer[êe]ncia))[:\s]*(\d{2})\/(\d{4})/i);
+    if (refMonthYearMatch) reference_date = `${refMonthYearMatch[2]}-${refMonthYearMatch[1]}-01`;
+  }
 
   let expected_payment_date: string | null = null;
   const expDateMatch = t.match(/(?:previs[ãa]o\s+(?:de\s+)?pagamento|data\s+(?:de\s+)?pagamento|pagamento\s+(?:em|previsto))[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
@@ -249,14 +275,17 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
   // Detect "Destaque dos Honorários Contratuais: Sim" — means fees are separated
   const hasDestaque = /Destaque\s+dos\s+Honor[áa]rios\s+Contratuais\s*:\s*Sim/i.test(normalizedText);
 
-  // Find every fee section by "Tipo Honorário"
+  // Find every fee section by "Tipo Honorário" (robust to encoding glitches such as "HonorÃ¡rio")
   const feeSections: { index: number; fee_type: "contratuais" | "sucumbencia" }[] = [];
-  const tipoHonorRegex = /Tipo\s+(?:de\s+)?Honor[áa]rio(?:s)?\s*:\s*([^\n\r]{0,80}?Honor[áa]rios?[^:\n\r]{0,80})/gi;
+  const tipoHonorRegex = /Tipo\s+(?:de\s+)?Honor[^:]{0,40}:\s*/gi;
   let tipoMatch: RegExpExecArray | null;
 
   while ((tipoMatch = tipoHonorRegex.exec(normalizedText)) !== null) {
-    const label = tipoMatch[1] || "";
-    const fee_type = /sucumb/i.test(label) ? "sucumbencia" : "contratuais";
+    const labelWindow = normalizedText.slice(tipoHonorRegex.lastIndex, tipoHonorRegex.lastIndex + 160);
+    const normalizedLabelWindow = normalizeForMatch(labelWindow);
+    if (!/sucumb|contrat/.test(normalizedLabelWindow)) continue;
+
+    const fee_type = /sucumb/.test(normalizedLabelWindow) ? "sucumbencia" : "contratuais";
     feeSections.push({ index: tipoMatch.index, fee_type });
   }
 
@@ -290,14 +319,14 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     let type: "rpv" | "precatorio" | null = null;
     let especieLabel: string | null = null;
 
-    const especieRegex = /Esp[ée]cie\s*:\s*(RPV|Precat[óo]rio)/gi;
+    const especieRegex = /Esp[^:]{0,20}:\s*(RPV|Precat[^\s]{0,6}rio)/gi;
     let especieIter: RegExpExecArray | null;
     while ((especieIter = especieRegex.exec(headerContext)) !== null) {
       especieLabel = especieIter[1];
     }
 
     if (!especieLabel) {
-      const especieAfterMatch = blockAfterType.match(/Esp[ée]cie\s*:\s*(RPV|Precat[óo]rio)/i);
+      const especieAfterMatch = blockAfterType.match(/Esp[^:]{0,20}:\s*(RPV|Precat[^\s]{0,6}rio)/i);
       if (especieAfterMatch) especieLabel = especieAfterMatch[1];
     }
 
@@ -331,12 +360,25 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     const officeMatch = headerContext.match(officeCnpjPattern) || headerContext.match(officeCpfPattern);
 
     if (officeMatch) {
-      beneficiary_name = officeMatch[1].replace(/^#+\s*/, "").trim();
+      beneficiary_name = officeMatch[1].replace(/^#+\s*/, "").replace(/\s+/g, " ").trim();
       beneficiary_cpf = officeMatch[2];
     } else {
-      const officeFallback = blockWithContext.match(/(?:escrit[oó]rio|sociedade\s+de\s+advogados?)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140})/i);
-      if (officeFallback) beneficiary_name = officeFallback[1].trim();
-      beneficiary_cpf = extractCpf(blockWithContext);
+      const officeWithDocRegex = /([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140}?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\)/gi;
+      let officeWithDocMatch: RegExpExecArray | null;
+      let lastOfficeWithDoc: RegExpExecArray | null = null;
+
+      while ((officeWithDocMatch = officeWithDocRegex.exec(headerContext)) !== null) {
+        lastOfficeWithDoc = officeWithDocMatch;
+      }
+
+      if (lastOfficeWithDoc) {
+        beneficiary_name = lastOfficeWithDoc[1].replace(/^#+\s*/, "").replace(/\s+/g, " ").trim();
+        beneficiary_cpf = lastOfficeWithDoc[2];
+      } else {
+        const officeFallback = blockWithContext.match(/(?:escrit[oó]rio|sociedade\s+de\s+advogados?)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç0-9\s&.,'\/-]{5,140})/i);
+        if (officeFallback) beneficiary_name = officeFallback[1].trim();
+        beneficiary_cpf = extractCpf(blockWithContext);
+      }
     }
 
     // Data base (month/year)

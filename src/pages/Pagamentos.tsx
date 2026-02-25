@@ -444,7 +444,118 @@ const Pagamentos = () => {
       const pdfText = await extractTextFromPdf(file);
       if (pdfText.trim().length < 20) { toast.info("Não foi possível extrair texto. Edite manualmente."); setExtracting(false); setUploading(false); return; }
 
-      const parsed = parseRpvText(pdfText);
+      const multiResult = parseMultiplePayments(pdfText);
+
+      // Multi-fee document: update current order + create additional orders automatically
+      if (multiResult.has_separated_fees && multiResult.entries.length > 1 && editForm.id) {
+        const processFromDoc = multiResult.process_number || editForm.process_number || null;
+
+        let matchedCaseId = editForm.case_id || null;
+        if (!matchedCaseId && processFromDoc && cases.length > 0) {
+          const cleanNum = processFromDoc.replace(/\D/g, "");
+          const matchedCase = cases.find(c => c.process_number.replace(/\D/g, "") === cleanNum);
+          if (matchedCase) matchedCaseId = matchedCase.id;
+        }
+
+        const [primaryEntry, ...otherEntries] = multiResult.entries;
+        const primaryFeeType = primaryEntry.fee_type || "contratuais";
+
+        const primaryUpdate = {
+          type: primaryEntry.type || editForm.type || "precatorio",
+          gross_amount: primaryEntry.gross_amount || 0,
+          office_fees_percent: 0,
+          office_amount: primaryEntry.office_amount || primaryEntry.gross_amount || 0,
+          client_amount: 0,
+          court_costs: 0,
+          social_security: 0,
+          income_tax: 0,
+          beneficiary_name: primaryEntry.beneficiary_name || null,
+          beneficiary_cpf: primaryEntry.beneficiary_cpf || null,
+          process_number: processFromDoc,
+          court: null,
+          entity: multiResult.entity || primaryEntry.entity || null,
+          reference_date: primaryEntry.reference_date || null,
+          expected_payment_date: null,
+          case_id: matchedCaseId,
+          document_url: urlData.publicUrl,
+          document_name: file.name,
+          ownership_type: "escritorio",
+          fee_type: primaryFeeType,
+          ai_extracted: false,
+          ai_raw_data: null,
+          notes: `Honorários ${primaryFeeType === "sucumbencia" ? "de sucumbência" : "contratuais"} — extraído automaticamente.`,
+        };
+
+        const { error: updateErr } = await supabase
+          .from("payment_orders" as any)
+          .update(primaryUpdate)
+          .eq("id", editForm.id);
+
+        if (updateErr) {
+          toast.error("Erro ao atualizar pagamento principal: " + updateErr.message);
+          setExtracting(false);
+          setUploading(false);
+          return;
+        }
+
+        let createdExtra = 0;
+        for (const entry of otherEntries) {
+          const feeType = entry.fee_type || "contratuais";
+
+          const { data: existing } = await supabase
+            .from("payment_orders" as any)
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("process_number", processFromDoc)
+            .eq("document_name", file.name)
+            .eq("fee_type", feeType)
+            .limit(1)
+            .maybeSingle();
+
+          if (existing) continue;
+
+          const { error } = await supabase.from("payment_orders" as any).insert({
+            tenant_id: tenantId,
+            created_by: user.id,
+            case_id: matchedCaseId,
+            type: entry.type || primaryEntry.type || "precatorio",
+            status: editForm.status || "aguardando",
+            gross_amount: entry.gross_amount || 0,
+            office_fees_percent: 0,
+            office_amount: entry.office_amount || entry.gross_amount || 0,
+            client_amount: 0,
+            court_costs: 0,
+            social_security: 0,
+            income_tax: 0,
+            document_url: urlData.publicUrl,
+            document_name: file.name,
+            beneficiary_name: entry.beneficiary_name || null,
+            beneficiary_cpf: entry.beneficiary_cpf || null,
+            process_number: processFromDoc,
+            court: null,
+            entity: multiResult.entity || entry.entity || null,
+            reference_date: entry.reference_date || null,
+            expected_payment_date: null,
+            ai_extracted: false,
+            ai_raw_data: null,
+            notes: `Honorários ${feeType === "sucumbencia" ? "de sucumbência" : "contratuais"} — extraído automaticamente.`,
+            ownership_type: "escritorio",
+            fee_type: feeType,
+            tax_percent: editForm.tax_percent ?? 10.9,
+          });
+
+          if (!error) createdExtra++;
+        }
+
+        await fetchOrders();
+        setEditForm(f => ({ ...f, ...primaryUpdate }));
+        toast.success(`${createdExtra + 1} lançamento(s) de honorários atualizado(s)/criado(s) automaticamente.`);
+        setExtracting(false);
+        setUploading(false);
+        return;
+      }
+
+      const parsed = multiResult.entries[0] || parseRpvText(pdfText);
       const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
 
       if (hasData) {
@@ -463,6 +574,8 @@ const Pagamentos = () => {
           ...(parsed.entity && { entity: parsed.entity }),
           ...(parsed.reference_date && { reference_date: parsed.reference_date }),
           ...(parsed.expected_payment_date && { expected_payment_date: parsed.expected_payment_date }),
+          ...(parsed.fee_type && { fee_type: parsed.fee_type }),
+          ...(parsed.ownership_type && { ownership_type: parsed.ownership_type }),
           ai_extracted: false,
         }));
         if (parsed.process_number && cases.length > 0) {
