@@ -394,7 +394,16 @@ const Pagamentos = () => {
         .in("category", ["Honorários", "IR sobre Honorários"]);
     }
     
-    // 3. Delete the payment order itself
+    // 3. Delete eproc_documents linked to this process (so re-capture works)
+    if (order && tenantId && order.process_number) {
+      await supabase
+        .from("eproc_documents")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("process_number", order.process_number);
+    }
+    
+    // 4. Delete the payment order itself
     await supabase.from("payment_orders" as any).delete().eq("id", id);
     
     setOrders(prev => prev.filter(o => o.id !== id));
