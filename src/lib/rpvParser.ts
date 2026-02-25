@@ -19,6 +19,16 @@ export interface RpvData {
   entity: string | null;
   reference_date: string | null;
   expected_payment_date: string | null;
+  ownership_type?: string;
+  fee_type?: string;
+}
+
+export interface MultiPaymentResult {
+  entries: RpvData[];
+  process_number: string | null;
+  entity: string | null;
+  total_requisitado: number | null;
+  has_separated_fees: boolean;
 }
 
 function parseMoney(str: string): number {
@@ -208,6 +218,151 @@ export function parseRpvText(text: string): RpvData {
     entity,
     reference_date,
     expected_payment_date,
+  };
+}
+
+/**
+ * Parse documents with multiple payment entries (e.g. precatórios with separate 
+ * honorários contratuais + sucumbência + beneficiário).
+ * When fees are already separated (destacados), we skip the client entry and 
+ * create individual entries for each honorário section.
+ */
+export function parseMultiplePayments(text: string): MultiPaymentResult {
+  const singleResult = parseRpvText(text);
+  
+  // Extract common fields
+  const process_number = singleResult.process_number;
+  const entity = singleResult.entity;
+  
+  // Check for "Total Requisitado"
+  const totalMatch = text.match(/Total\s+Requisitado\s*\(?R?\$?\)?\s*:?\s*([\d.,]+)/i);
+  const total_requisitado = totalMatch ? parseMoney(totalMatch[1]) : singleResult.gross_amount;
+
+  // Split text into sections by looking for payment blocks
+  // Pattern: sections separated by beneficiary/honorários headers
+  const honorariosSections: { text: string; tipo: string; especie: string }[] = [];
+  const beneficiarioSections: { text: string; nome: string; cpf: string | null; valor: number }[] = [];
+
+  // Find all "Honorários" blocks - each starts with the firm name after "# Honorários" or similar
+  const honorariosRegex = /(?:^|\n)#?\s*(?:Honorários|HONORÁRIOS)[\s\S]*?(?=(?:\n#?\s*(?:Honorários|HONORÁRIOS|Beneficiários|BENEFICIÁRIOS))|$)/gi;
+  // Better approach: split by sections
+  const lines = text.split('\n');
+  let currentSection: 'header' | 'beneficiario' | 'honorario' = 'header';
+  let currentBlock = '';
+  let blocks: { type: 'beneficiario' | 'honorario'; content: string }[] = [];
+
+  for (const line of lines) {
+    if (/^#?\s*Beneficiários/i.test(line.trim())) {
+      if (currentBlock.trim() && currentSection !== 'header') {
+        blocks.push({ type: currentSection === 'beneficiario' ? 'beneficiario' : 'honorario', content: currentBlock });
+      }
+      currentSection = 'beneficiario';
+      currentBlock = '';
+      continue;
+    }
+    if (/^#?\s*Honorários/i.test(line.trim())) {
+      if (currentBlock.trim()) {
+        blocks.push({ type: currentSection === 'beneficiario' ? 'beneficiario' : 'honorario', content: currentBlock });
+      }
+      currentSection = 'honorario';
+      currentBlock = '';
+      continue;
+    }
+    currentBlock += line + '\n';
+  }
+  if (currentBlock.trim()) {
+    blocks.push({ type: currentSection === 'beneficiario' ? 'beneficiario' : 'honorario', content: currentBlock });
+  }
+
+  const honorarioBlocks = blocks.filter(b => b.type === 'honorario');
+  const beneficiarioBlocks = blocks.filter(b => b.type === 'beneficiario');
+
+  // If no separate honorário sections found, return single result
+  if (honorarioBlocks.length === 0) {
+    return {
+      entries: [singleResult],
+      process_number,
+      entity,
+      total_requisitado,
+      has_separated_fees: false,
+    };
+  }
+
+  const has_separated_fees = honorarioBlocks.length > 0;
+  const entries: RpvData[] = [];
+
+  // Parse each honorário block
+  for (const block of honorarioBlocks) {
+    const t = block.content;
+    
+    // Determine espécie (RPV or Precatório)
+    let type: "rpv" | "precatorio" | null = null;
+    if (/Espécie:\s*RPV/i.test(t)) type = "rpv";
+    else if (/Espécie:\s*Precatório/i.test(t)) type = "precatorio";
+    else if (/precatório|precatorio/i.test(t)) type = "precatorio";
+    else if (/RPV/i.test(t)) type = "rpv";
+
+    // Determine fee type
+    let fee_type = "contratuais";
+    if (/Honorários\s+(?:de\s+)?Sucumb[eê]ncia/i.test(t) || /Tipo\s+Honorário:\s*Honorários\s+(?:de\s+)?Sucumb[eê]ncia/i.test(t)) {
+      fee_type = "sucumbencia";
+    } else if (/Honorários\s+Contratuais/i.test(t) || /Tipo\s+Honorário:\s*Honorários\s+Contratuais/i.test(t)) {
+      fee_type = "contratuais";
+    }
+
+    // Extract valor requisitado from this block
+    let gross_amount: number | null = null;
+    const valorMatch = t.match(/Valor\s+Requisitado\s*\([^)]*\)\s*:\s*([\d.,]+)/i);
+    if (valorMatch) gross_amount = parseMoney(valorMatch[1]);
+    if (!gross_amount) {
+      const simpleMatch = t.match(/Valor\s+Requisitado[:\s]*([\d.,]+)/i);
+      if (simpleMatch) gross_amount = parseMoney(simpleMatch[1]);
+    }
+
+    // Extract beneficiary name (firm name in honorários section)
+    let beneficiary_name: string | null = null;
+    // Look for firm/person name - usually the first bold/header line with CNPJ or name
+    const firmMatch = t.match(/^#?\s*([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s&.]+?)\s*\(/m);
+    if (firmMatch) beneficiary_name = firmMatch[1].trim();
+    
+    // Extract CNPJ or CPF
+    let beneficiary_cpf: string | null = null;
+    const cnpjMatch = t.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+    if (cnpjMatch) beneficiary_cpf = cnpjMatch[1];
+    else beneficiary_cpf = extractCpf(t);
+
+    // Data base
+    let reference_date: string | null = null;
+    const dataBaseMatch = t.match(/Data\s+Base:\s*(\d{2})\/(\d{4})/i);
+    if (dataBaseMatch) reference_date = `${dataBaseMatch[2]}-${dataBaseMatch[1]}-01`;
+
+    entries.push({
+      type,
+      gross_amount,
+      office_fees_percent: null,
+      office_amount: gross_amount, // since fees are already separated, gross = office amount
+      client_amount: 0,
+      court_costs: null,
+      social_security: null,
+      income_tax: null,
+      beneficiary_name,
+      beneficiary_cpf,
+      process_number,
+      court: null,
+      entity,
+      reference_date,
+      expected_payment_date: null,
+      ownership_type: "escritorio", // since these are already the office's portion
+      fee_type,
+    });
+  }
+
+  return {
+    entries,
+    process_number,
+    entity,
+    total_requisitado,
+    has_separated_fees,
   };
 }
 
