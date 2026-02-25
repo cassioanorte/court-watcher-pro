@@ -183,26 +183,26 @@ const FluxoDeCaixa = () => {
         </Select>
       </div>
 
-      {/* Summary cards — now 5 cards including taxes */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {[
           { label: "Entradas", value: totalRevenue, icon: ArrowUpRight, color: "text-emerald-500", bg: "bg-emerald-500/10" },
           { label: "Despesas", value: totalExpense, icon: ArrowDownRight, color: "text-red-500", bg: "bg-red-500/10" },
           { label: "Impostos", value: totalTaxes, icon: Receipt, color: "text-amber-500", bg: "bg-amber-500/10" },
-          { label: "Consultas/Honorários", value: filteredTx.filter(t => t.type === "fee_initial").reduce((s, t) => s + Number(t.amount), 0), icon: Scale, color: "text-violet-500", bg: "bg-violet-500/10" },
-          { label: "Desp. de Clientes", value: clientExpensesTotal, icon: Receipt, color: "text-cyan-500", bg: "bg-cyan-500/10" },
+          { label: "Consultas / Honorários", value: filteredTx.filter(t => t.type === "fee_initial").reduce((s, t) => s + Number(t.amount), 0), icon: Scale, color: "text-violet-500", bg: "bg-violet-500/10" },
+          { label: "Despesas de Clientes", value: clientExpensesTotal, icon: Receipt, color: "text-cyan-500", bg: "bg-cyan-500/10" },
           { label: "Rateios Pagos", value: totalDistributed, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
           { label: "Saldo de Caixa", value: netCash, icon: Wallet, color: netCash >= 0 ? "text-emerald-500" : "text-red-500", bg: netCash >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
         ].map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className="bg-card rounded-lg border p-4 shadow-card overflow-hidden">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide min-w-0 flex-1 truncate">{card.label}</p>
-              <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
-                <card.icon className={`w-4 h-4 ${card.color}`} />
+            className="bg-card rounded-xl border p-5 shadow-card">
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
+              <div className={`w-10 h-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
+                <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
             </div>
-            <p className={`text-xl font-bold ${card.color} truncate`}>{fmt(card.value)}</p>
+            <p className={`text-2xl font-bold ${card.color}`}>{fmt(card.value)}</p>
           </motion.div>
         ))}
       </div>
