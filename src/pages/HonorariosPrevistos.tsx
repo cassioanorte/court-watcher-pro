@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 import { motion } from "framer-motion";
-import { Banknote, Calendar, ArrowLeft, TrendingUp, Filter, Clock, CheckCircle2 } from "lucide-react";
+import { Banknote, Calendar, ArrowLeft, TrendingUp, Filter, Clock, CheckCircle2, FileText, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ interface PaymentOrder {
   expected_payment_date: string | null;
   fee_type: string;
   case_id: string | null;
+  document_url: string | null;
+  document_name: string | null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -58,7 +60,7 @@ const HonorariosPrevistos = () => {
     if (!tenantId) return;
     supabase
       .from("payment_orders" as any)
-      .select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, expected_payment_date, fee_type, case_id")
+      .select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, expected_payment_date, fee_type, case_id, document_url, document_name")
       .eq("tenant_id", tenantId)
       .in("status", ["aguardando", "liberado"])
       .then(({ data }) => {
@@ -242,6 +244,7 @@ const HonorariosPrevistos = () => {
                 <th className="text-right p-3 font-medium text-muted-foreground">IR</th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Líquido</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Pgto previsto</th>
+                <th className="text-center p-3 font-medium text-muted-foreground">Documento</th>
               </tr>
             </thead>
             <tbody>
@@ -269,11 +272,30 @@ const HonorariosPrevistos = () => {
                         ? format(parseISO(o.expected_payment_date), "dd/MM/yyyy")
                         : <span className="text-amber-500 text-xs">Sem data</span>}
                     </td>
+                    <td className="p-3 text-center">
+                      {o.document_url ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(o.document_url!, "_blank");
+                          }}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          PDF
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {filteredOrders.length === 0 && ordersWithoutDate.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhum honorário previsto no período selecionado</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhum honorário previsto no período selecionado</td></tr>
               )}
             </tbody>
           </table>
