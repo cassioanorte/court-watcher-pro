@@ -9,6 +9,7 @@ interface DocItem {
   url: string;
   event_number: string;
   doc_type: "rpv" | "precatorio" | "alvara" | "outro";
+  fee_type?: "contratuais" | "sucumbencia";
 }
 
 interface PayloadData {
@@ -238,6 +239,9 @@ const DocumentosEproc = () => {
                     {doc.event_number && <span className="text-muted-foreground">Evento {doc.event_number} — </span>}
                     {doc.name}
                   </p>
+                  {doc.fee_type === "sucumbencia" && (
+                    <span className="text-xs text-muted-foreground">Sucumbência</span>
+                  )}
                 </div>
                 <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${info.color}`}>
                   {info.icon} {info.label}

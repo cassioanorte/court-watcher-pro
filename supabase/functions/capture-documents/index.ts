@@ -11,6 +11,7 @@ interface DocumentInput {
   url: string;
   event_number: string;
   doc_type: "rpv" | "precatorio" | "alvara" | "outro";
+  fee_type?: "contratuais" | "sucumbencia";
 }
 
 function generateHash(str: string): string {
@@ -102,44 +103,55 @@ Deno.serve(async (req) => {
         documentsSaved++;
       }
 
-      // For financial documents, ALWAYS try to create payment order (even if doc already existed)
+      // For financial documents, create payment orders with proper fee_type
       if ((doc.doc_type === "rpv" || doc.doc_type === "precatorio" || doc.doc_type === "alvara") && userId) {
-        // Check if payment order already exists for this doc
-        const poHash = `${tenant_id}:${process_number}:${doc.name}`;
-        const { data: existingPO } = await supabase
-          .from("payment_orders")
-          .select("id")
-          .eq("tenant_id", tenant_id)
-          .eq("process_number", process_number)
-          .eq("document_name", doc.name)
-          .limit(1)
-          .maybeSingle();
+        const docFeeType = doc.fee_type || "contratuais";
+        
+        // Determine fee types to create POs for:
+        // If doc name contains both "contratua" and "sucumb", create two POs
+        const upperName = doc.name.toUpperCase();
+        const hasBothFees = upperName.includes("CONTRATUA") && upperName.includes("SUCUMB");
+        const feeTypes = hasBothFees ? ["contratuais", "sucumbencia"] : [docFeeType];
 
-        if (existingPO) {
-          paymentOrdersSkipped++;
-          continue;
-        }
+        for (const feeType of feeTypes) {
+          // Check if payment order already exists for this doc + fee_type combo
+          const { data: existingPO } = await supabase
+            .from("payment_orders")
+            .select("id")
+            .eq("tenant_id", tenant_id)
+            .eq("process_number", process_number)
+            .eq("document_name", doc.name)
+            .eq("fee_type", feeType)
+            .limit(1)
+            .maybeSingle();
 
-        const poType = doc.doc_type === "alvara" ? "alvara" : doc.doc_type;
-        const { error: poErr } = await supabase.from("payment_orders").insert({
-          tenant_id,
-          created_by: userId,
-          type: poType,
-          process_number,
-          case_id: caseId,
-          status: "rascunho",
-          ownership_type: "cliente",
-          fee_type: "contratuais",
-          ai_extracted: false,
-          document_name: doc.name,
-          document_url: doc.url,
-          notes: `Capturado via bookmarklet${doc.event_number ? ` — Evento ${doc.event_number}` : ""}. Pendente de conferência.`,
-        });
+          if (existingPO) {
+            paymentOrdersSkipped++;
+            continue;
+          }
 
-        if (poErr) {
-          console.error(`[capture-documents] Error creating payment order: ${poErr.message}`);
-        } else {
-          paymentOrdersCreated++;
+          const poType = doc.doc_type === "alvara" ? "alvara" : doc.doc_type;
+          const feeLabel = feeType === "sucumbencia" ? "Sucumbência" : "Contratuais";
+          const { error: poErr } = await supabase.from("payment_orders").insert({
+            tenant_id,
+            created_by: userId,
+            type: poType,
+            process_number,
+            case_id: caseId,
+            status: "rascunho",
+            ownership_type: feeType === "sucumbencia" ? "escritorio" : "cliente",
+            fee_type: feeType,
+            ai_extracted: false,
+            document_name: doc.name,
+            document_url: doc.url,
+            notes: `Capturado via bookmarklet — ${feeLabel}${doc.event_number ? ` — Evento ${doc.event_number}` : ""}. Pendente de conferência.`,
+          });
+
+          if (poErr) {
+            console.error(`[capture-documents] Error creating payment order (${feeType}): ${poErr.message}`);
+          } else {
+            paymentOrdersCreated++;
+          }
         }
       }
     }
