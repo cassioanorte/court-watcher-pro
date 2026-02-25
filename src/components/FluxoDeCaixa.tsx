@@ -195,14 +195,14 @@ const FluxoDeCaixa = () => {
           { label: "Saldo de Caixa", value: netCash, icon: Wallet, color: netCash >= 0 ? "text-emerald-500" : "text-red-500", bg: netCash >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
         ].map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className="bg-card rounded-lg border p-4 shadow-card">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">{card.label}</p>
-              <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
+            className="bg-card rounded-lg border p-4 shadow-card overflow-hidden">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide min-w-0 flex-1 truncate">{card.label}</p>
+              <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
                 <card.icon className={`w-4 h-4 ${card.color}`} />
               </div>
             </div>
-            <p className={`text-xl font-bold ${card.color}`}>{fmt(card.value)}</p>
+            <p className={`text-xl font-bold ${card.color} truncate`}>{fmt(card.value)}</p>
           </motion.div>
         ))}
       </div>
