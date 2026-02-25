@@ -269,8 +269,8 @@ const Financeiro = () => {
     const rpv = activeOrders.filter(o => o.type === "rpv");
     const prec = activeOrders.filter(o => o.type === "precatorio");
     return [
-      { name: "RPV", quantidade: rpv.length, bruto: rpv.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0), honorarios: rpv.reduce((s, o) => s + (Number(o.office_amount) || 0), 0) },
-      { name: "Precatório", quantidade: prec.length, bruto: prec.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0), honorarios: prec.reduce((s, o) => s + (Number(o.office_amount) || 0), 0) },
+      { name: "RPV", quantidade: rpv.length, bruto: rpv.reduce((s, o) => s + computePaymentOrderMath(o as any).officeGross, 0), honorarios: rpv.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0) },
+      { name: "Precatório", quantidade: prec.length, bruto: prec.reduce((s, o) => s + computePaymentOrderMath(o as any).officeGross, 0), honorarios: prec.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0) },
     ];
   }, [activeOrders]);
 
