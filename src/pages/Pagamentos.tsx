@@ -376,11 +376,30 @@ const Pagamentos = () => {
   };
 
   const deleteOrder = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este RPV/Precatório?")) return;
+    if (!confirm("Tem certeza que deseja excluir este RPV/Precatório? Isso também removerá distribuições de honorários e lançamentos financeiros vinculados.")) return;
+    
+    const order = orders.find(o => o.id === id);
+    
+    // 1. Delete fee distributions linked to this payment order
+    await supabase.from("fee_distributions").delete().eq("payment_order_id", id);
+    
+    // 2. Delete financial transactions linked to this order (cash flow entries)
+    if (order && tenantId) {
+      const label = `${order.type.toUpperCase()} — ${order.process_number || order.beneficiary_name || "Sem número"}`;
+      await supabase
+        .from("financial_transactions")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .like("description", `%${label}%`)
+        .in("category", ["Honorários", "IR sobre Honorários"]);
+    }
+    
+    // 3. Delete the payment order itself
     await supabase.from("payment_orders" as any).delete().eq("id", id);
+    
     setOrders(prev => prev.filter(o => o.id !== id));
     setSelected(null);
-    toast.success("Registro excluído");
+    toast.success("Registro e dados vinculados excluídos");
   };
 
   const startEdit = (order: PaymentOrder) => {
