@@ -316,7 +316,7 @@ const FluxoDeCaixa = () => {
                 </h3>
                 <div className="text-xs text-muted-foreground">
                   Honorários previstos: <span className="font-semibold text-foreground">{fmt(pendingOrders.reduce((s, o) => s + computePaymentOrderMath(o).officeNet, 0))}</span>
-                  {" "}de {fmt(pendingOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0))} bruto
+                  {" "}de {fmt(pendingOrders.reduce((s, o) => s + computePaymentOrderMath(o).officeGross, 0))} em honorários brutos
                 </div>
               </div>
             )}

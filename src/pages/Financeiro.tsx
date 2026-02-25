@@ -207,7 +207,7 @@ const Financeiro = () => {
   const activeOrders = paymentOrders.filter(o => ["aguardando", "liberado", "sacado"].includes(o.status));
   const forecastOrders = paymentOrders.filter(o => ["aguardando", "liberado"].includes(o.status));
   const totalHonorariosPrevistos = forecastOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0);
-  const totalBrutoRpv = forecastOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).gross, 0);
+  const totalBrutoRpv = forecastOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeGross, 0);
   const totalHonorariosParaRateio = activeOrders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0);
 
   // IR a pagar — calcula usando tax_percent sobre honorários brutos
@@ -229,7 +229,7 @@ const Financeiro = () => {
       map[o.status].count++;
       const math = computePaymentOrderMath(o as any);
       map[o.status].officeTotal += math.officeNet;
-      map[o.status].grossTotal += math.gross;
+      map[o.status].grossTotal += math.officeGross;
     });
     return map;
   }, [activeOrders]);
@@ -346,7 +346,7 @@ const Financeiro = () => {
     { label: "Consultas / Honorários", value: fmt(clientFeesPaid + clientFeesPending), icon: Scale, color: "text-violet-500", bgColor: "bg-violet-500/10", subtitle: `${fmt(clientFeesPending)} a receber` },
     { label: "Despesas de Clientes", value: fmt(clientExpensesPaid + clientExpensesPending), icon: Receipt, color: "text-cyan-500", bgColor: "bg-cyan-500/10", subtitle: `${fmt(clientExpensesPending)} a cobrar` },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", subtitle: "receitas − despesas − impostos" },
-    { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
+    { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em honorários brutos` },
   ];
 
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
@@ -451,7 +451,7 @@ const Financeiro = () => {
                     <Badge variant="secondary" className="ml-auto text-xs">{data.count}</Badge>
                   </div>
                   <p className="text-lg font-bold text-foreground">{fmt(data.officeTotal)}</p>
-                  <p className="text-[10px] text-muted-foreground">Bruto: {fmt(data.grossTotal)}</p>
+                  <p className="text-[10px] text-muted-foreground">Bruto Honorários: {fmt(data.grossTotal)}</p>
                 </motion.div>
               );
             })}
