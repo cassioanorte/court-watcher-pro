@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -102,6 +103,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 
 const Financeiro = () => {
   const { tenantId, user } = useAuth();
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -346,7 +348,7 @@ const Financeiro = () => {
     { label: "Consultas / Honorários", value: fmt(clientFeesPaid + clientFeesPending), icon: Scale, color: "text-violet-500", bgColor: "bg-violet-500/10", subtitle: `${fmt(clientFeesPending)} a receber` },
     { label: "Despesas de Clientes", value: fmt(clientExpensesPaid + clientExpensesPending), icon: Receipt, color: "text-cyan-500", bgColor: "bg-cyan-500/10", subtitle: `${fmt(clientExpensesPending)} a cobrar` },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", subtitle: "receitas − despesas − impostos" },
-    { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em honorários brutos` },
+    { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em honorários brutos`, clickable: true, onClick: () => navigate("/financeiro/honorarios-previstos"), clickLabel: "Ver detalhes" },
   ];
 
   if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
@@ -419,7 +421,7 @@ const Financeiro = () => {
                   <p className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</p>
                 )}
                 {"clickable" in kpi && kpi.clickable && (
-                  <p className="text-xs text-primary mt-1.5 flex items-center gap-0.5"><Plus className="w-3 h-3" /> Lançar despesa</p>
+                  <p className="text-xs text-primary mt-1.5 flex items-center gap-0.5"><Plus className="w-3 h-3" /> {"clickLabel" in kpi && kpi.clickLabel ? (kpi.clickLabel as string) : "Lançar despesa"}</p>
                 )}
               </div>
               <div className={`w-11 h-11 rounded-lg ${kpi.bgColor} flex items-center justify-center shrink-0`}>
