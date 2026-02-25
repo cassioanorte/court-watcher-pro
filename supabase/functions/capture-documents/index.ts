@@ -106,12 +106,31 @@ Deno.serve(async (req) => {
       // For financial documents, create payment orders with proper fee_type
       if ((doc.doc_type === "rpv" || doc.doc_type === "precatorio" || doc.doc_type === "alvara") && userId) {
         const docFeeType = doc.fee_type || "contratuais";
-        
-        // Determine fee types to create POs for:
-        // If doc name contains both "contratua" and "sucumb", create two POs
-        const upperName = doc.name.toUpperCase();
-        const hasBothFees = upperName.includes("CONTRATUA") && upperName.includes("SUCUMB");
-        const feeTypes = hasBothFees ? ["contratuais", "sucumbencia"] : [docFeeType];
+
+        // Heurística robusta para documentos com honorários combinados no mesmo PDF.
+        // Alguns tribunais trazem apenas "Honorários" no título, sem detalhar o tipo.
+        const normalizedName = doc.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase();
+        const hasHonorarios = normalizedName.includes("HONOR");
+        const hasContratuais = normalizedName.includes("CONTRATUA");
+        const hasSucumbencia = normalizedName.includes("SUCUMB");
+
+        let feeTypes: ("contratuais" | "sucumbencia")[];
+
+        if (hasContratuais && hasSucumbencia) {
+          feeTypes = ["contratuais", "sucumbencia"];
+        } else if (hasSucumbencia) {
+          feeTypes = ["sucumbencia"];
+        } else if (hasContratuais) {
+          feeTypes = ["contratuais"];
+        } else if ((doc.doc_type === "rpv" || doc.doc_type === "precatorio") && hasHonorarios) {
+          // Fallback: quando vier só "Honorários", cria os dois para garantir a conferência manual.
+          feeTypes = ["contratuais", "sucumbencia"];
+        } else {
+          feeTypes = [docFeeType];
+        }
 
         for (const feeType of feeTypes) {
           // Check if payment order already exists for this doc + fee_type combo
