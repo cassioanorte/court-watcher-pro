@@ -36,6 +36,46 @@ const DocumentosEproc = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let timeoutId: number | null = null;
+
+    const applyParsed = (parsed: PayloadData | null) => {
+      if (!parsed || !Array.isArray(parsed.docs) || parsed.docs.length === 0) return false;
+
+      setData(parsed);
+      setError(null);
+
+      const autoSelect = new Set<number>();
+      parsed.docs.forEach((d, i) => {
+        if (d.doc_type !== "outro") autoSelect.add(i);
+      });
+      setSelected(autoSelect);
+      return true;
+    };
+
+    const parseUnknownPayload = (value: unknown): PayloadData | null => {
+      if (!value) return null;
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value) as PayloadData;
+        } catch {
+          return null;
+        }
+      }
+      if (typeof value === "object") return value as PayloadData;
+      return null;
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      const payload = parseUnknownPayload((event.data as any)?.payload);
+      const type = (event.data as any)?.type;
+      if (type !== "lex_doc_capture_payload") return;
+
+      if (applyParsed(payload)) {
+        if (timeoutId) window.clearTimeout(timeoutId);
+        window.removeEventListener("message", handleMessage);
+      }
+    };
+
     try {
       let parsed: PayloadData | null = null;
 
@@ -69,20 +109,28 @@ const DocumentosEproc = () => {
         }
       }
 
-      if (!parsed || !parsed.docs?.length) {
-        setError("Nenhum documento encontrado. Certifique-se de usar o bookmarklet na página do processo.");
-        return;
+      if (applyParsed(parsed)) return;
+
+      // 4) postMessage channel (robust fallback for browsers that clear window.name)
+      window.addEventListener("message", handleMessage);
+      try {
+        window.opener?.postMessage({ type: "lex_doc_capture_ready" }, "*");
+      } catch {
+        // no-op
       }
 
-      setData(parsed);
-      const autoSelect = new Set<number>();
-      parsed.docs.forEach((d, i) => {
-        if (d.doc_type !== "outro") autoSelect.add(i);
-      });
-      setSelected(autoSelect);
+      timeoutId = window.setTimeout(() => {
+        setError("Nenhum dado recebido. Execute o bookmarklet novamente na página do processo.");
+        window.removeEventListener("message", handleMessage);
+      }, 4000);
     } catch {
       setError("Erro ao processar dados. Tente usar o bookmarklet novamente.");
     }
+
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      window.removeEventListener("message", handleMessage);
+    };
   }, [searchParams]);
 
   const financialDocs = useMemo(() => 
