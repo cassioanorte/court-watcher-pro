@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
         expected_payment_date: parsed.expected_payment_date,
         status: "rascunho",
         ownership_type: "cliente",
-        fee_type: "contratual",
+        fee_type: "contratuais",
         ai_extracted: false,
       }).select("id").single();
 

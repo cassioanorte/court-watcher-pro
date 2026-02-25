@@ -224,61 +224,39 @@ export function parseRpvText(text: string): RpvData {
 /**
  * Parse documents with multiple payment entries (e.g. precatórios with separate 
  * honorários contratuais + sucumbência + beneficiário).
- * When fees are already separated (destacados), we skip the client entry and 
- * create individual entries for each honorário section.
+ * Works with flat text from pdfjs-dist (no reliable newlines).
  */
 export function parseMultiplePayments(text: string): MultiPaymentResult {
   const singleResult = parseRpvText(text);
-  
-  // Extract common fields
   const process_number = singleResult.process_number;
   const entity = singleResult.entity;
-  
-  // Check for "Total Requisitado"
+
+  // Extract total requisitado
   const totalMatch = text.match(/Total\s+Requisitado\s*\(?R?\$?\)?\s*:?\s*([\d.,]+)/i);
   const total_requisitado = totalMatch ? parseMoney(totalMatch[1]) : singleResult.gross_amount;
 
-  // Split text into sections by looking for payment blocks
-  // Pattern: sections separated by beneficiary/honorários headers
-  const honorariosSections: { text: string; tipo: string; especie: string }[] = [];
-  const beneficiarioSections: { text: string; nome: string; cpf: string | null; valor: number }[] = [];
+  // Detect "Destaque dos Honorários Contratuais: Sim" — means fees are separated
+  const hasDestaque = /Destaque\s+dos\s+Honor[áa]rios\s+Contratuais\s*:\s*Sim/i.test(text);
 
-  // Find all "Honorários" blocks - each starts with the firm name after "# Honorários" or similar
-  const honorariosRegex = /(?:^|\n)#?\s*(?:Honorários|HONORÁRIOS)[\s\S]*?(?=(?:\n#?\s*(?:Honorários|HONORÁRIOS|Beneficiários|BENEFICIÁRIOS))|$)/gi;
-  // Better approach: split by sections
-  const lines = text.split('\n');
-  let currentSection: 'header' | 'beneficiario' | 'honorario' = 'header';
-  let currentBlock = '';
-  let blocks: { type: 'beneficiario' | 'honorario'; content: string }[] = [];
-
-  for (const line of lines) {
-    if (/^#?\s*Beneficiários/i.test(line.trim())) {
-      if (currentBlock.trim() && currentSection !== 'header') {
-        blocks.push({ type: currentSection === 'beneficiario' ? 'beneficiario' : 'honorario', content: currentBlock });
-      }
-      currentSection = 'beneficiario';
-      currentBlock = '';
-      continue;
-    }
-    if (/^#?\s*Honorários/i.test(line.trim())) {
-      if (currentBlock.trim()) {
-        blocks.push({ type: currentSection === 'beneficiario' ? 'beneficiario' : 'honorario', content: currentBlock });
-      }
-      currentSection = 'honorario';
-      currentBlock = '';
-      continue;
-    }
-    currentBlock += line + '\n';
-  }
-  if (currentBlock.trim()) {
-    blocks.push({ type: currentSection === 'beneficiario' ? 'beneficiario' : 'honorario', content: currentBlock });
+  // Split text into honorários blocks using regex
+  // Each "Honorários" section starts with a firm name, has Tipo Honorário, Valor Requisitado, etc.
+  // We look for "Tipo Honorário:" or "Tipo Honorário :" patterns
+  const honorarioSections: string[] = [];
+  
+  // Strategy: find all occurrences of "Tipo Honorário" and extract surrounding context
+  const tipoHonRegex = /Tipo\s+Honor[áa]rio\s*:\s*(Honor[áa]rios?\s+(?:de\s+)?(?:Sucumb[êe]ncia|Contratuais?))/gi;
+  let tipoMatch;
+  const tipoPositions: { index: number; fee_type: string }[] = [];
+  
+  while ((tipoMatch = tipoHonRegex.exec(text)) !== null) {
+    const label = tipoMatch[1];
+    let fee_type = "contratuais";
+    if (/sucumb/i.test(label)) fee_type = "sucumbencia";
+    tipoPositions.push({ index: tipoMatch.index, fee_type });
   }
 
-  const honorarioBlocks = blocks.filter(b => b.type === 'honorario');
-  const beneficiarioBlocks = blocks.filter(b => b.type === 'beneficiario');
-
-  // If no separate honorário sections found, return single result
-  if (honorarioBlocks.length === 0) {
+  if (tipoPositions.length === 0) {
+    // No explicit honorário sections found — return single result
     return {
       entries: [singleResult],
       process_number,
@@ -288,59 +266,57 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     };
   }
 
-  const has_separated_fees = honorarioBlocks.length > 0;
   const entries: RpvData[] = [];
 
-  // Parse each honorário block
-  for (const block of honorarioBlocks) {
-    const t = block.content;
-    
+  for (let i = 0; i < tipoPositions.length; i++) {
+    const startIdx = tipoPositions[i].index;
+    const endIdx = i + 1 < tipoPositions.length ? tipoPositions[i + 1].index : text.length;
+    // Also look backwards from startIdx to find the firm name / CNPJ
+    // Search backwards up to 500 chars or previous section end
+    const lookbackStart = i > 0 ? tipoPositions[i - 1].index + 100 : Math.max(0, startIdx - 500);
+    const blockWithContext = text.substring(lookbackStart, endIdx);
+    const blockAfter = text.substring(startIdx, endIdx);
+
+    const fee_type = tipoPositions[i].fee_type;
+
     // Determine espécie (RPV or Precatório)
     let type: "rpv" | "precatorio" | null = null;
-    if (/Espécie:\s*RPV/i.test(t)) type = "rpv";
-    else if (/Espécie:\s*Precatório/i.test(t)) type = "precatorio";
-    else if (/precatório|precatorio/i.test(t)) type = "precatorio";
-    else if (/RPV/i.test(t)) type = "rpv";
-
-    // Determine fee type
-    let fee_type = "contratuais";
-    if (/Honorários\s+(?:de\s+)?Sucumb[eê]ncia/i.test(t) || /Tipo\s+Honorário:\s*Honorários\s+(?:de\s+)?Sucumb[eê]ncia/i.test(t)) {
-      fee_type = "sucumbencia";
-    } else if (/Honorários\s+Contratuais/i.test(t) || /Tipo\s+Honorário:\s*Honorários\s+Contratuais/i.test(t)) {
-      fee_type = "contratuais";
+    const especieMatch = blockAfter.match(/Esp[ée]cie\s*:\s*(RPV|Precat[óo]rio)/i);
+    if (especieMatch) {
+      type = /RPV/i.test(especieMatch[1]) ? "rpv" : "precatorio";
     }
 
-    // Extract valor requisitado from this block
+    // Extract valor requisitado
     let gross_amount: number | null = null;
-    const valorMatch = t.match(/Valor\s+Requisitado\s*\([^)]*\)\s*:\s*([\d.,]+)/i);
+    const valorMatch = blockAfter.match(/Valor\s+Requisitado\s*\([^)]*\)\s*:\s*([\d.,]+)/i);
     if (valorMatch) gross_amount = parseMoney(valorMatch[1]);
     if (!gross_amount) {
-      const simpleMatch = t.match(/Valor\s+Requisitado[:\s]*([\d.,]+)/i);
+      const simpleMatch = blockAfter.match(/Valor\s+Requisitado[:\s]*([\d.,]+)/i);
       if (simpleMatch) gross_amount = parseMoney(simpleMatch[1]);
     }
 
-    // Extract beneficiary name (firm name in honorários section)
+    // Extract beneficiary/firm name
     let beneficiary_name: string | null = null;
-    // Look for firm/person name - usually the first bold/header line with CNPJ or name
-    const firmMatch = t.match(/^#?\s*([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s&.]+?)\s*\(/m);
-    if (firmMatch) beneficiary_name = firmMatch[1].trim();
-    
-    // Extract CNPJ or CPF
+    // Look for CNPJ pattern and name before it
+    const cnpjPattern = blockWithContext.match(/([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s&.]+?)\s*\((\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})\)/);
+    if (cnpjPattern) beneficiary_name = cnpjPattern[1].trim();
+
+    // CNPJ or CPF
     let beneficiary_cpf: string | null = null;
-    const cnpjMatch = t.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+    const cnpjMatch = blockWithContext.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
     if (cnpjMatch) beneficiary_cpf = cnpjMatch[1];
-    else beneficiary_cpf = extractCpf(t);
+    else beneficiary_cpf = extractCpf(blockWithContext);
 
     // Data base
     let reference_date: string | null = null;
-    const dataBaseMatch = t.match(/Data\s+Base:\s*(\d{2})\/(\d{4})/i);
+    const dataBaseMatch = blockAfter.match(/Data\s+Base\s*:\s*(\d{2})\/(\d{4})/i);
     if (dataBaseMatch) reference_date = `${dataBaseMatch[2]}-${dataBaseMatch[1]}-01`;
 
     entries.push({
       type,
       gross_amount,
       office_fees_percent: null,
-      office_amount: gross_amount, // since fees are already separated, gross = office amount
+      office_amount: gross_amount,
       client_amount: 0,
       court_costs: null,
       social_security: null,
@@ -352,7 +328,7 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
       entity,
       reference_date,
       expected_payment_date: null,
-      ownership_type: "escritorio", // since these are already the office's portion
+      ownership_type: "escritorio",
       fee_type,
     });
   }
@@ -362,7 +338,7 @@ export function parseMultiplePayments(text: string): MultiPaymentResult {
     process_number,
     entity,
     total_requisitado,
-    has_separated_fees,
+    has_separated_fees: entries.length > 0 && (hasDestaque || entries.length >= 2),
   };
 }
 
