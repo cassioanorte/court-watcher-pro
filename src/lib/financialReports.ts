@@ -1,4 +1,5 @@
 import { printReport, fmtBRL, fmtDate } from "@/lib/printReport";
+import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 
 interface Transaction {
   id: string;
@@ -20,6 +21,7 @@ interface PaymentOrder {
   income_tax: number;
   tax_percent: number;
   office_fees_percent: number;
+  ownership_type: string;
   process_number: string | null;
   beneficiary_name: string | null;
   expected_payment_date: string | null;
@@ -137,10 +139,10 @@ export function printRpvReport(
   if (filter === "sacado") { orders = orders.filter(o => o.status === "sacado"); subtitle = "RPVs/Precatórios já sacados"; }
   if (filter === "pending") { orders = orders.filter(o => o.status !== "sacado"); subtitle = "RPVs/Precatórios pendentes de pagamento"; }
 
-  const totalBruto = orders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0);
-  const totalHonorarios = orders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0);
-  const totalIR = orders.reduce((s, o) => s + (Number(o.income_tax) || 0), 0);
-  const totalCliente = orders.reduce((s, o) => s + (Number(o.client_amount) || 0), 0);
+  const totalBruto = orders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeGross, 0);
+  const totalHonorarios = orders.reduce((s, o) => s + computePaymentOrderMath(o as any).officeNet, 0);
+  const totalIR = orders.reduce((s, o) => s + computePaymentOrderMath(o as any).taxAmount, 0);
+  const totalCliente = orders.reduce((s, o) => s + computePaymentOrderMath(o as any).clientAmount, 0);
 
   const content = `
     <div class="summary-grid">
@@ -168,19 +170,21 @@ export function printRpvReport(
           </tr>
         </thead>
         <tbody>
-          ${orders.map(o => `
+          ${orders.map(o => {
+            const m = computePaymentOrderMath(o as any);
+            return `
             <tr>
               <td>${o.type.toUpperCase()}</td>
               <td>${o.process_number || o.beneficiary_name || "—"}</td>
               <td>${STATUS_LABELS[o.status] || o.status}</td>
-              <td class="text-right">${fmtBRL(Number(o.gross_amount))}</td>
+              <td class="text-right">${fmtBRL(m.officeGross)}</td>
               <td class="text-right">${o.office_fees_percent || 0}%</td>
-              <td class="text-right font-bold text-green">${fmtBRL(Number(o.office_amount))}</td>
-              <td class="text-right text-red">${fmtBRL(Number(o.income_tax))}</td>
-              <td class="text-right">${fmtBRL(Number(o.client_amount))}</td>
+              <td class="text-right font-bold text-green">${fmtBRL(m.officeNet)}</td>
+              <td class="text-right text-red">${fmtBRL(m.taxAmount)}</td>
+              <td class="text-right">${fmtBRL(m.clientAmount)}</td>
               <td>${o.expected_payment_date ? fmtDate(o.expected_payment_date) : "—"}</td>
             </tr>
-          `).join("")}
+          `}).join("")}
         </tbody>
         <tfoot>
           <tr class="font-bold">
