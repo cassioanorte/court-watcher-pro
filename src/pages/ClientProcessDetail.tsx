@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock, Info, MessageSquare, FileText, Send, Download, Upload, Loader2, ExternalLink, Sparkles, RefreshCw } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { cn } from "@/lib/utils";
 import { getCourtUrl, formatCNJ } from "@/lib/courtUrls";
@@ -64,6 +64,7 @@ const ClientProcessDetail = () => {
   const [uploading, setUploading] = useState(false);
   const [extractingDocId, setExtractingDocId] = useState<string | null>(null);
   const [extractingExternal, setExtractingExternal] = useState(false);
+  const [refreshingMovements, setRefreshingMovements] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -366,6 +367,37 @@ const ClientProcessDetail = () => {
         <div className="flex-1 flex flex-col min-h-0">
           {activeTab === "timeline" && (
             <div className="pb-6">
+              <div className="flex justify-end mb-3">
+                <button
+                  disabled={refreshingMovements}
+                  onClick={async () => {
+                    if (!id) return;
+                    setRefreshingMovements(true);
+                    try {
+                      const { error } = await supabase.functions.invoke("fetch-movements", {
+                        body: { case_id: id },
+                      });
+                      if (error) throw error;
+                      // Reload movements
+                      const { data } = await supabase
+                        .from("movements")
+                        .select("id, title, translation, occurred_at, details")
+                        .eq("case_id", id)
+                        .order("occurred_at", { ascending: false });
+                      if (data) setMovements(data);
+                      toast({ title: "Movimentações atualizadas!" });
+                    } catch (err: any) {
+                      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+                    } finally {
+                      setRefreshingMovements(false);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent/80 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("w-3.5 h-3.5", refreshingMovements && "animate-spin")} />
+                  {refreshingMovements ? "Atualizando..." : "Atualizar"}
+                </button>
+              </div>
               {movements.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhuma movimentação registrada.</p>
               ) : (
