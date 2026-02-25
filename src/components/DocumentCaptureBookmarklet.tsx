@@ -59,7 +59,7 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
   }
   if(docs.length===0){alert('📄 Nenhum documento identificado na página.\\n\\nCertifique-se de estar na página de detalhes do processo no eproc.');return;}
 
-  var payloadObj={docs:docs,process_number:cnj,tenant_id:'${tenantId}',source_url:window.location.href};
+  var payloadObj={docs:docs,process_number:cnj,tenant_id:'${tenantId}',source_url:window.location.href,bookmarklet_version:2};
   var payload=JSON.stringify(payloadObj);
   var targetOrigin='${appUrl}';
   var url=targetOrigin+'/documentos-eproc';
