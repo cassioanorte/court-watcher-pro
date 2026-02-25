@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 
 interface PaymentOrderForCashFlow {
   id: string;
@@ -14,6 +15,12 @@ interface PaymentOrderForCashFlow {
   case_id: string | null;
 }
 
+const emitFinancialDataUpdated = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("financial-data-updated"));
+  }
+};
+
 /**
  * When a payment order is marked as "sacado" (withdrawn/paid),
  * auto-create financial transactions:
@@ -26,27 +33,21 @@ export async function createCashFlowEntriesOnSacado(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
   const label = `${order.type.toUpperCase()} — ${order.process_number || order.beneficiary_name || "Sem número"}`;
-
-  // Calculate office gross (before tax)
-  const officeGross = order.ownership_type === "escritorio"
-    ? (Number(order.gross_amount) || 0)
-    : Math.round((Number(order.gross_amount) || 0) * (Number(order.office_fees_percent) || 0) / 100 * 100) / 100;
-
-  const taxAmount = Number(order.income_tax) || Math.round(officeGross * (Number(order.tax_percent) || 0) / 100 * 100) / 100;
-  const officeNet = Number(order.office_amount) || (officeGross - taxAmount);
+  const marker = `[PO:${order.id}]`;
+  const math = computePaymentOrderMath(order);
 
   const today = new Date().toISOString().split("T")[0];
   const entries: any[] = [];
 
   // 1. Revenue: office fees received
-  if (officeGross > 0) {
+  if (math.officeGross > 0) {
     entries.push({
       tenant_id: tenantId,
       created_by: userId,
       type: "revenue",
       category: "Honorários",
-      description: `Recebimento de honorários — ${label}`,
-      amount: officeGross,
+      description: `Recebimento de honorários — ${label} ${marker}`,
+      amount: math.officeGross,
       date: today,
       status: "confirmed",
       case_id: order.case_id || null,
@@ -54,14 +55,14 @@ export async function createCashFlowEntriesOnSacado(
   }
 
   // 2. Expense: income tax
-  if (taxAmount > 0) {
+  if (math.taxAmount > 0) {
     entries.push({
       tenant_id: tenantId,
       created_by: userId,
       type: "expense",
       category: "IR sobre Honorários",
-      description: `IR (${order.tax_percent || 10.9}%) sobre honorários — ${label}`,
-      amount: taxAmount,
+      description: `IR (${order.tax_percent || 10.9}%) sobre honorários — ${label} ${marker}`,
+      amount: math.taxAmount,
       date: today,
       status: "confirmed",
       case_id: order.case_id || null,
@@ -72,6 +73,8 @@ export async function createCashFlowEntriesOnSacado(
 
   const { error } = await supabase.from("financial_transactions").insert(entries);
   if (error) return { success: false, error: error.message };
+
+  emitFinancialDataUpdated();
   return { success: true };
 }
 
@@ -86,12 +89,26 @@ export async function removeCashFlowEntriesOnUnsacado(
   type: string,
   tenantId: string
 ): Promise<void> {
+  const marker = `[PO:${orderId}]`;
   const label = `${type.toUpperCase()} — ${processNumber || beneficiaryName || "Sem número"}`;
-  // Delete revenue and IR entries that match this order's description pattern
-  await supabase
+
+  const { data: removedByMarker } = await supabase
     .from("financial_transactions")
     .delete()
     .eq("tenant_id", tenantId)
-    .like("description", `%${label}%`)
-    .in("category", ["Honorários", "IR sobre Honorários"]);
+    .ilike("description", `%${marker}%`)
+    .in("category", ["Honorários", "IR sobre Honorários"])
+    .select("id");
+
+  if ((removedByMarker?.length || 0) === 0) {
+    await supabase
+      .from("financial_transactions")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .ilike("description", `%${label}%`)
+      .in("category", ["Honorários", "IR sobre Honorários"]);
+  }
+
+  emitFinancialDataUpdated();
 }
+
