@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
 import { extractTextFromPdf, parseRpvText, parseMultiplePayments, type RpvData } from "@/lib/rpvParser";
 import { createCashFlowEntriesOnSacado, removeCashFlowEntriesOnUnsacado } from "@/lib/cashFlowAutoEntries";
-
+import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 interface PaymentOrder {
   id: string;
   type: string;
@@ -51,6 +51,7 @@ interface CaseOption {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
+  rascunho: { label: "Rascunho", color: "bg-muted text-muted-foreground border-border", icon: Clock },
   aguardando: { label: "Aguardando", color: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: Clock },
   liberado: { label: "Liberado", color: "bg-blue-500/10 text-blue-600 border-blue-500/30", icon: CheckCircle2 },
   sacado: { label: "Sacado", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", icon: CheckCircle2 },
@@ -376,7 +377,7 @@ const PaymentOrdersTracker = () => {
     return true;
   });
 
-  const pending = orders.filter(o => o.status === "aguardando" || o.status === "liberado");
+  const pending = orders.filter(o => o.status === "rascunho" || o.status === "aguardando" || o.status === "liberado");
   const paid = orders.filter(o => o.status === "sacado");
   const pendingTotal = pending.reduce((s, o) => s + (o.gross_amount || 0), 0);
   const paidTotal = paid.reduce((s, o) => s + (o.gross_amount || 0), 0);
@@ -416,6 +417,7 @@ const PaymentOrdersTracker = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="rascunho">Rascunho</SelectItem>
             <SelectItem value="aguardando">Aguardando</SelectItem>
             <SelectItem value="liberado">Liberado</SelectItem>
             <SelectItem value="sacado">Sacado (Pago)</SelectItem>
@@ -492,6 +494,7 @@ const PaymentOrdersTracker = () => {
                             </span>
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="rascunho">Rascunho</SelectItem>
                             <SelectItem value="aguardando">Aguardando</SelectItem>
                             <SelectItem value="liberado">Liberado</SelectItem>
                             <SelectItem value="sacado">Sacado (Pago)</SelectItem>
