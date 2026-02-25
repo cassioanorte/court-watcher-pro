@@ -689,7 +689,7 @@ const Financeiro = () => {
                 <span className={`text-sm font-semibold shrink-0 ${tx.type === "revenue" ? "text-emerald-600" : "text-red-500"}`}>
                   {tx.type === "revenue" ? "+" : "−"}{fmt(Number(tx.amount))}
                 </span>
-                <button onClick={() => handleDelete(tx.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80">
+                <button onClick={() => { if (confirm("Excluir esta transação?")) handleDelete(tx.id); }} className="text-destructive/60 hover:text-destructive transition-colors shrink-0" title="Excluir">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </motion.div>
