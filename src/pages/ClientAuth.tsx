@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Scale, Eye, EyeOff } from "lucide-react";
+import { Scale, Eye, EyeOff, Download, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
 import ThemeSelector from "@/components/ThemeSelector";
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 const ClientAuth = () => {
   const [cpf, setCpf] = useState("");
@@ -15,6 +19,8 @@ const ClientAuth = () => {
   const [loading, setLoading] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [tenantName, setTenantName] = useState("Portal Jurídico");
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -26,6 +32,20 @@ const ClientAuth = () => {
       if (data?.name) setTenantName(data.name);
     };
     fetchLogo();
+
+    // PWA install detection
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    // Check if already installed (standalone mode)
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsAppInstalled(true);
+    }
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const formatCpf = (value: string) => {
@@ -130,12 +150,44 @@ const ClientAuth = () => {
           </form>
         </div>
 
+        {/* PWA Install / Already installed hint */}
+        {deferredPrompt && (
+          <button
+            onClick={async () => {
+              await deferredPrompt.prompt();
+              const { outcome } = await deferredPrompt.userChoice;
+              if (outcome === "accepted") setIsAppInstalled(true);
+              setDeferredPrompt(null);
+            }}
+            className="mt-4 w-full flex items-center gap-3 bg-card border rounded-xl p-4 hover:border-primary/50 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Download className="w-5 h-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-foreground">Instalar App do Cliente</p>
+              <p className="text-xs text-muted-foreground">Acesso rápido pelo celular ou computador</p>
+            </div>
+          </button>
+        )}
+
+        {!deferredPrompt && isAppInstalled && (
+          <div className="mt-4 flex items-center gap-3 bg-card border rounded-xl p-4">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <Smartphone className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">App já instalado ✓</p>
+              <p className="text-xs text-muted-foreground">Abra o app instalado para acesso rápido</p>
+            </div>
+          </div>
+        )}
+
         <p className="text-center text-xs text-muted-foreground mt-4">
           É advogado?{" "}
           <a href="/auth" className="text-accent hover:underline font-medium">Acessar painel do escritório</a>
         </p>
       </motion.div>
-      <PWAInstallPrompt />
     </div>
   );
 };
