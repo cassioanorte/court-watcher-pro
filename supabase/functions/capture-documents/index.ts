@@ -34,6 +34,7 @@ interface DocumentInput {
   fee_type?: "contratuais" | "sucumbencia";
   parsed_single?: ParsedPaymentData;
   parsed_entries?: ParsedPaymentData[];
+  pdf_read_error?: string;
 }
 
 interface PaymentCandidate {
@@ -164,6 +165,7 @@ Deno.serve(async (req) => {
             source_url: source_url || null,
             has_parsed_single: !!doc.parsed_single,
             parsed_entries_count: Array.isArray(doc.parsed_entries) ? doc.parsed_entries.length : 0,
+            pdf_read_error: doc.pdf_read_error || null,
           },
         }, { onConflict: "unique_hash", ignoreDuplicates: true })
         .select("id")
