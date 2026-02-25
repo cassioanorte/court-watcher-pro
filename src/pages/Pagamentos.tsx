@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { extractTextFromPdf, parseRpvText, parseMultiplePayments, type RpvData } from "@/lib/rpvParser";
 import { FeeDistributionSection } from "@/components/FeeDistributionSection";
 import { createCashFlowEntriesOnSacado, removeCashFlowEntriesOnUnsacado } from "@/lib/cashFlowAutoEntries";
+import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 
 
 
@@ -658,13 +659,12 @@ const Pagamentos = () => {
   const activeOrders = orders.filter(o => o.status !== "cancelado");
   const totals = activeOrders.reduce(
     (acc, o) => {
-      const officeGross = o.ownership_type === "escritorio" ? o.gross_amount : Math.round(o.gross_amount * (o.office_fees_percent || 0) / 100 * 100) / 100;
-      const ir = Math.round(officeGross * (o.tax_percent || 0) / 100 * 100) / 100;
+      const math = computePaymentOrderMath(o);
       return {
-        gross: acc.gross + (o.gross_amount || 0),
-        office: acc.office + (o.office_amount || 0),
-        client: acc.client + (o.client_amount || 0),
-        ir: acc.ir + ir,
+        gross: acc.gross + math.gross,
+        office: acc.office + math.officeNet,
+        client: acc.client + math.clientAmount,
+        ir: acc.ir + math.taxAmount,
       };
     },
     { gross: 0, office: 0, client: 0, ir: 0 }

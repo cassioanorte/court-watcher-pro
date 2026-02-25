@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, differenceInDays } from "date-fns";
 import { printFinancialSummary, printRpvReport, printCashFlowReport, printFeeDistributionReport } from "@/lib/financialReports";
+import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 import { ptBR } from "date-fns/locale";
 
 interface Transaction {
@@ -224,8 +225,9 @@ const Financeiro = () => {
     activeOrders.forEach(o => {
       if (!map[o.status]) map[o.status] = { count: 0, officeTotal: 0, grossTotal: 0 };
       map[o.status].count++;
-      map[o.status].officeTotal += Number(o.office_amount) || 0;
-      map[o.status].grossTotal += Number(o.gross_amount) || 0;
+      const math = computePaymentOrderMath(o as any);
+      map[o.status].officeTotal += math.officeNet;
+      map[o.status].grossTotal += math.gross;
     });
     return map;
   }, [activeOrders]);
