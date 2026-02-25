@@ -16,10 +16,22 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
   if(!cnj){alert('⚠️ Número do processo não encontrado na página.');return;}
   var rows=document.querySelectorAll('tr[id^="trEvento"]');
   if(rows.length===0){rows=document.querySelectorAll('table tr');}
+  var classifyText=function(text){
+    var u=text.toUpperCase();
+    var tipo='outro';
+    if(u.indexOf('RPV')>=0||u.indexOf('REQUISIÇÃO DE PEQUENO VALOR')>=0||u.indexOf('REQUISICAO DE PEQUENO VALOR')>=0||u.indexOf('REQUISICAO DE PEQUENO')>=0) tipo='rpv';
+    else if(u.indexOf('PRECATÓRIO')>=0||u.indexOf('PRECATORIO')>=0||u.indexOf('PRECAT')>=0) tipo='precatorio';
+    else if(u.indexOf('ALVARÁ')>=0||u.indexOf('ALVARA')>=0) tipo='alvara';
+    var feeType='contratuais';
+    if(u.indexOf('SUCUMB')>=0) feeType='sucumbencia';
+    return {tipo:tipo,feeType:feeType};
+  };
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
     var evtMatch=r.id?r.id.match(/trEvento(\\d+)/):null;
     var evtNum=evtMatch?evtMatch[1]:'';
+    var rowText=(r.textContent||'').toUpperCase();
+    var rowClass=classifyText(rowText);
     var links=r.querySelectorAll('a[href]');
     for(var j=0;j<links.length;j++){
       var a=links[j];
@@ -27,13 +39,9 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
       var name=(a.textContent||'').trim();
       if(name.length<2) continue;
       if(href.indexOf('acao_documento')>=0||href.indexOf('documento')>=0||href.indexOf('.pdf')>=0||href.indexOf('infraGetId')>=0||href.indexOf('acao=')>=0){
-        var tipo='outro';
-        var upper=name.toUpperCase();
-        if(upper.indexOf('RPV')>=0||upper.indexOf('REQUISIÇÃO DE PEQUENO VALOR')>=0||upper.indexOf('REQUISICAO DE PEQUENO VALOR')>=0) tipo='rpv';
-        else if(upper.indexOf('PRECATÓRIO')>=0||upper.indexOf('PRECATORIO')>=0) tipo='precatorio';
-        else if(upper.indexOf('ALVARÁ')>=0||upper.indexOf('ALVARA')>=0) tipo='alvara';
-        var feeType='contratuais';
-        if(upper.indexOf('SUCUMB')>=0) feeType='sucumbencia';
+        var linkClass=classifyText(name);
+        var tipo=linkClass.tipo!=='outro'?linkClass.tipo:rowClass.tipo;
+        var feeType=linkClass.feeType!=='contratuais'?linkClass.feeType:rowClass.feeType;
         docs.push({name:name.substring(0,200),url:href,event_number:evtNum,doc_type:tipo,fee_type:feeType});
       }
     }
