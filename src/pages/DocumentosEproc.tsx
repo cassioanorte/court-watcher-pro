@@ -36,14 +36,32 @@ const DocumentosEproc = () => {
 
   useEffect(() => {
     try {
-      // Try localStorage first (new method), fallback to URL params (legacy)
       let parsed: PayloadData | null = null;
-      
-      const stored = localStorage.getItem("lex_doc_capture");
-      if (stored) {
-        parsed = JSON.parse(stored) as PayloadData;
-        localStorage.removeItem("lex_doc_capture");
-      } else {
+
+      // 1) window.name from popup (cross-domain safe)
+      const popupName = window.name || "";
+      if (popupName.startsWith("lex_doc_capture:")) {
+        const encoded = popupName.replace("lex_doc_capture:", "");
+        const decoded = decodeURIComponent(escape(atob(encoded)));
+        parsed = JSON.parse(decoded) as PayloadData;
+        window.name = "";
+      } else if (popupName.startsWith("lex_doc_capture_raw:")) {
+        const rawPayload = popupName.replace("lex_doc_capture_raw:", "");
+        parsed = JSON.parse(rawPayload) as PayloadData;
+        window.name = "";
+      }
+
+      // 2) localStorage fallback (same-origin flows)
+      if (!parsed) {
+        const stored = localStorage.getItem("lex_doc_capture");
+        if (stored) {
+          parsed = JSON.parse(stored) as PayloadData;
+          localStorage.removeItem("lex_doc_capture");
+        }
+      }
+
+      // 3) URL fallback (legacy bookmarklet)
+      if (!parsed) {
         const raw = searchParams.get("data");
         if (raw) {
           parsed = JSON.parse(decodeURIComponent(raw)) as PayloadData;
@@ -54,8 +72,8 @@ const DocumentosEproc = () => {
         setError("Nenhum documento encontrado. Certifique-se de usar o bookmarklet na página do processo.");
         return;
       }
+
       setData(parsed);
-      // Auto-select financial documents
       const autoSelect = new Set<number>();
       parsed.docs.forEach((d, i) => {
         if (d.doc_type !== "outro") autoSelect.add(i);

@@ -8,7 +8,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 function getDocCaptureBookmarkletCode(tenantId: string): string {
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-  // Bookmarklet extracts document links from eproc event rows and stores in localStorage to avoid URL length limits
+  // Bookmarklet extracts document links and sends payload across domains via popup window.name
   const code = `
 (function(){
   var docs=[];
@@ -54,14 +54,24 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
     }
   }
   if(docs.length===0){alert('📄 Nenhum documento identificado na página.\\n\\nCertifique-se de estar na página de detalhes do processo no eproc.');return;}
+
   var payload=JSON.stringify({docs:docs,process_number:cnj,tenant_id:'${tenantId}',source_url:window.location.href});
-  try{localStorage.setItem('lex_doc_capture',payload);}catch(e){}
   var url='${appUrl}/documentos-eproc';
   var w=Math.min(800,screen.width-100);
   var h2=Math.min(700,screen.height-100);
   var left=(screen.width-w)/2;
   var top=(screen.height-h2)/2;
-  window.open(url,'_docCapture','width='+w+',height='+h2+',left='+left+',top='+top+',scrollbars=yes,resizable=yes');
+
+  var popup=window.open('about:blank','_docCapture','width='+w+',height='+h2+',left='+left+',top='+top+',scrollbars=yes,resizable=yes');
+  if(!popup){alert('⚠️ O navegador bloqueou a popup. Permita popups para continuar.');return;}
+
+  try{
+    popup.name='lex_doc_capture:'+btoa(unescape(encodeURIComponent(payload)));
+  }catch(e){
+    popup.name='lex_doc_capture_raw:'+payload;
+  }
+
+  popup.location.href=url;
 })();
   `.replace(/\n/g, "").replace(/\s+/g, " ").trim();
   return `javascript:${encodeURIComponent(code)}`;
