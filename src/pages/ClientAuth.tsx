@@ -6,6 +6,7 @@ import { Scale, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import defaultLogo from "@/assets/lex-imperium-logo-nobg.png";
 import ThemeSelector from "@/components/ThemeSelector";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 const ClientAuth = () => {
   const [cpf, setCpf] = useState("");
@@ -134,6 +135,7 @@ const ClientAuth = () => {
           <a href="/auth" className="text-accent hover:underline font-medium">Acessar painel do escritório</a>
         </p>
       </motion.div>
+      <PWAInstallPrompt />
     </div>
   );
 };
