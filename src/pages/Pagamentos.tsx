@@ -269,7 +269,7 @@ const Pagamentos = () => {
       } else {
         // Single payment — use existing flow
         const parsed = multiResult.entries[0] || parseRpvText(pdfText);
-        const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
+        const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.reference_date || parsed.entity;
 
         if (hasData) {
           applyRpvData(parsed);
@@ -277,7 +277,7 @@ const Pagamentos = () => {
           setFormAiRaw(null);
           toast.success("Dados extraídos automaticamente do PDF!");
         } else {
-          toast.info("Poucos dados encontrados no PDF. Preencha manualmente.");
+          toast.warning("O PDF trouxe só o número do processo. Tente reenviar ou ajuste manualmente.");
         }
       }
     } catch (err) {
@@ -556,7 +556,7 @@ const Pagamentos = () => {
       }
 
       const parsed = multiResult.entries[0] || parseRpvText(pdfText);
-      const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.process_number;
+      const hasData = parsed.gross_amount || parsed.beneficiary_name || parsed.reference_date || parsed.entity;
 
       if (hasData) {
         setEditForm(f => ({
@@ -585,7 +585,7 @@ const Pagamentos = () => {
         }
         toast.success("Dados extraídos e atualizados!");
       } else {
-        toast.info("Poucos dados encontrados. Edite manualmente.");
+        toast.warning("O PDF trouxe só o número do processo. Edite manualmente os demais campos.");
       }
     } catch (err) { toast.info("Não foi possível ler o PDF. Edite manualmente."); }
     setExtracting(false);
