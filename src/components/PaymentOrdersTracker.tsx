@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X } from "lucide-react";
+import { Clock, CheckCircle2, AlertTriangle, Search, Filter, Banknote, Trash2, Pencil, Save, X, Check } from "lucide-react";
 import { extractTextFromPdf, parseRpvText, parseMultiplePayments, type RpvData } from "@/lib/rpvParser";
 import { createCashFlowEntriesOnSacado, removeCashFlowEntriesOnUnsacado } from "@/lib/cashFlowAutoEntries";
 import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
@@ -445,7 +445,7 @@ const PaymentOrdersTracker = () => {
                   <th className="p-3 font-medium">Beneficiário</th>
                   <th className="p-3 font-medium">Processo</th>
                   <th className="p-3 font-medium text-right">Valor Bruto</th>
-                  <th className="p-3 font-medium text-right">Escritório</th>
+                  <th className="p-3 font-medium text-right">Escritório (Líq.)</th>
                   <th className="p-3 font-medium text-right">Cliente</th>
                   <th className="p-3 font-medium">Status</th>
                   <th className="p-3 font-medium">Previsão</th>
@@ -457,6 +457,8 @@ const PaymentOrdersTracker = () => {
                   const st = STATUS_MAP[o.status] || STATUS_MAP.aguardando;
                   const StIcon = st.icon;
                   const isPaid = o.status === "sacado";
+                  const isDraft = o.status === "rascunho";
+                  const math = computePaymentOrderMath(o);
                   return (
                     <motion.tr
                       key={o.id}
@@ -470,6 +472,7 @@ const PaymentOrdersTracker = () => {
                       </td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
+                        {o.fee_type === "sucumbencia" && <Badge variant="secondary" className="text-[10px] ml-1">Sucumb.</Badge>}
                       </td>
                       <td className={`p-3 font-medium ${isPaid ? "line-through text-muted-foreground" : "text-foreground"}`}>
                         {o.beneficiary_name || "—"}
@@ -478,13 +481,20 @@ const PaymentOrdersTracker = () => {
                         {o.process_number || "—"}
                       </td>
                       <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
-                        {fmt(o.gross_amount)}
+                        {fmt(math.gross)}
                       </td>
-                      <td className={`p-3 text-right font-medium ${isPaid ? "text-muted-foreground" : "text-accent"}`}>
-                        {fmt(o.office_amount)}
+                      <td className="p-3 text-right">
+                        <div className={`font-medium ${isPaid ? "text-muted-foreground" : "text-accent"}`}>
+                          {fmt(math.officeNet)}
+                        </div>
+                        {math.taxAmount > 0 && (
+                          <div className="text-[10px] text-muted-foreground">
+                            Bruto {fmt(math.officeGross)} − IR {fmt(math.taxAmount)}
+                          </div>
+                        )}
                       </td>
                       <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
-                        {fmt(o.client_amount)}
+                        {fmt(math.clientAmount)}
                       </td>
                       <td className="p-3">
                         <Select value={o.status} onValueChange={(v) => updateStatus(o.id, v)}>
@@ -507,6 +517,11 @@ const PaymentOrdersTracker = () => {
                       </td>
                       <td className="p-3">
                         <div className="flex items-center justify-center gap-1">
+                          {isDraft && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10" onClick={() => updateStatus(o.id, "aguardando")}>
+                              <Check className="w-3 h-3" /> Confirmar
+                            </Button>
+                          )}
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEdit(o)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
