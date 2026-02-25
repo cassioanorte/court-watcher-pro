@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Banknote, Upload, Trash2, Eye, FileText, Plus, CheckCircle2, Clock, AlertTriangle, X, ExternalLink, Briefcase, Pencil, Save, Users, ArrowDownRight } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
@@ -68,7 +67,6 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = 
 
 const Pagamentos = () => {
   const { user, tenantId } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<PaymentOrder[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,18 +132,6 @@ const Pagamentos = () => {
     fetchCases();
   }, [fetchOrders, fetchCases]);
 
-  // Auto-open edit when ?edit= query param is present
-  useEffect(() => {
-    const editId = searchParams.get("edit");
-    if (editId && orders.length > 0 && !selected) {
-      const order = orders.find((o) => o.id === editId);
-      if (order) {
-        setSelected(order);
-        startEdit(order);
-        setSearchParams({}, { replace: true });
-      }
-    }
-  }, [orders, searchParams]);
 
   // Auto-calculate when gross or fee% changes
   // IR applies only on office fees (honorários), NOT on gross amount
