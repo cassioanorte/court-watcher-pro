@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { computePaymentOrderMath } from "@/lib/paymentOrderMath";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
 import {
@@ -30,6 +31,8 @@ interface PaymentOrder {
   status: string;
   gross_amount: number;
   office_amount: number;
+  office_fees_percent: number;
+  ownership_type: string;
   income_tax: number;
   tax_percent: number;
   process_number: string | null;
@@ -61,7 +64,7 @@ const FluxoDeCaixa = () => {
     if (!tenantId) return;
     const [txRes, poRes, fdRes] = await Promise.all([
       supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id, client_user_id").eq("tenant_id", tenantId).in("status", ["confirmed", "paid"]).order("date", { ascending: false }),
-      supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, income_tax, tax_percent, process_number, beneficiary_name").eq("tenant_id", tenantId),
+      supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, office_fees_percent, ownership_type, income_tax, tax_percent, process_number, beneficiary_name").eq("tenant_id", tenantId),
       supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_name, amount, paid_at").eq("tenant_id", tenantId),
     ]);
     setTransactions((txRes.data || []) as Transaction[]);
@@ -91,18 +94,17 @@ const FluxoDeCaixa = () => {
   const netCash = totalRevenue - totalExpense - totalTaxes - totalDistributed;
 
   const sacadoOrders = orders.filter(o => o.status === "sacado");
-  const pendingOrders = orders.filter(o => o.status !== "sacado" && o.status !== "cancelado");
+  const pendingOrders = orders.filter(o => o.status === "aguardando" || o.status === "liberado");
 
   const rpvTimeline = useMemo(() => {
     return sacadoOrders.map(order => {
       const label = `${order.type.toUpperCase()} — ${order.process_number || order.beneficiary_name || "Sem número"}`;
       const orderDistributions = distributions.filter(d => d.payment_order_id === order.id);
       const totalDist = orderDistributions.reduce((s, d) => s + Number(d.amount), 0);
-      const officeGross = Number(order.office_amount) + Number(order.income_tax || 0);
-      const ir = Number(order.income_tax) || 0;
-      const availableForRateio = Number(order.office_amount) - totalDist;
+      const math = computePaymentOrderMath(order);
+      const availableForRateio = math.officeNet - totalDist;
 
-      return { order, label, officeGross, ir, netOffice: Number(order.office_amount), distributions: orderDistributions, totalDistributed: totalDist, availableForRateio: Math.max(availableForRateio, 0) };
+      return { order, label, officeGross: math.officeGross, ir: math.taxAmount, netOffice: math.officeNet, distributions: orderDistributions, totalDistributed: totalDist, availableForRateio: Math.max(availableForRateio, 0) };
     });
   }, [sacadoOrders, distributions]);
 
@@ -313,7 +315,7 @@ const FluxoDeCaixa = () => {
                   <Badge variant="secondary" className="text-xs">{pendingOrders.length}</Badge>
                 </h3>
                 <div className="text-xs text-muted-foreground">
-                  Honorários previstos: <span className="font-semibold text-foreground">{fmt(pendingOrders.reduce((s, o) => s + (Number(o.office_amount) || 0), 0))}</span>
+                  Honorários previstos: <span className="font-semibold text-foreground">{fmt(pendingOrders.reduce((s, o) => s + computePaymentOrderMath(o).officeNet, 0))}</span>
                   {" "}de {fmt(pendingOrders.reduce((s, o) => s + (Number(o.gross_amount) || 0), 0))} bruto
                 </div>
               </div>
