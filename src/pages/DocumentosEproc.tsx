@@ -3,6 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle, Circle, FileText, DollarSign, Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { extractTextFromPdf, parseMultiplePayments, type RpvData } from "@/lib/rpvParser";
+
+interface ParsedPaymentData extends Partial<RpvData> {
+  fee_type?: "contratuais" | "sucumbencia";
+}
 
 interface DocItem {
   name: string;
@@ -10,6 +15,8 @@ interface DocItem {
   event_number: string;
   doc_type: "rpv" | "precatorio" | "alvara" | "outro";
   fee_type?: "contratuais" | "sucumbencia";
+  parsed_single?: ParsedPaymentData;
+  parsed_entries?: ParsedPaymentData[];
 }
 
 interface PayloadData {
@@ -24,6 +31,149 @@ const TYPE_LABELS: Record<string, { label: string; color: string; icon: string }
   precatorio: { label: "Precatório", color: "text-blue-600 bg-blue-100", icon: "💰" },
   alvara: { label: "Alvará", color: "text-amber-600 bg-amber-100", icon: "📜" },
   outro: { label: "Documento", color: "text-gray-600 bg-gray-100", icon: "📄" },
+};
+
+const FINANCIAL_TYPES = new Set<DocItem["doc_type"]>(["rpv", "precatorio", "alvara"]);
+
+const normalizeFeeType = (value?: string | null): "contratuais" | "sucumbencia" | undefined => {
+  if (value === "contratuais" || value === "sucumbencia") return value;
+  return undefined;
+};
+
+const toParsedPaymentData = (
+  data: Partial<RpvData>,
+  fallbackFee?: "contratuais" | "sucumbencia",
+): ParsedPaymentData => ({
+  type: data.type ?? null,
+  gross_amount: data.gross_amount ?? null,
+  office_fees_percent: data.office_fees_percent ?? null,
+  office_amount: data.office_amount ?? null,
+  client_amount: data.client_amount ?? null,
+  court_costs: data.court_costs ?? null,
+  social_security: data.social_security ?? null,
+  income_tax: data.income_tax ?? null,
+  beneficiary_name: data.beneficiary_name ?? null,
+  beneficiary_cpf: data.beneficiary_cpf ?? null,
+  process_number: data.process_number ?? null,
+  court: data.court ?? null,
+  entity: data.entity ?? null,
+  reference_date: data.reference_date ?? null,
+  expected_payment_date: data.expected_payment_date ?? null,
+  ownership_type: data.ownership_type,
+  fee_type: normalizeFeeType(data.fee_type) ?? fallbackFee,
+});
+
+const fileFromBase64 = (base64: string, fileName: string, mime = "application/pdf") => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], fileName || "documento.pdf", { type: mime });
+};
+
+const requestPdfFromOpener = (doc: DocItem): Promise<File | null> => {
+  if (!window.opener || window.opener.closed) return Promise.resolve(null);
+
+  const requestId = `lex_pdf_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  return new Promise((resolve) => {
+    let done = false;
+
+    const finish = (file: File | null) => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("message", onMessage);
+      resolve(file);
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      const payload = event.data as any;
+      if (!payload || payload.requestId !== requestId) return;
+
+      if (payload.type === "lex_doc_capture_pdf_data" && typeof payload.base64 === "string") {
+        try {
+          finish(fileFromBase64(payload.base64, payload.fileName || doc.name, payload.mime));
+        } catch {
+          finish(null);
+        }
+      }
+
+      if (payload.type === "lex_doc_capture_pdf_error") {
+        finish(null);
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => finish(null), 12000);
+
+    window.addEventListener("message", onMessage);
+
+    try {
+      window.opener.postMessage(
+        {
+          type: "lex_doc_capture_fetch_pdf",
+          requestId,
+          docUrl: doc.url,
+          fileName: doc.name,
+        },
+        "*",
+      );
+    } catch {
+      finish(null);
+    }
+  });
+};
+
+const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<DocItem[]> => {
+  const enriched: DocItem[] = [];
+
+  for (const doc of docs) {
+    if (!FINANCIAL_TYPES.has(doc.doc_type)) {
+      enriched.push(doc);
+      continue;
+    }
+
+    const pdfFile = await requestPdfFromOpener(doc);
+    if (!pdfFile) {
+      enriched.push(doc);
+      continue;
+    }
+
+    try {
+      const pdfText = await extractTextFromPdf(pdfFile);
+      if (!pdfText || pdfText.trim().length < 20) {
+        enriched.push(doc);
+        continue;
+      }
+
+      const multi = parseMultiplePayments(pdfText);
+      const parsedEntries = multi.entries
+        .map((entry) => toParsedPaymentData(entry, normalizeFeeType(entry.fee_type) ?? normalizeFeeType(doc.fee_type)))
+        .filter(
+          (entry) =>
+            (entry.gross_amount ?? 0) > 0 ||
+            !!entry.beneficiary_name ||
+            !!entry.reference_date ||
+            !!entry.entity,
+        );
+
+      if (multi.has_separated_fees && parsedEntries.length > 1) {
+        enriched.push({ ...doc, parsed_entries: parsedEntries });
+        continue;
+      }
+
+      const first = parsedEntries[0];
+      if (first) {
+        enriched.push({ ...doc, parsed_single: first });
+        continue;
+      }
+    } catch {
+      // fallback below
+    }
+
+    enriched.push(doc);
+  }
+
+  return enriched;
 };
 
 const DocumentosEproc = () => {
@@ -183,9 +333,24 @@ const DocumentosEproc = () => {
     setProcessing(true);
     try {
       const selectedDocs = data.docs.filter((_, i) => selected.has(i));
+      const docsWithParsedData = await enrichDocumentsWithParsedData(selectedDocs);
+
+      const parsedDocsCount = docsWithParsedData.filter(
+        (doc) => (doc.parsed_entries && doc.parsed_entries.length > 0) || !!doc.parsed_single,
+      ).length;
+
+      const selectedFinancialDocs = selectedDocs.filter((doc) => FINANCIAL_TYPES.has(doc.doc_type));
+      if (selectedFinancialDocs.length > 0 && parsedDocsCount === 0) {
+        toast({
+          title: "Leitura parcial",
+          description:
+            "Não consegui ler os valores do PDF automaticamente neste processo. O lançamento será criado para conferência manual.",
+        });
+      }
+
       const { data: res, error: err } = await supabase.functions.invoke("capture-documents", {
         body: {
-          documents: selectedDocs,
+          documents: docsWithParsedData,
           process_number: data.process_number,
           tenant_id: data.tenant_id,
           source_url: data.source_url,

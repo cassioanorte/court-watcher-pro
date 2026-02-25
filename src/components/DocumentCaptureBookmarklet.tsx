@@ -94,17 +94,72 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
     if(sendPayload()) clearInterval(timer);
   },250);
 
-  var onReady=function(ev){
-    if(!ev||!ev.data||ev.data.type!=='lex_doc_capture_ready') return;
-    try{
-      popup.postMessage({type:'lex_doc_capture_payload',payload:payloadObj},targetOrigin);
-    }catch(e){}
+  var arrayBufferToBase64=function(buffer){
+    var binary='';
+    var bytes=new Uint8Array(buffer);
+    var chunkSize=0x8000;
+    for(var i=0;i<bytes.length;i+=chunkSize){
+      binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunkSize));
+    }
+    return btoa(binary);
   };
 
-  window.addEventListener('message',onReady);
+  var onMessage=function(ev){
+    if(!ev||!ev.data) return;
+
+    if(ev.data.type==='lex_doc_capture_ready'){
+      try{
+        popup.postMessage({type:'lex_doc_capture_payload',payload:payloadObj},targetOrigin);
+      }catch(e){}
+      return;
+    }
+
+    if(ev.data.type!=='lex_doc_capture_fetch_pdf') return;
+    if(ev.origin!==targetOrigin) return;
+
+    var requestId=ev.data.requestId;
+    var docUrl=ev.data.docUrl;
+    var fileName=ev.data.fileName||'';
+
+    if(!requestId||!docUrl) return;
+
+    fetch(docUrl,{credentials:'include'})
+      .then(function(resp){
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+        return resp.arrayBuffer();
+      })
+      .then(function(buffer){
+        if(buffer.byteLength>8*1024*1024){
+          throw new Error('Arquivo PDF acima do limite de 8MB para extração automática.');
+        }
+        var base64=arrayBufferToBase64(buffer);
+        if(ev.source&&ev.source.postMessage){
+          ev.source.postMessage({
+            type:'lex_doc_capture_pdf_data',
+            requestId:requestId,
+            docUrl:docUrl,
+            fileName:fileName,
+            mime:'application/pdf',
+            base64:base64
+          },targetOrigin);
+        }
+      })
+      .catch(function(err){
+        if(ev.source&&ev.source.postMessage){
+          ev.source.postMessage({
+            type:'lex_doc_capture_pdf_error',
+            requestId:requestId,
+            docUrl:docUrl,
+            error:(err&&err.message)?err.message:String(err)
+          },targetOrigin);
+        }
+      });
+  };
+
+  window.addEventListener('message',onMessage);
   setTimeout(function(){
-    try{window.removeEventListener('message',onReady);}catch(e){}
-  },12000);
+    try{window.removeEventListener('message',onMessage);}catch(e){}
+  },300000);
 })();
   `.replace(/\n/g, "").replace(/\s+/g, " ").trim();
   return `javascript:${encodeURIComponent(code)}`;
