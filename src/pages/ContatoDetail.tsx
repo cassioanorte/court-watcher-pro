@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ContactExpenses from "@/components/ContactExpenses";
 import ContactFees from "@/components/ContactFees";
+import ContactNotifications from "@/components/ContactNotifications";
 
 
 const ContatoDetail = () => {
@@ -945,14 +946,9 @@ const ContatoDetail = () => {
           {tenantId && id && <ContactFees contactUserId={id} tenantId={tenantId} cases={cases} />}
         </TabsContent>
 
-        {/* Placeholder tabs */}
-        {["notificacoes"].map((tab) => (
-          <TabsContent key={tab} value={tab} className="mt-6">
-            <div className="bg-card border rounded-lg p-8 text-center">
-              <p className="text-sm text-muted-foreground">Em breve — funcionalidade de {tab} será implementada.</p>
-            </div>
-          </TabsContent>
-        ))}
+        <TabsContent value="notificacoes" className="mt-6">
+          {tenantId && id && <ContactNotifications contactUserId={id} tenantId={tenantId} />}
+        </TabsContent>
 
         {/* Senha tab */}
         <TabsContent value="senha" className="mt-6">

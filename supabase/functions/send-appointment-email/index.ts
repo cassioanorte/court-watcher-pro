@@ -135,6 +135,19 @@ serve(async (req) => {
 
     console.log(`Email sent successfully to ${clientEmail}`);
 
+    // Log notification for the client
+    if (body.clientUserId) {
+      await supabase.from("client_notifications").insert({
+        tenant_id: tenantId,
+        client_user_id: body.clientUserId,
+        type: "agendamento",
+        title: `${isUpdate ? "Atualização: " : "Agendamento: "}${appointmentTitle}`,
+        body: `${dateFormatted} — ${startTime} às ${endTime}${description ? ` — ${description}` : ""}`,
+        metadata: { appointment_date: appointmentDate, start_time: startTime, end_time: endTime, video_link: videoLink || null },
+        sent_by: user.id,
+      });
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

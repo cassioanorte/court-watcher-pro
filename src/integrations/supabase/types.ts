@@ -462,6 +462,50 @@ export type Database = {
           },
         ]
       }
+      client_notifications: {
+        Row: {
+          body: string | null
+          client_user_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          sent_by: string | null
+          tenant_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          client_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          sent_by?: string | null
+          tenant_id: string
+          title: string
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          client_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          sent_by?: string | null
+          tenant_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_documents: {
         Row: {
           category: string
