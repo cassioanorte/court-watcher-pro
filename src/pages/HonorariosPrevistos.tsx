@@ -356,7 +356,23 @@ const HonorariosPrevistos = () => {
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {o.document_url && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(o.document_url!, "_blank")}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                            if (o.process_number) {
+                              const num = o.process_number;
+                              if (navigator.clipboard?.writeText) {
+                                navigator.clipboard.writeText(num).then(() => toast.success(`Nº ${num} copiado!`));
+                              } else {
+                                const ta = document.createElement("textarea");
+                                ta.value = num;
+                                document.body.appendChild(ta);
+                                ta.select();
+                                document.execCommand("copy");
+                                document.body.removeChild(ta);
+                                toast.success(`Nº ${num} copiado!`);
+                              }
+                            }
+                            window.open(o.document_url!, "_blank", "noopener,noreferrer");
+                          }}>
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
                         )}
