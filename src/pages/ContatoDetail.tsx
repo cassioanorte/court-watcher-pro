@@ -8,6 +8,7 @@ import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ContactExpenses from "@/components/ContactExpenses";
+import ContactFees from "@/components/ContactFees";
 
 
 const ContatoDetail = () => {
@@ -482,7 +483,7 @@ const ContatoDetail = () => {
             { value: "documentos", label: "Documentos" },
             { value: "processos", label: "Processos" },
             { value: "despesas", label: "Despesas" },
-            { value: "honorarios", label: "Honorários" },
+            { value: "honorarios", label: "Consulta / Honorários" },
             { value: "notificacoes", label: "Notificações" },
             { value: "senha", label: "Senha" },
           ].map((tab) => (
@@ -939,8 +940,13 @@ const ContatoDetail = () => {
           {tenantId && id && <ContactExpenses contactUserId={id} tenantId={tenantId} cases={cases} />}
         </TabsContent>
 
+        {/* Honorários tab */}
+        <TabsContent value="honorarios" className="mt-6">
+          {tenantId && id && <ContactFees contactUserId={id} tenantId={tenantId} cases={cases} />}
+        </TabsContent>
+
         {/* Placeholder tabs */}
-        {["honorarios", "notificacoes"].map((tab) => (
+        {["notificacoes"].map((tab) => (
           <TabsContent key={tab} value={tab} className="mt-6">
             <div className="bg-card border rounded-lg p-8 text-center">
               <p className="text-sm text-muted-foreground">Em breve — funcionalidade de {tab} será implementada.</p>
