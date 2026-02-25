@@ -111,10 +111,10 @@ function getDocCaptureBookmarkletCode(tenantId: string): string {
   var extractPdfUrlFromHtml=function(html,baseUrl){
     if(!html) return null;
     var patterns=[
-      /(?:src|href)\s*=\s*["']([^"']+\.pdf[^"']*)["']/i,
-      /(?:src|href)\s*=\s*["']([^"']*(?:acao_documento|documento|download)[^"']*)["']/i,
-      /window\.open\(\s*["']([^"']+)["']/i,
-      /location\.href\s*=\s*["']([^"']+)["']/i
+      /(?:src|href)\\s*=\\s*["']([^"']+\\.pdf[^"']*)["']/i,
+      /(?:src|href)\\s*=\\s*["']([^"']*(?:acao_documento|documento|download)[^"']*)["']/i,
+      /window\\.open\\(\\s*["']([^"']+)["']/i,
+      /location\\.href\\s*=\\s*["']([^"']+)["']/i
     ];
 
     for(var p=0;p<patterns.length;p++){
