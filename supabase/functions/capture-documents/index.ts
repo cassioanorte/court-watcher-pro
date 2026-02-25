@@ -214,10 +214,8 @@ Deno.serve(async (req) => {
             .toUpperCase()
             .trim();
 
-          const hasHonorarios = normalizedName.includes("HONOR");
           const hasContratuais = normalizedName.includes("CONTRATUA");
           const hasSucumbencia = normalizedName.includes("SUCUMB");
-          const isGenericFinancialName = /^(PRECATORIO|RPV|ALVARA)\s*\d*$/.test(normalizedName);
 
           let feeTypes: ("contratuais" | "sucumbencia")[];
 
@@ -227,8 +225,6 @@ Deno.serve(async (req) => {
             feeTypes = ["sucumbencia"];
           } else if (hasContratuais) {
             feeTypes = ["contratuais"];
-          } else if ((doc.doc_type === "rpv" || doc.doc_type === "precatorio") && (hasHonorarios || isGenericFinancialName)) {
-            feeTypes = ["contratuais", "sucumbencia"];
           } else {
             feeTypes = [docFeeType];
           }

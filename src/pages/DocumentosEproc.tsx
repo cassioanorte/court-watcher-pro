@@ -24,6 +24,7 @@ interface PayloadData {
   process_number: string;
   tenant_id: string;
   source_url: string;
+  bookmarklet_version?: number;
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
@@ -70,20 +71,27 @@ const fileFromBase64 = (base64: string, fileName: string, mime = "application/pd
   return new File([bytes], fileName || "documento.pdf", { type: mime });
 };
 
-const requestPdfFromOpener = (doc: DocItem): Promise<File | null> => {
-  if (!window.opener || window.opener.closed) return Promise.resolve(null);
+type PdfRequestResult = {
+  file: File | null;
+  error: string | null;
+};
+
+const requestPdfFromOpener = (doc: DocItem): Promise<PdfRequestResult> => {
+  if (!window.opener || window.opener.closed) {
+    return Promise.resolve({ file: null, error: "janela_origem_indisponivel" });
+  }
 
   const requestId = `lex_pdf_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
   return new Promise((resolve) => {
     let done = false;
 
-    const finish = (file: File | null) => {
+    const finish = (result: PdfRequestResult) => {
       if (done) return;
       done = true;
       window.clearTimeout(timeoutId);
       window.removeEventListener("message", onMessage);
-      resolve(file);
+      resolve(result);
     };
 
     const onMessage = (event: MessageEvent) => {
@@ -92,18 +100,21 @@ const requestPdfFromOpener = (doc: DocItem): Promise<File | null> => {
 
       if (payload.type === "lex_doc_capture_pdf_data" && typeof payload.base64 === "string") {
         try {
-          finish(fileFromBase64(payload.base64, payload.fileName || doc.name, payload.mime));
+          finish({
+            file: fileFromBase64(payload.base64, payload.fileName || doc.name, payload.mime),
+            error: null,
+          });
         } catch {
-          finish(null);
+          finish({ file: null, error: "arquivo_pdf_invalido" });
         }
       }
 
       if (payload.type === "lex_doc_capture_pdf_error") {
-        finish(null);
+        finish({ file: null, error: typeof payload.error === "string" ? payload.error : "erro_pdf_na_origem" });
       }
     };
 
-    const timeoutId = window.setTimeout(() => finish(null), 12000);
+    const timeoutId = window.setTimeout(() => finish({ file: null, error: "timeout_fetch_pdf" }), 12000);
 
     window.addEventListener("message", onMessage);
 
@@ -118,13 +129,21 @@ const requestPdfFromOpener = (doc: DocItem): Promise<File | null> => {
         "*",
       );
     } catch {
-      finish(null);
+      finish({ file: null, error: "postmessage_falhou" });
     }
   });
 };
 
-const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<DocItem[]> => {
+interface EnrichResult {
+  docs: DocItem[];
+  pdfReadFailures: number;
+  parseFailures: number;
+}
+
+const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<EnrichResult> => {
   const enriched: DocItem[] = [];
+  let pdfReadFailures = 0;
+  let parseFailures = 0;
 
   for (const doc of docs) {
     if (!FINANCIAL_TYPES.has(doc.doc_type)) {
@@ -132,15 +151,17 @@ const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<DocItem[]
       continue;
     }
 
-    const pdfFile = await requestPdfFromOpener(doc);
-    if (!pdfFile) {
+    const pdfResult = await requestPdfFromOpener(doc);
+    if (!pdfResult.file) {
+      pdfReadFailures++;
       enriched.push(doc);
       continue;
     }
 
     try {
-      const pdfText = await extractTextFromPdf(pdfFile);
+      const pdfText = await extractTextFromPdf(pdfResult.file);
       if (!pdfText || pdfText.trim().length < 20) {
+        parseFailures++;
         enriched.push(doc);
         continue;
       }
@@ -166,14 +187,16 @@ const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<DocItem[]
         enriched.push({ ...doc, parsed_single: first });
         continue;
       }
+
+      parseFailures++;
     } catch {
-      // fallback below
+      parseFailures++;
     }
 
     enriched.push(doc);
   }
 
-  return enriched;
+  return { docs: enriched, pdfReadFailures, parseFailures };
 };
 
 const DocumentosEproc = () => {
@@ -203,6 +226,13 @@ const DocumentosEproc = () => {
 
     const applyParsed = (parsed: PayloadData | null) => {
       if (!parsed || !Array.isArray(parsed.docs) || parsed.docs.length === 0) return false;
+
+      const hasFinancialDocs = parsed.docs.some((doc) => FINANCIAL_TYPES.has(doc.doc_type));
+      const bookmarkletVersion = parsed.bookmarklet_version ?? 1;
+      if (hasFinancialDocs && bookmarkletVersion < 2) {
+        setError("Seu bookmarklet de documentos está desatualizado. Recrie o favorito \"📄 Capturar Documentos\" para habilitar a leitura automática do PDF.");
+        return false;
+      }
 
       setData(parsed);
       setError(null);
@@ -333,7 +363,7 @@ const DocumentosEproc = () => {
     setProcessing(true);
     try {
       const selectedDocs = data.docs.filter((_, i) => selected.has(i));
-      const docsWithParsedData = await enrichDocumentsWithParsedData(selectedDocs);
+      const { docs: docsWithParsedData, pdfReadFailures, parseFailures } = await enrichDocumentsWithParsedData(selectedDocs);
 
       const parsedDocsCount = docsWithParsedData.filter(
         (doc) => (doc.parsed_entries && doc.parsed_entries.length > 0) || !!doc.parsed_single,
@@ -341,10 +371,25 @@ const DocumentosEproc = () => {
 
       const selectedFinancialDocs = selectedDocs.filter((doc) => FINANCIAL_TYPES.has(doc.doc_type));
       if (selectedFinancialDocs.length > 0 && parsedDocsCount === 0) {
+        if (pdfReadFailures > 0) {
+          throw new Error(
+            'Não consegui ler o PDF no eproc. Recrie o bookmarklet "📄 Capturar Documentos" e tente novamente para preencher valores, espécie e beneficiário automaticamente.',
+          );
+        }
+        throw new Error("Não consegui interpretar os dados financeiros do PDF automaticamente neste processo.");
+      }
+
+      if (selectedFinancialDocs.length > 0 && parsedDocsCount < selectedFinancialDocs.length) {
         toast({
           title: "Leitura parcial",
-          description:
-            "Não consegui ler os valores do PDF automaticamente neste processo. O lançamento será criado para conferência manual.",
+          description: `${selectedFinancialDocs.length - parsedDocsCount} documento(s) financeiro(s) ficaram sem extração automática e exigem conferência manual.`,
+        });
+      }
+
+      if (parseFailures > 0 && parsedDocsCount > 0) {
+        toast({
+          title: "Atenção",
+          description: "Alguns PDFs tiveram leitura parcial; revise os lançamentos antes de confirmar.",
         });
       }
 
