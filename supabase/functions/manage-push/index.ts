@@ -367,6 +367,56 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ===== SEND PUSH TO ALL TENANT USERS =====
+    if (action === "send-to-tenant") {
+      const { tenant_id, title, body: msgBody, url, tag } = body;
+      if (!tenant_id || !title) {
+        return new Response(JSON.stringify({ error: "Missing tenant_id or title" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: vapidData } = await supabase.from("vapid_keys").select("public_key, private_key").limit(1).single();
+      if (!vapidData) {
+        return new Response(JSON.stringify({ sent: 0, reason: "no_vapid_keys" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: subs } = await supabase
+        .from("push_subscriptions")
+        .select("endpoint, p256dh, auth")
+        .eq("tenant_id", tenant_id);
+
+      if (!subs || subs.length === 0) {
+        return new Response(JSON.stringify({ sent: 0, reason: "no_subscriptions" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const payload = { title, body: msgBody || "", url: url || "/", tag: tag || "payment-movement" };
+      let sent = 0;
+
+      for (const sub of subs) {
+        const ok = await sendPushNotification(
+          sub,
+          payload,
+          vapidData.public_key,
+          vapidData.private_key,
+          "mailto:noreply@leximperium.app"
+        );
+        if (ok) sent++;
+        else {
+          await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+        }
+      }
+
+      return new Response(JSON.stringify({ sent, total: subs.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
