@@ -21,6 +21,7 @@ interface Transaction {
   date: string;
   status: string;
   case_id: string | null;
+  client_user_id: string | null;
 }
 
 interface PaymentOrder {
@@ -59,7 +60,7 @@ const FluxoDeCaixa = () => {
   const fetchData = useCallback(async () => {
     if (!tenantId) return;
     const [txRes, poRes, fdRes] = await Promise.all([
-      supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).eq("status", "confirmed").order("date", { ascending: false }),
+      supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id, client_user_id").eq("tenant_id", tenantId).in("status", ["confirmed", "paid"]).order("date", { ascending: false }),
       supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, income_tax, tax_percent, process_number, beneficiary_name").eq("tenant_id", tenantId),
       supabase.from("fee_distributions" as any).select("id, payment_order_id, lawyer_name, amount, paid_at").eq("tenant_id", tenantId),
     ]);
@@ -82,9 +83,10 @@ const FluxoDeCaixa = () => {
   const expenseTx = useMemo(() => filteredTx.filter(t => t.type === "expense" && !TAX_CATEGORIES.includes(t.category)), [filteredTx]);
   const taxTx = useMemo(() => filteredTx.filter(t => t.type === "expense" && TAX_CATEGORIES.includes(t.category)), [filteredTx]);
 
-  const totalRevenue = filteredTx.filter(t => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
+  const totalRevenue = filteredTx.filter(t => t.type === "revenue" || t.type === "fee_initial").reduce((s, t) => s + Number(t.amount), 0);
   const totalExpense = expenseTx.reduce((s, t) => s + Number(t.amount), 0);
   const totalTaxes = taxTx.reduce((s, t) => s + Number(t.amount), 0);
+  const clientExpensesTotal = filteredTx.filter(t => t.type === "expense_client").reduce((s, t) => s + Number(t.amount), 0);
   const totalDistributed = distributions.reduce((s, d) => s + Number(d.amount), 0);
   const netCash = totalRevenue - totalExpense - totalTaxes - totalDistributed;
 
@@ -105,11 +107,13 @@ const FluxoDeCaixa = () => {
   }, [sacadoOrders, distributions]);
 
   const monthlySummary = useMemo(() => {
-    const months: Record<string, { revenue: number; expense: number; taxes: number; distributed: number }> = {};
+    const months: Record<string, { revenue: number; expense: number; taxes: number; distributed: number; clientFees: number; clientExpenses: number }> = {};
     filteredTx.forEach(t => {
       const key = format(parseISO(t.date), "yyyy-MM");
-      if (!months[key]) months[key] = { revenue: 0, expense: 0, taxes: 0, distributed: 0 };
+      if (!months[key]) months[key] = { revenue: 0, expense: 0, taxes: 0, distributed: 0, clientFees: 0, clientExpenses: 0 };
       if (t.type === "revenue") months[key].revenue += Number(t.amount);
+      if (t.type === "fee_initial") { months[key].revenue += Number(t.amount); months[key].clientFees += Number(t.amount); }
+      if (t.type === "expense_client") months[key].clientExpenses += Number(t.amount);
       if (t.type === "expense") {
         if (TAX_CATEGORIES.includes(t.category)) {
           months[key].taxes += Number(t.amount);
@@ -121,7 +125,7 @@ const FluxoDeCaixa = () => {
     distributions.forEach(d => {
       if (d.paid_at) {
         const key = d.paid_at.substring(0, 7);
-        if (!months[key]) months[key] = { revenue: 0, expense: 0, taxes: 0, distributed: 0 };
+        if (!months[key]) months[key] = { revenue: 0, expense: 0, taxes: 0, distributed: 0, clientFees: 0, clientExpenses: 0 };
         months[key].distributed += Number(d.amount);
       }
     });
@@ -180,11 +184,13 @@ const FluxoDeCaixa = () => {
       </div>
 
       {/* Summary cards — now 5 cards including taxes */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
           { label: "Entradas", value: totalRevenue, icon: ArrowUpRight, color: "text-emerald-500", bg: "bg-emerald-500/10" },
           { label: "Despesas", value: totalExpense, icon: ArrowDownRight, color: "text-red-500", bg: "bg-red-500/10" },
           { label: "Impostos", value: totalTaxes, icon: Receipt, color: "text-amber-500", bg: "bg-amber-500/10" },
+          { label: "Consultas/Honorários", value: filteredTx.filter(t => t.type === "fee_initial").reduce((s, t) => s + Number(t.amount), 0), icon: Scale, color: "text-violet-500", bg: "bg-violet-500/10" },
+          { label: "Desp. de Clientes", value: clientExpensesTotal, icon: Receipt, color: "text-cyan-500", bg: "bg-cyan-500/10" },
           { label: "Rateios Pagos", value: totalDistributed, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
           { label: "Saldo de Caixa", value: netCash, icon: Wallet, color: netCash >= 0 ? "text-emerald-500" : "text-red-500", bg: netCash >= 0 ? "bg-emerald-500/10" : "bg-red-500/10" },
         ].map((card, i) => (
@@ -556,6 +562,8 @@ const FluxoDeCaixa = () => {
                       <th className="p-3 text-right">Entradas</th>
                       <th className="p-3 text-right">Despesas</th>
                       <th className="p-3 text-right">Impostos</th>
+                      <th className="p-3 text-right">Consultas/Hon.</th>
+                      <th className="p-3 text-right">Desp. Clientes</th>
                       <th className="p-3 text-right">Rateios</th>
                       <th className="p-3 text-right">Saldo</th>
                     </tr>
@@ -567,6 +575,8 @@ const FluxoDeCaixa = () => {
                         <td className="p-3 text-right text-emerald-600">{fmt(m.revenue)}</td>
                         <td className="p-3 text-right text-red-500">{fmt(m.expense)}</td>
                         <td className="p-3 text-right text-amber-500">{fmt(m.taxes)}</td>
+                        <td className="p-3 text-right text-violet-500">{fmt(m.clientFees)}</td>
+                        <td className="p-3 text-right text-cyan-500">{fmt(m.clientExpenses)}</td>
                         <td className="p-3 text-right text-blue-500">{fmt(m.distributed)}</td>
                         <td className={`p-3 text-right font-bold ${m.net >= 0 ? "text-emerald-600" : "text-red-500"}`}>{fmt(m.net)}</td>
                       </tr>

@@ -29,13 +29,15 @@ import { ptBR } from "date-fns/locale";
 
 interface Transaction {
   id: string;
-  type: "revenue" | "expense";
+  type: string;
   category: string;
   description: string | null;
   amount: number;
   date: string;
   status: string;
   case_id: string | null;
+  client_user_id: string | null;
+  recurrence: string | null;
 }
 
 interface CaseOption {
@@ -102,6 +104,7 @@ const Financeiro = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
+  const [allProfiles, setAllProfiles] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [paymentOrders, setPaymentOrders] = useState<PaymentOrderFull[]>([]);
@@ -121,7 +124,7 @@ const Financeiro = () => {
     if (!tenantId) return;
     const load = async () => {
       const [txRes, casesRes, profilesRes, poRes, fdRes] = await Promise.all([
-        supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id").eq("tenant_id", tenantId).order("date", { ascending: false }),
+        supabase.from("financial_transactions").select("id, type, category, description, amount, date, status, case_id, client_user_id, recurrence").eq("tenant_id", tenantId).order("date", { ascending: false }),
         supabase.from("cases").select("id, process_number, subject, client_user_id").eq("tenant_id", tenantId),
         supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenantId),
         supabase.from("payment_orders" as any).select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, expected_payment_date, fee_type").eq("tenant_id", tenantId),
@@ -131,10 +134,11 @@ const Financeiro = () => {
       setCases(casesRes.data || []);
       setPaymentOrders((poRes.data || []) as unknown as PaymentOrderFull[]);
       setFeeDistributions((fdRes.data || []) as unknown as FeeDistribution[]);
-      const allProfiles = profilesRes.data || [];
-      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", allProfiles.map(p => p.user_id));
+      const allP = profilesRes.data || [];
+      setAllProfiles(allP);
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role").in("user_id", allP.map(p => p.user_id));
       const clientIds = new Set((roles || []).filter(r => r.role === "client").map(r => r.user_id));
-      setClients(allProfiles.filter(p => clientIds.has(p.user_id)));
+      setClients(allP.filter(p => clientIds.has(p.user_id)));
       setLoading(false);
     };
     load();
@@ -169,13 +173,34 @@ const Financeiro = () => {
   };
 
   // === COMPUTATIONS ===
-  const confirmed = transactions.filter((t) => t.status === "confirmed");
+  const confirmed = transactions.filter((t) => t.status === "confirmed" || t.status === "paid");
   const totalRevenue = confirmed.filter((t) => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
   const pureExpenses = confirmed.filter((t) => t.type === "expense" && !TAX_CATEGORIES.includes(t.category));
   const taxExpenses = confirmed.filter((t) => t.type === "expense" && TAX_CATEGORIES.includes(t.category));
   const totalExpense = pureExpenses.reduce((s, t) => s + Number(t.amount), 0);
   const totalIrPago = taxExpenses.reduce((s, t) => s + Number(t.amount), 0);
   const profit = totalRevenue - totalExpense - totalIrPago;
+
+  // Client-specific totals
+  const clientExpenses = transactions.filter((t) => t.type === "expense_client");
+  const clientExpensesPending = clientExpenses.filter((t) => t.status === "pending").reduce((s, t) => s + Number(t.amount), 0);
+  const clientExpensesPaid = clientExpenses.filter((t) => t.status === "paid").reduce((s, t) => s + Number(t.amount), 0);
+  const clientFees = transactions.filter((t) => t.type === "fee_initial");
+  const clientFeesPending = clientFees.filter((t) => t.status === "pending").reduce((s, t) => s + Number(t.amount), 0);
+  const clientFeesPaid = clientFees.filter((t) => t.status === "paid").reduce((s, t) => s + Number(t.amount), 0);
+
+  // Helper to get client name
+  const getClientName = (userId: string | null) => {
+    if (!userId) return "";
+    const found = allProfiles.find((c) => c.user_id === userId);
+    return found?.full_name || "";
+    return found?.full_name || "";
+  };
+  const getCaseName = (caseId: string | null) => {
+    if (!caseId) return "";
+    const found = cases.find((c) => c.id === caseId);
+    return found?.process_number || "";
+  };
 
   // Payment orders totals
   const activeOrders = paymentOrders.filter(o => o.status !== "cancelado");
@@ -314,8 +339,8 @@ const Financeiro = () => {
   const kpis = [
     { label: "Receitas", value: fmt(totalRevenue), icon: TrendingUp, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
     { label: "Despesas", value: fmt(totalExpense), icon: TrendingDown, color: "text-red-500", bgColor: "bg-red-500/10", clickable: true, onClick: openExpenseModal },
-    { label: "IR Pago", value: fmt(totalIrPago), icon: Receipt, color: "text-amber-500", bgColor: "bg-amber-500/10", subtitle: "impostos já recolhidos" },
-    { label: "IR a Pagar", value: fmt(totalIrAPagar), icon: Target, color: "text-orange-500", bgColor: "bg-orange-500/10", subtitle: "RPVs/Precatórios pendentes" },
+    { label: "Consultas / Honorários", value: fmt(clientFeesPaid + clientFeesPending), icon: Scale, color: "text-violet-500", bgColor: "bg-violet-500/10", subtitle: `${fmt(clientFeesPending)} a receber` },
+    { label: "Despesas de Clientes", value: fmt(clientExpensesPaid + clientExpensesPending), icon: Receipt, color: "text-cyan-500", bgColor: "bg-cyan-500/10", subtitle: `${fmt(clientExpensesPending)} a cobrar` },
     { label: "Lucro Líquido", value: fmt(profit), icon: PiggyBank, color: profit >= 0 ? "text-emerald-500" : "text-red-500", bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", subtitle: "receitas − despesas − impostos" },
     { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em RPV/Precatórios` },
   ];
@@ -674,26 +699,44 @@ const Financeiro = () => {
           <p className="text-sm text-muted-foreground text-center py-6">Nenhuma transação registrada. Clique em "Nova Transação" para começar.</p>
         ) : (
           <div className="space-y-2">
-            {transactions.slice(0, 20).map((tx, i) => (
+            {transactions.slice(0, 30).map((tx, i) => {
+              const isRevenue = tx.type === "revenue" || tx.type === "fee_initial";
+              const isClientType = tx.type === "expense_client" || tx.type === "fee_initial";
+              const clientName = isClientType ? getClientName(tx.client_user_id) : "";
+              const caseName = tx.case_id ? getCaseName(tx.case_id) : "";
+              const typeLabel = tx.type === "expense_client" ? "Despesa Cliente" : tx.type === "fee_initial" ? "Consulta/Honorário" : "";
+              const iconBg = isRevenue ? "bg-emerald-500/10" : tx.type === "expense_client" ? "bg-cyan-500/10" : "bg-red-500/10";
+              const iconColor = isRevenue ? "text-emerald-500" : tx.type === "expense_client" ? "text-cyan-500" : "text-red-500";
+              const amountColor = isRevenue ? "text-emerald-600" : "text-red-500";
+              return (
               <motion.div key={tx.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
                 className="flex items-center gap-3 p-3 rounded-md bg-muted/50 group">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tx.type === "revenue" ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
-                  {tx.type === "revenue"
-                    ? <ArrowUpRight className="w-4 h-4 text-emerald-500" />
-                    : <ArrowDownRight className="w-4 h-4 text-red-500" />}
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                  {isRevenue
+                    ? <ArrowUpRight className={`w-4 h-4 ${iconColor}`} />
+                    : <ArrowDownRight className={`w-4 h-4 ${iconColor}`} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{tx.category}{tx.description ? ` — ${tx.description}` : ""}</p>
-                  <p className="text-xs text-muted-foreground">{format(parseISO(tx.date), "dd/MM/yyyy")}{tx.status === "pending" ? " · Pendente" : ""}</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {typeLabel ? <span className="text-xs font-semibold text-primary mr-1.5">[{typeLabel}]</span> : null}
+                    {tx.category}{tx.description ? ` — ${tx.description}` : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(parseISO(tx.date), "dd/MM/yyyy")}
+                    {tx.status === "pending" ? " · Pendente" : tx.status === "paid" ? " · Pago" : ""}
+                    {clientName ? ` · ${clientName}` : ""}
+                    {caseName ? ` · ${caseName}` : ""}
+                  </p>
                 </div>
-                <span className={`text-sm font-semibold shrink-0 ${tx.type === "revenue" ? "text-emerald-600" : "text-red-500"}`}>
-                  {tx.type === "revenue" ? "+" : "−"}{fmt(Number(tx.amount))}
+                <span className={`text-sm font-semibold shrink-0 ${amountColor}`}>
+                  {isRevenue ? "+" : "−"}{fmt(Number(tx.amount))}
                 </span>
                 <button onClick={() => { if (confirm("Excluir esta transação?")) handleDelete(tx.id); }} className="text-destructive/60 hover:text-destructive transition-colors shrink-0" title="Excluir">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
