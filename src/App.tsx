@@ -46,6 +46,7 @@ import Cumprimentos from "./pages/Cumprimentos";
 import Tarefas from "./pages/Tarefas";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import DocumentosEproc from "./pages/DocumentosEproc";
+import HonorariosPrevistos from "./pages/HonorariosPrevistos";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -123,6 +124,7 @@ const App = () => (
               <Route path="contatos" element={<Contatos />} />
               <Route path="contatos/:id" element={<ContatoDetail />} />
               <Route path="financeiro" element={<Financeiro />} />
+              <Route path="financeiro/honorarios-previstos" element={<HonorariosPrevistos />} />
               <Route path="cobranca" element={<Cobranca />} />
               <Route path="pagamentos" element={<Pagamentos />} />
               <Route path="landing-pages" element={<LandingPages />} />
