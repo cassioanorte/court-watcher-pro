@@ -374,18 +374,47 @@ const ClientProcessDetail = () => {
                     if (!id) return;
                     setRefreshingMovements(true);
                     try {
-                      const { error } = await supabase.functions.invoke("fetch-movements", {
+                      const previousMovementsCount = movements.length;
+
+                      const { data: syncResult, error: syncError } = await supabase.functions.invoke("fetch-movements", {
                         body: { case_id: id },
                       });
-                      if (error) throw error;
-                      // Reload movements
-                      const { data } = await supabase
+                      if (syncError) throw syncError;
+
+                      // Reload movements after sync
+                      const { data: latestMovements, error: reloadError } = await supabase
                         .from("movements")
                         .select("id, title, translation, occurred_at, details")
                         .eq("case_id", id)
                         .order("occurred_at", { ascending: false });
-                      if (data) setMovements(data);
-                      toast({ title: "Movimentações atualizadas!" });
+
+                      if (reloadError) throw reloadError;
+
+                      const safeMovements = latestMovements ?? [];
+                      const noDataReturned = safeMovements.length === 0;
+                      const keepExistingTimeline = previousMovementsCount > 0 && noDataReturned;
+                      const newMovementsCount = Number(syncResult?.new_movements ?? 0);
+
+                      if (!keepExistingTimeline) {
+                        setMovements(safeMovements);
+                      }
+
+                      if (newMovementsCount > 0) {
+                        toast({
+                          title: "Novas movimentações encontradas!",
+                          description: `${newMovementsCount} atualização(ões) adicionada(s) ao processo.`,
+                        });
+                      } else if (keepExistingTimeline) {
+                        toast({
+                          title: "Sem novidades no tribunal",
+                          description: "Nenhuma atualização nova foi encontrada. Mantivemos sua timeline atual.",
+                        });
+                      } else {
+                        toast({
+                          title: "Sem novas movimentações",
+                          description: "O tribunal ainda não publicou novos andamentos para este processo.",
+                        });
+                      }
                     } catch (err: any) {
                       toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
                     } finally {
