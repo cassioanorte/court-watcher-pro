@@ -407,10 +407,10 @@ const Financeiro = () => {
           <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
             className={`bg-card rounded-lg p-5 shadow-card border ${"clickable" in kpi && kpi.clickable ? "cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" : ""}`}
             onClick={"onClick" in kpi && kpi.onClick ? kpi.onClick as () => void : undefined}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
-                <p className="text-xl font-bold text-foreground mt-1 font-display">{kpi.value}</p>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{kpi.label}</p>
+                <p className="text-xl font-bold text-foreground mt-1 font-display truncate">{kpi.value}</p>
                 {"subtitle" in kpi && kpi.subtitle && (
                   <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.subtitle}</p>
                 )}
@@ -418,7 +418,7 @@ const Financeiro = () => {
                   <p className="text-[10px] text-primary mt-1 flex items-center gap-0.5"><Plus className="w-3 h-3" /> Lançar despesa</p>
                 )}
               </div>
-              <div className={`w-10 h-10 rounded-lg ${kpi.bgColor} flex items-center justify-center`}>
+              <div className={`w-10 h-10 rounded-lg ${kpi.bgColor} flex items-center justify-center shrink-0`}>
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
               </div>
             </div>
