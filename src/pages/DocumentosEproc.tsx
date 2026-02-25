@@ -37,6 +37,19 @@ const DocumentosEproc = () => {
 
   useEffect(() => {
     let timeoutId: number | null = null;
+    let readyPingIntervalId: number | null = null;
+
+    const clearPendingListeners = () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (readyPingIntervalId) {
+        window.clearInterval(readyPingIntervalId);
+        readyPingIntervalId = null;
+      }
+      window.removeEventListener("message", handleMessage);
+    };
 
     const applyParsed = (parsed: PayloadData | null) => {
       if (!parsed || !Array.isArray(parsed.docs) || parsed.docs.length === 0) return false;
@@ -71,8 +84,7 @@ const DocumentosEproc = () => {
       if (type !== "lex_doc_capture_payload") return;
 
       if (applyParsed(payload)) {
-        if (timeoutId) window.clearTimeout(timeoutId);
-        window.removeEventListener("message", handleMessage);
+        clearPendingListeners();
       }
     };
 
@@ -113,23 +125,29 @@ const DocumentosEproc = () => {
 
       // 4) postMessage channel (robust fallback for browsers that clear window.name)
       window.addEventListener("message", handleMessage);
-      try {
-        window.opener?.postMessage({ type: "lex_doc_capture_ready" }, "*");
-      } catch {
-        // no-op
-      }
+
+      const sendReadySignal = () => {
+        try {
+          window.opener?.postMessage({ type: "lex_doc_capture_ready" }, "*");
+        } catch {
+          // no-op
+        }
+      };
+
+      sendReadySignal();
+      readyPingIntervalId = window.setInterval(sendReadySignal, 500);
 
       timeoutId = window.setTimeout(() => {
         setError("Nenhum dado recebido. Execute o bookmarklet novamente na página do processo.");
-        window.removeEventListener("message", handleMessage);
-      }, 4000);
+        clearPendingListeners();
+      }, 15000);
     } catch {
       setError("Erro ao processar dados. Tente usar o bookmarklet novamente.");
+      clearPendingListeners();
     }
 
     return () => {
-      if (timeoutId) window.clearTimeout(timeoutId);
-      window.removeEventListener("message", handleMessage);
+      clearPendingListeners();
     };
   }, [searchParams]);
 
