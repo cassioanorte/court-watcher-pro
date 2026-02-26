@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[capture-documents] Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}`);
+    console.log(`[capture-documents] v3 Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}`);
 
     return new Response(
       JSON.stringify({
