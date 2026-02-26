@@ -274,6 +274,15 @@ Deno.serve(async (req) => {
                 : doc.doc_type;
 
           const grossAmount = asNumber(parsed?.gross_amount) ?? 0;
+
+          // Skip creating payment orders with zero amounts — they are useless
+          // and confuse the user into thinking the capture worked
+          if (grossAmount <= 0 && !parsed) {
+            paymentOrdersSkipped++;
+            console.log(`[capture-documents] Skipping PO for ${doc.name} (${candidate.feeType}): no parsed data and no gross amount`);
+            continue;
+          }
+
           const officeAmount =
             asNumber(parsed?.office_amount) ??
             (candidate.ownershipType === "escritorio" ? grossAmount : 0);
@@ -323,7 +332,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[capture-documents] v3 Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}`);
+    console.log(`[capture-documents] v4 Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}`);
 
     return new Response(
       JSON.stringify({
