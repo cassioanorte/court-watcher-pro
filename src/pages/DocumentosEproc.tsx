@@ -147,22 +147,20 @@ const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<EnrichRes
   let parseFailures = 0;
 
   for (const doc of docs) {
-    if (!FINANCIAL_TYPES.has(doc.doc_type)) {
-      enriched.push(doc);
-      continue;
-    }
-
+    // Always attempt PDF parsing for ALL documents, not just financial types.
+    // Documents like "OUT1" may contain RPV/Precatório data behind a generic name.
     const pdfResult = await requestPdfFromOpener(doc);
     if (!pdfResult.file) {
-      pdfReadFailures++;
-      enriched.push({ ...doc, pdf_read_error: pdfResult.error || "leitura_falhou" });
+      // Only count as failure if it was expected to be financial
+      if (FINANCIAL_TYPES.has(doc.doc_type)) pdfReadFailures++;
+      enriched.push(FINANCIAL_TYPES.has(doc.doc_type) ? { ...doc, pdf_read_error: pdfResult.error || "leitura_falhou" } : doc);
       continue;
     }
 
     try {
       const pdfText = await extractTextFromPdf(pdfResult.file);
       if (!pdfText || pdfText.trim().length < 20) {
-        parseFailures++;
+        if (FINANCIAL_TYPES.has(doc.doc_type)) parseFailures++;
         enriched.push(doc);
         continue;
       }
@@ -178,20 +176,30 @@ const enrichDocumentsWithParsedData = async (docs: DocItem[]): Promise<EnrichRes
             !!entry.entity,
         );
 
+      // If the document was "outro" but we found financial data, upgrade its type
+      const upgradeDocType = (d: DocItem, entries: ParsedPaymentData[]): DocItem => {
+        if (d.doc_type !== "outro" || entries.length === 0) return d;
+        const detectedType = entries[0]?.type;
+        if (detectedType === "rpv" || detectedType === "precatorio") {
+          return { ...d, doc_type: detectedType };
+        }
+        return d;
+      };
+
       if (multi.has_separated_fees && parsedEntries.length > 1) {
-        enriched.push({ ...doc, parsed_entries: parsedEntries });
+        enriched.push({ ...upgradeDocType(doc, parsedEntries), parsed_entries: parsedEntries });
         continue;
       }
 
       const first = parsedEntries[0];
       if (first) {
-        enriched.push({ ...doc, parsed_single: first });
+        enriched.push({ ...upgradeDocType(doc, parsedEntries), parsed_single: first });
         continue;
       }
 
-      parseFailures++;
+      if (FINANCIAL_TYPES.has(doc.doc_type)) parseFailures++;
     } catch {
-      parseFailures++;
+      if (FINANCIAL_TYPES.has(doc.doc_type)) parseFailures++;
     }
 
     enriched.push(doc);
