@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[capture-documents] v4 Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}`);
+    console.log(`[capture-documents] v5 Process ${process_number}: saved=${documentsSaved}, skipped=${documentsSkipped}, POs=${paymentOrdersCreated}, POsSkipped=${paymentOrdersSkipped}, docs=${documents.map(d => `${d.name}(${d.doc_type},parsed=${!!d.parsed_single || (d.parsed_entries?.length||0)>0})`).join(',')}`);
 
     return new Response(
       JSON.stringify({
