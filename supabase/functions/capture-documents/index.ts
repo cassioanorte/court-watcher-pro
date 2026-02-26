@@ -183,7 +183,11 @@ Deno.serve(async (req) => {
       }
 
       // For financial documents, create payment orders with proper fee_type
-      if ((doc.doc_type === "rpv" || doc.doc_type === "precatorio" || doc.doc_type === "alvara") && userId) {
+      // Also handle "outro" docs that have parsed financial data (e.g. generic link names like "OUT1")
+      const isFinancialType = doc.doc_type === "rpv" || doc.doc_type === "precatorio" || doc.doc_type === "alvara";
+      const hasParsedFinancialData = hasMeaningfulParsedData(doc.parsed_single) ||
+        (Array.isArray(doc.parsed_entries) && doc.parsed_entries.some(e => hasMeaningfulParsedData(e)));
+      if ((isFinancialType || hasParsedFinancialData) && userId) {
         const docFeeType = doc.fee_type || "contratuais";
         const paymentCandidates: PaymentCandidate[] = [];
 

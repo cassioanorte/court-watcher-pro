@@ -240,7 +240,7 @@ const DocumentosEproc = () => {
 
       const autoSelect = new Set<number>();
       parsed.docs.forEach((d, i) => {
-        if (d.doc_type !== "outro") autoSelect.add(i);
+        if (d.doc_type !== "outro" || d.parsed_single || (d.parsed_entries && d.parsed_entries.length > 0)) autoSelect.add(i);
       });
       setSelected(autoSelect);
       return true;
@@ -333,7 +333,7 @@ const DocumentosEproc = () => {
   }, [searchParams]);
 
   const financialDocs = useMemo(() => 
-    data?.docs.filter(d => d.doc_type !== "outro") || [], [data]);
+    data?.docs.filter(d => FINANCIAL_TYPES.has(d.doc_type) || d.parsed_single || (d.parsed_entries && d.parsed_entries.length > 0)) || [], [data]);
 
   const toggle = (idx: number) => {
     setSelected(prev => {
