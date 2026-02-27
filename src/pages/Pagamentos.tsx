@@ -89,6 +89,7 @@ const Pagamentos = () => {
   const [formTax, setFormTax] = useState("");
   const [formBeneficiary, setFormBeneficiary] = useState("");
   const [formCpf, setFormCpf] = useState("");
+  const [formPlaintiff, setFormPlaintiff] = useState("");
   const [formProcessNumber, setFormProcessNumber] = useState("");
   const [formCourt, setFormCourt] = useState("");
   const [formEntity, setFormEntity] = useState("");
@@ -310,6 +311,7 @@ const Pagamentos = () => {
       document_name: formDocName || null,
       beneficiary_name: formBeneficiary || null,
       beneficiary_cpf: formCpf || null,
+      plaintiff_name: formPlaintiff || null,
       process_number: formProcessNumber || null,
       court: formCourt || null,
       entity: formEntity || null,
@@ -344,6 +346,7 @@ const Pagamentos = () => {
     setFormTax("");
     setFormBeneficiary("");
     setFormCpf("");
+    setFormPlaintiff("");
     setFormProcessNumber("");
     setFormCourt("");
     setFormEntity("");
@@ -849,6 +852,11 @@ const Pagamentos = () => {
             </div>
 
             <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Autor da Ação</label>
+              <Input value={formPlaintiff} onChange={e => setFormPlaintiff(e.target.value)} placeholder="Nome do autor (se diferente do beneficiário)" />
+            </div>
+
+            <div>
               <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
               <Input value={formProcessNumber} onChange={e => setFormProcessNumber(e.target.value)} placeholder="0000000-00.0000.0.00.0000" />
             </div>
@@ -1112,6 +1120,10 @@ const Pagamentos = () => {
                   <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
                   <Input value={editForm.beneficiary_cpf || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_cpf: e.target.value }))} />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Autor da Ação</label>
+                <Input value={(editForm as any).plaintiff_name || ""} onChange={e => setEditForm(f => ({ ...f, plaintiff_name: e.target.value }))} placeholder="Nome do autor (se diferente do beneficiário)" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
