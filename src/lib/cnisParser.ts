@@ -48,9 +48,13 @@ function calcTempo(vinculos: CnisVinculo[]): CnisDados["tempoTotal"] {
       totalDias += Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }
   }
-  const anos = Math.floor(totalDias / 365);
-  const meses = Math.floor((totalDias % 365) / 30);
-  const dias = totalDias % 365 % 30;
+  let anos = Math.floor(totalDias / 365);
+  let meses = Math.floor((totalDias % 365) / 30);
+  const dias = (totalDias % 365) % 30;
+  if (meses >= 12) {
+    anos += Math.floor(meses / 12);
+    meses = meses % 12;
+  }
   return { anos, meses, dias, totalDias };
 }
 
