@@ -29,6 +29,7 @@ interface PaymentOrder {
   office_fees_percent: number;
   ownership_type: string;
   process_number: string | null;
+  plaintiff_name: string | null;
   beneficiary_name: string | null;
   beneficiary_cpf: string | null;
   expected_payment_date: string | null;
@@ -82,7 +83,7 @@ const HonorariosPrevistos = () => {
     Promise.all([
       supabase
         .from("payment_orders" as any)
-        .select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, beneficiary_name, beneficiary_cpf, expected_payment_date, fee_type, case_id, document_url, document_name, court, entity, reference_date, court_costs, social_security, notes")
+        .select("id, type, status, gross_amount, office_amount, client_amount, income_tax, tax_percent, office_fees_percent, ownership_type, process_number, plaintiff_name, beneficiary_name, beneficiary_cpf, expected_payment_date, fee_type, case_id, document_url, document_name, court, entity, reference_date, court_costs, social_security, notes")
         .eq("tenant_id", tenantId)
         .in("status", ["aguardando", "liberado"]),
       supabase
@@ -136,6 +137,7 @@ const HonorariosPrevistos = () => {
       type: editForm.type,
       beneficiary_name: editForm.beneficiary_name || null,
       beneficiary_cpf: editForm.beneficiary_cpf || null,
+      plaintiff_name: (editForm as any).plaintiff_name || null,
       process_number: editForm.process_number || null,
       court: editForm.court || null,
       entity: editForm.entity || null,
@@ -338,8 +340,18 @@ const HonorariosPrevistos = () => {
                     <td className="p-3">
                       <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
                     </td>
-                    <td className="p-3 font-medium text-foreground">
-                      {o.process_number || o.beneficiary_name || "—"}
+                    <td className="p-3">
+                      <div className="font-medium text-foreground">{o.process_number || o.beneficiary_name || "—"}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {o.plaintiff_name ? (
+                          <span className="text-xs text-muted-foreground">{o.plaintiff_name}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50 italic">Autor</span>
+                        )}
+                        <button className="text-muted-foreground/50 hover:text-foreground" onClick={() => openEdit(o)}>
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
                     </td>
                     <td className="p-3">
                       <Badge variant="outline" className={`text-xs ${STATUS_COLORS[o.status] || ""}`}>
@@ -432,6 +444,10 @@ const HonorariosPrevistos = () => {
                   <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
                   <Input value={editForm.beneficiary_cpf || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_cpf: e.target.value }))} />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Autor da Ação</label>
+                <Input value={(editForm as any).plaintiff_name || ""} onChange={e => setEditForm(f => ({ ...f, plaintiff_name: e.target.value }))} placeholder="Nome do autor (se diferente do beneficiário)" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
