@@ -448,6 +448,9 @@ const EmailIntegrationSetup = () => {
                   <p className="text-sm font-medium text-foreground truncate">{cred.imap_user}</p>
                   <p className="text-xs text-muted-foreground">
                     {cred.imap_host}
+                    {cred.senders && cred.senders.length > 0 && (
+                      <> • {cred.senders.length} remetente(s)</>
+                    )}
                     {cred.last_polled_at && (
                       <> • Última verificação: {new Date(cred.last_polled_at).toLocaleString("pt-BR")}</>
                     )}
