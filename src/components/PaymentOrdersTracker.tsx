@@ -480,8 +480,18 @@ const PaymentOrdersTracker = () => {
                       <td className={`p-3 font-medium ${isPaid ? "line-through text-muted-foreground" : "text-foreground"}`}>
                         {o.beneficiary_name || "—"}
                       </td>
-                      <td className="p-3 text-muted-foreground font-mono text-xs">
-                        {o.process_number || "—"}
+                      <td className="p-3">
+                        <div className="text-muted-foreground font-mono text-xs">{o.process_number || "—"}</div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {o.plaintiff_name ? (
+                            <span className="text-xs text-muted-foreground">{o.plaintiff_name}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50 italic">Autor</span>
+                          )}
+                          <button className="text-muted-foreground/50 hover:text-foreground" onClick={() => startEdit(o)}>
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
                       </td>
                       <td className={`p-3 text-right ${isPaid ? "text-muted-foreground" : "text-foreground"}`}>
                         {fmt(math.gross)}
