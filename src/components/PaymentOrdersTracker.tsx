@@ -29,6 +29,7 @@ interface PaymentOrder {
   beneficiary_name: string | null;
   beneficiary_cpf: string | null;
   process_number: string | null;
+  plaintiff_name: string | null;
   court: string | null;
   entity: string | null;
   reference_date: string | null;
@@ -328,6 +329,7 @@ const PaymentOrdersTracker = () => {
       type: editForm.type,
       beneficiary_name: editForm.beneficiary_name || null,
       beneficiary_cpf: editForm.beneficiary_cpf || null,
+      plaintiff_name: editForm.plaintiff_name || null,
       process_number: editForm.process_number || null,
       court: editForm.court || null,
       entity: editForm.entity || null,
@@ -595,6 +597,10 @@ const PaymentOrdersTracker = () => {
                 <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
                 <Input value={editForm.beneficiary_cpf || ""} onChange={e => setEditForm(f => ({ ...f, beneficiary_cpf: e.target.value }))} />
               </div>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Autor da Ação</label>
+              <Input value={editForm.plaintiff_name || ""} onChange={e => setEditForm(f => ({ ...f, plaintiff_name: e.target.value }))} placeholder="Nome do autor (se diferente do beneficiário)" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Nº do Processo</label>
