@@ -137,22 +137,6 @@ export function parseCnisText(text: string): CnisDados {
     }
   }
 
-  // Pattern 1b: "Data Início: DD/MM/YYYY Data Fim: MM/YYYY" on its own line (vínculo 17 layout)
-  const dataInicioFimRegex = /Data\s+In[ií]cio:?\s*(\d{2}\/\d{2}\/\d{4})\s+Data\s+Fim:?\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/gi;
-  while ((match = dataInicioFimRegex.exec(fullText)) !== null) {
-    const inicio = parseDate(match[1]);
-    const fim = parseDate(match[2], true);
-    if (inicio && fim) {
-      addVinculo({
-        cnpj: lastCnpj,
-        empresa: lastEmpresa,
-        inicio,
-        fim,
-        tipo: "empregado",
-      });
-    }
-  }
-
   // Pattern 2: parser linha a linha com contexto + janela multi-linha
   let lastEmpresa = "";
   let lastCnpj = "";
