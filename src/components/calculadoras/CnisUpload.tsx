@@ -18,7 +18,10 @@ export default function CnisUpload({ onDataExtracted }: CnisUploadProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   const handleFile = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
+    const isPdfByExtension = file.name.toLowerCase().endsWith(".pdf");
+    const isPdfByMime = file.type.toLowerCase() === "application/pdf";
+
+    if (!isPdfByExtension && !isPdfByMime) {
       toast.error("Apenas arquivos PDF são aceitos");
       return;
     }
