@@ -277,6 +277,58 @@ const EmailIntegrationSetup = () => {
         </div>
       </div>
 
+      {/* Senders management */}
+      <div className="space-y-2">
+        <Label>Remetentes monitorados</Label>
+        <p className="text-xs text-muted-foreground">E-mails de tribunais dos quais buscar publicações e intimações.</p>
+        <div className="flex flex-wrap gap-2">
+          {form.senders.map((sender, idx) => (
+            <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/15 text-accent text-xs font-medium">
+              {sender}
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, senders: prev.senders.filter((_, i) => i !== idx) }))}
+                className="hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            type="email"
+            placeholder="ex: eproc@trf4.jus.br"
+            value={newSender}
+            onChange={e => setNewSender(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && newSender.trim()) {
+                e.preventDefault();
+                if (!form.senders.includes(newSender.trim())) {
+                  setForm(prev => ({ ...prev, senders: [...prev.senders, newSender.trim()] }));
+                }
+                setNewSender("");
+              }
+            }}
+            className="max-w-xs"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (newSender.trim() && !form.senders.includes(newSender.trim())) {
+                setForm(prev => ({ ...prev, senders: [...prev.senders, newSender.trim()] }));
+              }
+              setNewSender("");
+            }}
+            disabled={!newSender.trim()}
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
       {provider === "gmail" && (
         <div className="text-xs text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded p-3 space-y-1">
           <strong>📋 Gmail — Passo a passo:</strong>
