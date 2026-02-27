@@ -200,14 +200,22 @@ export function parseCnisText(text: string): CnisDados {
 
 export async function extractTextFromPdf(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
-  
-  // Use CDN worker matching the installed version
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
 
-  console.log("[CNIS] Starting PDF extraction for:", file.name, "size:", file.size);
-  
+  console.log("[CNIS] Starting PDF extraction for:", file.name, "size:", file.size, "type:", file.type);
+
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let pdf;
+
+  try {
+    // Tenta usar worker (mais performático)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  } catch (workerError) {
+    console.warn("[CNIS] Worker falhou, tentando sem worker:", workerError);
+    // Fallback robusto para ambientes com bloqueio de worker/CDN
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+  }
+
   console.log("[CNIS] PDF loaded, pages:", pdf.numPages);
   
   let fullText = "";
