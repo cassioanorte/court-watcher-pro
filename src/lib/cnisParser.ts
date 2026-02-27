@@ -119,8 +119,9 @@ export function parseCnisText(text: string): CnisDados {
     }
   };
 
-  // Pattern 1: CNPJ/código emp. + origem do vínculo + tipo filiado + Data Início + Data Fim (layout CNIS)
-  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}(?:\/?\d{4}-?\d{2})?)\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+Público)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+Público)[\w\sÀ-ÿ.,\-\/()]*?\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g;
+  // Pattern 1: Table rows with Seq | NIT | CNPJ | Empresa | Tipo | Data Início | Data Fim
+  // Matches lines like: "1 124.34806.74-2 88.883.756/0001-77 EMPRESA NAME Empregado... 01/03/1991 19/02/1994 02/1994"
+  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}(?:\/?\d{4}-?\d{2})?)\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+P[uú]blico)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+P[uú]blico)[\s\S]*?(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g;
   let match;
   while ((match = vinculoRegex.exec(fullText)) !== null) {
     const inicio = parseDate(match[3]);
@@ -128,7 +129,23 @@ export function parseCnisText(text: string): CnisDados {
     if (inicio && fim) {
       addVinculo({
         cnpj: match[1],
-        empresa: match[2],
+        empresa: match[2].replace(/\s*(Empregado|Contribuinte|Trabalhador|Segurado|Servidor).*/i, "").trim(),
+        inicio,
+        fim,
+        tipo: "empregado",
+      });
+    }
+  }
+
+  // Pattern 1b: "Data Início: DD/MM/YYYY Data Fim: MM/YYYY" on its own line (vínculo 17 layout)
+  const dataInicioFimRegex = /Data\s+In[ií]cio:?\s*(\d{2}\/\d{2}\/\d{4})\s+Data\s+Fim:?\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/gi;
+  while ((match = dataInicioFimRegex.exec(fullText)) !== null) {
+    const inicio = parseDate(match[1]);
+    const fim = parseDate(match[2], true);
+    if (inicio && fim) {
+      addVinculo({
+        cnpj: lastCnpj,
+        empresa: lastEmpresa,
         inicio,
         fim,
         tipo: "empregado",
