@@ -102,22 +102,26 @@ export function parseCnisText(text: string): CnisDados {
     if (!v.inicio || !v.fim) return;
     const inicioDate = new Date(v.inicio);
     const fimDate = new Date(v.fim);
-    const currentYear = new Date().getFullYear() + 1;
+    const currentYear = new Date().getFullYear() + 2;
     if (inicioDate.getFullYear() < 1950 || fimDate.getFullYear() > currentYear) return;
     if (fimDate <= inicioDate) return;
 
     const empresaLimpa = v.empresa.trim().replace(/\s+/g, " ");
-    const key = `${v.cnpj.replace(/\D/g, "")}|${v.inicio}|${v.fim}|${empresaLimpa.toUpperCase()}`;
-    if (!vinculosMap.has(key)) {
+    // Dedup by inicio+fim only — same date range = same vínculo regardless of name variations
+    const key = `${v.inicio}|${v.fim}`;
+    const existing = vinculosMap.get(key);
+    // Keep the entry with the best empresa name (longest / most descriptive)
+    if (!existing || (empresaLimpa.length > existing.empresa.length && !empresaLimpa.startsWith("Vínculo"))) {
       vinculosMap.set(key, {
         ...v,
-        empresa: empresaLimpa || `Vínculo ${vinculosMap.size + 1}`,
+        empresa: empresaLimpa || existing?.empresa || `Vínculo ${vinculosMap.size + 1}`,
       });
     }
   };
 
-  // Pattern 1: CNPJ/código emp. + origem do vínculo + tipo filiado + Data Início + Data Fim (layout CNIS)
-  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}(?:\/?\d{4}-?\d{2})?)\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+Público)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+Público)[\w\sÀ-ÿ.,\-\/()]*?\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g;
+  // Pattern 1: Table rows with Seq | NIT | CNPJ | Empresa | Tipo | Data Início | Data Fim
+  // Matches lines like: "1 124.34806.74-2 88.883.756/0001-77 EMPRESA NAME Empregado... 01/03/1991 19/02/1994 02/1994"
+  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}(?:\/?\d{4}-?\d{2})?)\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+P[uú]blico)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+P[uú]blico)[\s\S]*?(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g;
   let match;
   while ((match = vinculoRegex.exec(fullText)) !== null) {
     const inicio = parseDate(match[3]);
@@ -125,7 +129,7 @@ export function parseCnisText(text: string): CnisDados {
     if (inicio && fim) {
       addVinculo({
         cnpj: match[1],
-        empresa: match[2],
+        empresa: match[2].replace(/\s*(Empregado|Contribuinte|Trabalhador|Segurado|Servidor).*/i, "").trim(),
         inicio,
         fim,
         tipo: "empregado",
@@ -210,6 +214,22 @@ export function parseCnisText(text: string): CnisDados {
           });
         }
       }
+    }
+  }
+
+  // Pattern 1b: "Data Início: DD/MM/YYYY Data Fim: MM/YYYY" on its own line (vínculo 17 layout)
+  const dataInicioFimRegex = /Data\s+In[ií]cio:?\s*(\d{2}\/\d{2}\/\d{4})\s+Data\s+Fim:?\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/gi;
+  while ((match = dataInicioFimRegex.exec(fullText)) !== null) {
+    const inicio = parseDate(match[1]);
+    const fim = parseDate(match[2], true);
+    if (inicio && fim) {
+      addVinculo({
+        cnpj: lastCnpj,
+        empresa: lastEmpresa,
+        inicio,
+        fim,
+        tipo: "empregado",
+      });
     }
   }
 
