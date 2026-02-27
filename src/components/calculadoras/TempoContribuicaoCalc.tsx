@@ -42,9 +42,14 @@ function calcDiasVinculo(inicio: string, fim: string): number {
 
 function diasToLabel(dias: number): string {
   if (dias <= 0) return "0 dias";
-  const a = Math.floor(dias / 365);
-  const m = Math.floor((dias % 365) / 30);
-  const d = dias % 365 % 30;
+  let a = Math.floor(dias / 365);
+  let remainDias = dias % 365;
+  let m = Math.floor(remainDias / 30);
+  let d = remainDias % 30;
+  if (m >= 12) {
+    a += Math.floor(m / 12);
+    m = m % 12;
+  }
   const parts: string[] = [];
   if (a > 0) parts.push(`${a} ano${a > 1 ? "s" : ""}`);
   if (m > 0) parts.push(`${m} ${m > 1 ? "meses" : "mês"}`);

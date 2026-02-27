@@ -48,9 +48,13 @@ function calcTempo(vinculos: CnisVinculo[]): CnisDados["tempoTotal"] {
       totalDias += Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }
   }
-  const anos = Math.floor(totalDias / 365);
-  const meses = Math.floor((totalDias % 365) / 30);
-  const dias = totalDias % 365 % 30;
+  let anos = Math.floor(totalDias / 365);
+  let meses = Math.floor((totalDias % 365) / 30);
+  const dias = (totalDias % 365) % 30;
+  if (meses >= 12) {
+    anos += Math.floor(meses / 12);
+    meses = meses % 12;
+  }
   return { anos, meses, dias, totalDias };
 }
 
@@ -222,10 +226,31 @@ export async function extractTextFromPdf(file: File): Promise<string> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(" ");
-    fullText += pageText + "\n";
+    const items = textContent.items as any[];
+    
+    // Sort by Y position (top to bottom), then X (left to right)
+    // Group items into lines based on Y proximity
+    if (items.length === 0) continue;
+    
+    // Sort by vertical position descending (PDF Y is bottom-up), then horizontal
+    const sorted = [...items].sort((a, b) => {
+      const yDiff = b.transform[5] - a.transform[5];
+      if (Math.abs(yDiff) > 3) return yDiff > 0 ? 1 : -1; // different line
+      return a.transform[4] - b.transform[4]; // same line, sort by X
+    });
+    
+    let lastY: number | null = null;
+    for (const item of sorted) {
+      const y = item.transform[5];
+      if (lastY !== null && Math.abs(y - lastY) > 3) {
+        fullText += "\n";
+      } else if (lastY !== null) {
+        fullText += " ";
+      }
+      fullText += item.str;
+      lastY = y;
+    }
+    fullText += "\n";
   }
   
   console.log("[CNIS] Extracted text length:", fullText.length);
