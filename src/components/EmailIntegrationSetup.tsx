@@ -17,6 +17,7 @@ interface EmailCredential {
   use_tls: boolean;
   is_active: boolean;
   last_polled_at: string | null;
+  senders: string[];
 }
 
 const PROVIDER_PRESETS: Record<string, { host: string; port: number }> = {
