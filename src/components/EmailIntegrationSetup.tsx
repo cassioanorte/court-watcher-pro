@@ -54,6 +54,7 @@ const EmailIntegrationSetup = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [provider, setProvider] = useState("gmail");
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [newSender, setNewSender] = useState("");
   const [connectionError, setConnectionError] = useState<{ error: string; hint: string } | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
 
