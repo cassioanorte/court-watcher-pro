@@ -213,7 +213,7 @@ export async function extractTextFromPdf(file: File): Promise<string> {
   } catch (workerError) {
     console.warn("[CNIS] Worker falhou, tentando sem worker:", workerError);
     // Fallback robusto para ambientes com bloqueio de worker/CDN
-    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true } as any).promise;
   }
 
   console.log("[CNIS] PDF loaded, pages:", pdf.numPages);
