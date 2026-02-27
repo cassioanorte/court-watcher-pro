@@ -82,19 +82,30 @@ export function parseCnisText(text: string): CnisDados {
   if (nascMatch) dataNascimento = parseDate(nascMatch[1]) || "";
 
   // Extract vínculos
-  const vinculos: CnisVinculo[] = [];
-  
-  // Pattern 1: Standard CNIS table format
-  // Looks for sequences like: CNPJ, Company Name, Start Date, End Date
-  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(?:a\s+)?(\d{2}\/\d{2}\/\d{4})/g;
+  const vinculosMap = new Map<string, CnisVinculo>();
+
+  const addVinculo = (v: CnisVinculo) => {
+    if (!v.inicio || !v.fim) return;
+    if (new Date(v.fim) <= new Date(v.inicio)) return;
+    const key = `${v.cnpj.replace(/\D/g, "")}|${v.inicio}|${v.fim}|${v.empresa.trim().toUpperCase()}`;
+    if (!vinculosMap.has(key)) {
+      vinculosMap.set(key, {
+        ...v,
+        empresa: v.empresa.trim().replace(/\s+/g, " "),
+      });
+    }
+  };
+
+  // Pattern 1: CNPJ + empresa + início + fim na mesma linha/bloco
+  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(?:a\s+|até\s+|-\s+|–\s+|—\s+)?(\d{2}\/\d{2}\/\d{4})/g;
   let match;
   while ((match = vinculoRegex.exec(fullText)) !== null) {
     const inicio = parseDate(match[3]);
     const fim = parseDate(match[4]);
     if (inicio && fim) {
-      vinculos.push({
+      addVinculo({
         cnpj: match[1],
-        empresa: match[2].trim().replace(/\s+/g, " "),
+        empresa: match[2],
         inicio,
         fim,
         tipo: "empregado",
@@ -102,54 +113,43 @@ export function parseCnisText(text: string): CnisDados {
     }
   }
 
-  // Pattern 2: Lines with date ranges (DD/MM/YYYY a DD/MM/YYYY)
-  if (vinculos.length === 0) {
-    const dateRangeRegex = /(\d{2}\/\d{2}\/\d{4})\s*(?:a|até|-)\s*(\d{2}\/\d{2}\/\d{4})/g;
-    let lastEmpresa = "";
-    let lastCnpj = "";
-    
-    for (const line of lines) {
-      const cnpjLine = line.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/);
-      if (cnpjLine) lastCnpj = cnpjLine[1];
-      
-      // Company names are usually uppercase lines before date ranges
-      if (/^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s&.,\-]{5,}$/.test(line) && !line.match(/\d{2}\/\d{2}\/\d{4}/)) {
-        lastEmpresa = line.trim();
-      }
+  // Pattern 2: parser linha a linha com contexto (empresa/cnpj nas linhas anteriores)
+  let lastEmpresa = "";
+  let lastCnpj = "";
+  const cnpjRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/;
 
-      const rangeMatch = line.match(/(\d{2}\/\d{2}\/\d{4})\s*(?:a|até|-)\s*(\d{2}\/\d{2}\/\d{4})/);
-      if (rangeMatch) {
-        const inicio = parseDate(rangeMatch[1]);
-        const fim = parseDate(rangeMatch[2]);
-        if (inicio && fim) {
-          vinculos.push({
-            cnpj: lastCnpj,
-            empresa: lastEmpresa || "Vínculo " + (vinculos.length + 1),
-            inicio,
-            fim,
-            tipo: "empregado",
-          });
-        }
-      }
-    }
-  }
+  for (const line of lines) {
+    const cnpjLine = line.match(cnpjRegex);
+    if (cnpjLine) lastCnpj = cnpjLine[1];
 
-  // Pattern 3: Simple date pairs on separate lines
-  if (vinculos.length === 0) {
-    const allDates: string[] = [];
-    const dateSimpleRegex = /(\d{2}\/\d{2}\/\d{4})/g;
-    let dm;
-    while ((dm = dateSimpleRegex.exec(fullText)) !== null) {
-      allDates.push(dm[1]);
+    const isLikelyEmpresa =
+      /[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ]{3,}/.test(line) &&
+      /^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ0-9\s&.,\-\/()]+$/.test(line) &&
+      !/(\d{2}\/\d{2}\/\d{4})/.test(line);
+
+    if (isLikelyEmpresa) {
+      lastEmpresa = line.replace(cnpjRegex, "").trim();
     }
-    // Group dates in pairs (start, end)
-    for (let i = 0; i < allDates.length - 1; i += 2) {
-      const inicio = parseDate(allDates[i]);
-      const fim = parseDate(allDates[i + 1]);
-      if (inicio && fim && new Date(inicio) < new Date(fim)) {
-        vinculos.push({
-          cnpj: "",
-          empresa: "Vínculo " + (vinculos.length + 1),
+
+    const rangeMatch = line.match(/(\d{2}\/\d{2}\/\d{4})\s*(?:a|até|-|–|—|à)\s*(\d{2}\/\d{2}\/\d{4})/i)
+      || line.match(/(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})/);
+
+    if (rangeMatch) {
+      const inicio = parseDate(rangeMatch[1]);
+      const fim = parseDate(rangeMatch[2]);
+
+      // tenta extrair empresa da própria linha removendo datas e cnpj
+      const empresaNaLinha = line
+        .replace(cnpjRegex, "")
+        .replace(/\d{2}\/\d{2}\/\d{4}/g, "")
+        .replace(/\b(a|até|à)\b|[-–—]/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (inicio && fim) {
+        addVinculo({
+          cnpj: cnpjLine?.[1] || lastCnpj,
+          empresa: empresaNaLinha || lastEmpresa || `Vínculo ${vinculosMap.size + 1}`,
           inicio,
           fim,
           tipo: "empregado",
@@ -157,6 +157,32 @@ export function parseCnisText(text: string): CnisDados {
       }
     }
   }
+
+  // Pattern 3 (fallback): pares simples de datas no documento inteiro
+  if (vinculosMap.size === 0) {
+    const allDates: string[] = [];
+    const dateSimpleRegex = /(\d{2}\/\d{2}\/\d{4})/g;
+    let dm;
+    while ((dm = dateSimpleRegex.exec(fullText)) !== null) {
+      allDates.push(dm[1]);
+    }
+
+    for (let i = 0; i < allDates.length - 1; i += 2) {
+      const inicio = parseDate(allDates[i]);
+      const fim = parseDate(allDates[i + 1]);
+      if (inicio && fim) {
+        addVinculo({
+          cnpj: "",
+          empresa: `Vínculo ${vinculosMap.size + 1}`,
+          inicio,
+          fim,
+          tipo: "empregado",
+        });
+      }
+    }
+  }
+
+  const vinculos = Array.from(vinculosMap.values()).sort((a, b) => a.inicio.localeCompare(b.inicio));
 
   // Extract salários de contribuição
   const salarios: CnisSalario[] = [];
@@ -228,29 +254,29 @@ export async function extractTextFromPdf(file: File): Promise<string> {
     const textContent = await page.getTextContent();
     const items = textContent.items as any[];
     
-    // Sort by Y position (top to bottom), then X (left to right)
-    // Group items into lines based on Y proximity
-    if (items.length === 0) continue;
-    
-    // Sort by vertical position descending (PDF Y is bottom-up), then horizontal
-    const sorted = [...items].sort((a, b) => {
-      const yDiff = b.transform[5] - a.transform[5];
-      if (Math.abs(yDiff) > 3) return yDiff > 0 ? 1 : -1; // different line
-      return a.transform[4] - b.transform[4]; // same line, sort by X
-    });
-    
-    let lastY: number | null = null;
-    for (const item of sorted) {
-      const y = item.transform[5];
-      if (lastY !== null && Math.abs(y - lastY) > 3) {
-        fullText += "\n";
-      } else if (lastY !== null) {
-        fullText += " ";
-      }
-      fullText += item.str;
-      lastY = y;
+    // Reconstrói linhas por coordenada Y para preservar tabelas do CNIS
+    const rows = new Map<number, any[]>();
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      if (!rows.has(y)) rows.set(y, []);
+      rows.get(y)!.push(item);
     }
-    fullText += "\n";
+
+    const sortedRows = Array.from(rows.entries()).sort((a, b) => b[0] - a[0]); // top -> bottom
+
+    for (const [, rowItems] of sortedRows) {
+      rowItems.sort((a, b) => a.transform[4] - b.transform[4]); // left -> right
+      const lineText = rowItems
+        .map((item) => String(item.str || "").trim())
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (lineText) {
+        fullText += lineText + "\n";
+      }
+    }
   }
   
   console.log("[CNIS] Extracted text length:", fullText.length);
