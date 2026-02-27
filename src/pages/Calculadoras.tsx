@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calculator, Zap, FileText, Building2, Scale, Gavel, Heart, Home, ShoppingCart, Briefcase, Clock, Percent, Landmark, Car, Wheat, Printer } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { printReport } from "@/lib/printReport";
+import { FULL_PAGE_CALC_IDS } from "./CalculadoraFullPage";
 
 import CorrecaoMonetariaCalc from "@/components/calculadoras/CorrecaoMonetariaCalc";
 import FacilCalc from "@/components/calculadoras/FacilCalc";
@@ -213,6 +215,7 @@ const calcComponents: Record<string, React.FC> = {
 export default function Calculadoras() {
   const [activeTab, setActiveTab] = useState("generalistas");
   const [openCalc, setOpenCalc] = useState<Calculadora | null>(null);
+  const navigate = useNavigate();
 
   const activeCategory = categorias.find(c => c.id === activeTab)!;
   const CalcComponent = openCalc ? calcComponents[openCalc.id] : null;
@@ -258,7 +261,13 @@ export default function Calculadoras() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {activeCategory.calculadoras.map(calc => (
-          <Card key={calc.id} className="transition-all hover:shadow-md hover:border-accent/50 cursor-pointer" onClick={() => setOpenCalc(calc)}>
+          <Card key={calc.id} className="transition-all hover:shadow-md hover:border-accent/50 cursor-pointer" onClick={() => {
+            if (FULL_PAGE_CALC_IDS.has(calc.id)) {
+              navigate(`/calculadoras/${calc.id}`);
+            } else {
+              setOpenCalc(calc);
+            }
+          }}>
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-accent/10 text-accent">
