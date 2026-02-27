@@ -901,10 +901,15 @@ const ContatoDetail = () => {
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       {doc.link_url ? <Link2 className="w-4 h-4 text-primary" /> : <FileText className="w-4 h-4 text-primary" />}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <a
+                      href={doc.file_url || doc.link_url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 min-w-0 cursor-pointer hover:underline"
+                    >
                       <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
                       <p className="text-[10px] text-muted-foreground">{formatDate(doc.created_at)}</p>
-                    </div>
+                    </a>
                     <div className="flex items-center gap-1">
                       {doc.file_url && (
                         <>
