@@ -47,6 +47,7 @@ import Tarefas from "./pages/Tarefas";
 import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 import DocumentosEproc from "./pages/DocumentosEproc";
 import HonorariosPrevistos from "./pages/HonorariosPrevistos";
+import CalculadoraFullPage from "./pages/CalculadoraFullPage";
 const queryClient = new QueryClient();
 
 const TenantBlockedScreen = () => {
@@ -132,6 +133,7 @@ const App = () => (
               <Route path="configuracoes" element={<Settings />} />
               <Route path="agentes-ia" element={<AgentesIA />} />
               <Route path="calculadoras" element={<Calculadoras />} />
+              <Route path="calculadoras/:calcId" element={<CalculadoraFullPage />} />
               <Route path="cumprimentos" element={<Cumprimentos />} />
               <Route path="tarefas" element={<Tarefas />} />
             </Route>
