@@ -201,14 +201,14 @@ export function parseCnisText(text: string): CnisDados {
 export async function extractTextFromPdf(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
   
-  // Set worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-  ).toString();
+  // Use CDN worker matching the installed version
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
 
+  console.log("[CNIS] Starting PDF extraction for:", file.name, "size:", file.size);
+  
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  console.log("[CNIS] PDF loaded, pages:", pdf.numPages);
   
   let fullText = "";
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -219,6 +219,9 @@ export async function extractTextFromPdf(file: File): Promise<string> {
       .join(" ");
     fullText += pageText + "\n";
   }
+  
+  console.log("[CNIS] Extracted text length:", fullText.length);
+  console.log("[CNIS] Text preview:", fullText.substring(0, 500));
   
   return fullText;
 }
