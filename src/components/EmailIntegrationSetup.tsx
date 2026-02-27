@@ -29,12 +29,19 @@ const PROVIDER_PRESETS: Record<string, { host: string; port: number }> = {
   custom: { host: "", port: 993 },
 };
 
+const DEFAULT_SENDERS = [
+  "publicacao@trf4.jus.br",
+  "intimacoes@tjrs.jus.br",
+  "eproc@trf4.jus.br",
+];
+
 const EMPTY_FORM = {
   imap_host: "imap.gmail.com",
   imap_port: 993,
   imap_user: "",
   imap_password: "",
   use_tls: true,
+  senders: [...DEFAULT_SENDERS] as string[],
 };
 
 const EmailIntegrationSetup = () => {
