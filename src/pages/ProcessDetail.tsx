@@ -847,13 +847,13 @@ const ProcessDetail = () => {
           )}
           {documents.map((doc) => (
             <div key={doc.id} className="bg-card rounded-lg border p-4 shadow-card flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">{doc.name}</p>
+              <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer hover:opacity-80">
+                <FileText className="w-5 h-5 text-muted-foreground shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
                   <p className="text-[10px] text-muted-foreground">{doc.category || "Sem categoria"} · {new Date(doc.created_at).toLocaleDateString("pt-BR")}</p>
                 </div>
-              </div>
+              </a>
               <div className="flex items-center gap-2">
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Abrir</a>
                 {isLawyer && caseData.client_user_id && (
