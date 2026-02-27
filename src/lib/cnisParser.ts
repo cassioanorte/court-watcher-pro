@@ -220,5 +220,8 @@ export async function extractTextFromPdf(file: File): Promise<string> {
     fullText += pageText + "\n";
   }
   
+  console.log("[CNIS] Extracted text length:", fullText.length);
+  console.log("[CNIS] Text preview:", fullText.substring(0, 500));
+  
   return fullText;
 }
