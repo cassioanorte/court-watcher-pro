@@ -26,11 +26,25 @@ export interface CnisDados {
   tempoTotal: { anos: number; meses: number; dias: number; totalDias: number };
 }
 
-function parseDate(dateStr: string): string | null {
+function parseDate(dateStr: string, endOfMonth = false): string | null {
   // Handles DD/MM/YYYY
-  const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if (!match) return null;
-  return `${match[3]}-${match[2]}-${match[1]}`;
+  const fullMatch = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (fullMatch) return `${fullMatch[3]}-${fullMatch[2]}-${fullMatch[1]}`;
+
+  // Handles MM/YYYY (common in CNIS "Data Fim")
+  const monthYearMatch = dateStr.match(/(\d{2})\/(\d{4})/);
+  if (!monthYearMatch) return null;
+
+  const month = Number(monthYearMatch[1]);
+  const year = Number(monthYearMatch[2]);
+  if (month < 1 || month > 12) return null;
+
+  if (endOfMonth) {
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  }
+
+  return `${year}-${String(month).padStart(2, "0")}-01`;
 }
 
 function parseMoney(str: string): number {
@@ -102,12 +116,12 @@ export function parseCnisText(text: string): CnisDados {
     }
   };
 
-  // Pattern 1: CNPJ + origem do vínculo + tipo filiado + Data Início + Data Fim (layout CNIS)
-  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+Público)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+Público)[\w\sÀ-ÿ.,\-\/()]*?\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})/g;
+  // Pattern 1: CNPJ/código emp. + origem do vínculo + tipo filiado + Data Início + Data Fim (layout CNIS)
+  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}(?:\/?\d{4}-?\d{2})?)\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+Público)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+Público)[\w\sÀ-ÿ.,\-\/()]*?\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g;
   let match;
   while ((match = vinculoRegex.exec(fullText)) !== null) {
     const inicio = parseDate(match[3]);
-    const fim = parseDate(match[4]);
+    const fim = parseDate(match[4], true);
     if (inicio && fim) {
       addVinculo({
         cnpj: match[1],
@@ -122,7 +136,7 @@ export function parseCnisText(text: string): CnisDados {
   // Pattern 2: parser linha a linha com contexto + janela multi-linha
   let lastEmpresa = "";
   let lastCnpj = "";
-  const cnpjRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/;
+  const cnpjRegex = /(\d{2}\.?\d{3}\.?\d{3}(?:\/?\d{4}-?\d{2})?)/;
 
   const limparEmpresa = (txt: string) => txt
     .replace(cnpjRegex, "")
@@ -143,12 +157,12 @@ export function parseCnisText(text: string): CnisDados {
       lastEmpresa = empresaNaLinha;
     }
 
-    const rangeMatch = line.match(/(\d{2}\/\d{2}\/\d{4})\s*(?:a|até|-|–|—|à)\s*(\d{2}\/\d{2}\/\d{4})/i)
-      || line.match(/(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})/);
+    const rangeMatch = line.match(/(?:Data\s*Início:?\s*)?(\d{2}\/\d{2}\/\d{4})\s*(?:Data\s*Fim:?\s*|a|até|-|–|—|à)\s*(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/i)
+      || line.match(/(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/);
 
     if (rangeMatch) {
       const inicio = parseDate(rangeMatch[1]);
-      const fim = parseDate(rangeMatch[2]);
+      const fim = parseDate(rangeMatch[2], true);
       if (inicio && fim) {
         addVinculo({
           cnpj: cnpjLine?.[1] || lastCnpj,
@@ -163,10 +177,10 @@ export function parseCnisText(text: string): CnisDados {
     // Se há CNPJ sem faixa na mesma linha, procura datas nas próximas linhas (layout quebrado de tabela)
     if (cnpjLine && !rangeMatch) {
       const windowText = lines.slice(i, i + 5).join(" ");
-      const datas = Array.from(windowText.matchAll(/(\d{2}\/\d{2}\/\d{4})/g)).map(m => m[1]);
+      const datas = Array.from(windowText.matchAll(/(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g)).map(m => m[1]);
       if (datas.length >= 2) {
         const inicio = parseDate(datas[0]);
-        const fim = parseDate(datas[1]);
+        const fim = parseDate(datas[1], true);
         const empresaProxima = limparEmpresa(lines[i + 1] || "");
         if (inicio && fim) {
           addVinculo({
@@ -182,10 +196,10 @@ export function parseCnisText(text: string): CnisDados {
 
     // Linhas sem CNPJ mas com duas datas também podem ser vínculo (usa contexto anterior)
     if (!cnpjLine) {
-      const datasLinha = Array.from(line.matchAll(/(\d{2}\/\d{2}\/\d{4})/g)).map(m => m[1]);
+      const datasLinha = Array.from(line.matchAll(/(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{4})/g)).map(m => m[1]);
       if (datasLinha.length >= 2) {
         const inicio = parseDate(datasLinha[0]);
-        const fim = parseDate(datasLinha[1]);
+        const fim = parseDate(datasLinha[1], true);
         if (inicio && fim) {
           addVinculo({
             cnpj: lastCnpj,
@@ -210,7 +224,7 @@ export function parseCnisText(text: string): CnisDados {
 
     for (let i = 0; i < allDates.length - 1; i += 2) {
       const inicio = parseDate(allDates[i]);
-      const fim = parseDate(allDates[i + 1]);
+      const fim = parseDate(allDates[i + 1], true);
       if (inicio && fim) {
         addVinculo({
           cnpj: "",
