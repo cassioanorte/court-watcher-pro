@@ -102,8 +102,8 @@ export function parseCnisText(text: string): CnisDados {
     }
   };
 
-  // Pattern 1: CNPJ + empresa + início + fim na mesma linha/bloco
-  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\s+(.+?)\s+(\d{2}\/\d{2}\/\d{4})\s+(?:a\s+|até\s+|-\s+|–\s+|—\s+)?(\d{2}\/\d{2}\/\d{4})/g;
+  // Pattern 1: CNPJ + origem do vínculo + tipo filiado + Data Início + Data Fim (layout CNIS)
+  const vinculoRegex = /(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\s+(.+?)\s+(?:Empregado(?:\s+ou\s+Agente\s+Público)?|Contribuinte\s+Individual|Contribuinte|Trabalhador\s+Avulso|Segurado\s+Especial|Servidor\s+Público)[\w\sÀ-ÿ.,\-\/()]*?\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})/g;
   let match;
   while ((match = vinculoRegex.exec(fullText)) !== null) {
     const inicio = parseDate(match[3]);
@@ -227,24 +227,24 @@ export function parseCnisText(text: string): CnisDados {
 
   // Extract salários de contribuição
   const salarios: CnisSalario[] = [];
-  
-  // Pattern: MM/YYYY followed by money value
-  const salarioRegex = /(\d{2})\/(\d{4})\s+[\w\s]*?(\d{1,3}(?:\.\d{3})*,\d{2})/g;
+
+  // Pattern principal CNIS: competência MM/YYYY seguida de remuneração (inclui linhas com '|')
+  const salarioRegex = /(\d{2})\/(\d{4})\s*[|\s]+\s*(\d{1,3}(?:\.\d{3})*,\d{2})/g;
   while ((match = salarioRegex.exec(fullText)) !== null) {
     const competencia = `${match[2]}-${match[1]}`;
     const valor = parseMoney(match[3]);
-    if (valor > 0 && valor < 100000) { // sanity check
+    if (valor > 0) {
       salarios.push({ competencia, valor });
     }
   }
 
-  // If no salaries found with first pattern, try a simpler approach
+  // Fallback: padrões mais soltos de competência + valor
   if (salarios.length === 0) {
     const simpleSalarioRegex = /(\d{2})\/(\d{4})\D+?R?\$?\s*(\d{1,3}(?:\.\d{3})*,\d{2})/g;
     while ((match = simpleSalarioRegex.exec(fullText)) !== null) {
       const competencia = `${match[2]}-${match[1]}`;
       const valor = parseMoney(match[3]);
-      if (valor > 0 && valor < 100000) {
+      if (valor > 0) {
         salarios.push({ competencia, valor });
       }
     }
