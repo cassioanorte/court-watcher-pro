@@ -102,16 +102,19 @@ export function parseCnisText(text: string): CnisDados {
     if (!v.inicio || !v.fim) return;
     const inicioDate = new Date(v.inicio);
     const fimDate = new Date(v.fim);
-    const currentYear = new Date().getFullYear() + 1;
+    const currentYear = new Date().getFullYear() + 2;
     if (inicioDate.getFullYear() < 1950 || fimDate.getFullYear() > currentYear) return;
     if (fimDate <= inicioDate) return;
 
     const empresaLimpa = v.empresa.trim().replace(/\s+/g, " ");
-    const key = `${v.cnpj.replace(/\D/g, "")}|${v.inicio}|${v.fim}|${empresaLimpa.toUpperCase()}`;
-    if (!vinculosMap.has(key)) {
+    // Dedup by inicio+fim only — same date range = same vínculo regardless of name variations
+    const key = `${v.inicio}|${v.fim}`;
+    const existing = vinculosMap.get(key);
+    // Keep the entry with the best empresa name (longest / most descriptive)
+    if (!existing || (empresaLimpa.length > existing.empresa.length && !empresaLimpa.startsWith("Vínculo"))) {
       vinculosMap.set(key, {
         ...v,
-        empresa: empresaLimpa || `Vínculo ${vinculosMap.size + 1}`,
+        empresa: empresaLimpa || existing?.empresa || `Vínculo ${vinculosMap.size + 1}`,
       });
     }
   };
