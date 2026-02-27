@@ -97,6 +97,7 @@ const EmailIntegrationSetup = () => {
       imap_user: cred.imap_user,
       imap_password: cred.imap_password,
       use_tls: cred.use_tls,
+      senders: cred.senders && cred.senders.length > 0 ? [...cred.senders] : [...DEFAULT_SENDERS],
     });
     const match = Object.entries(PROVIDER_PRESETS).find(([, v]) => v.host === cred.imap_host);
     setProvider(match ? match[0] : "custom");
