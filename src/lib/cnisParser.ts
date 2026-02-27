@@ -107,11 +107,30 @@ export function parseCnisText(text: string): CnisDados {
     if (fimDate <= inicioDate) return;
 
     const empresaLimpa = v.empresa.trim().replace(/\s+/g, " ");
-    // Dedup by inicio+fim only — same date range = same vínculo regardless of name variations
-    const key = `${v.inicio}|${v.fim}`;
+    const empresaKey = empresaLimpa
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const cnpjKey = (v.cnpj || "").replace(/\D/g, "");
+
+    // Dedup robusto: usa competência (AAAA-MM) + identificador do empregador
+    // para evitar duplicidade quando o mesmo vínculo aparece com dia exato vs MM/AAAA.
+    const inicioYm = v.inicio.slice(0, 7);
+    const fimYm = v.fim.slice(0, 7);
+    const empregadorKey = cnpjKey || empresaKey || "sem-id";
+    const key = `${inicioYm}|${fimYm}|${empregadorKey}`;
     const existing = vinculosMap.get(key);
-    // Keep the entry with the best empresa name (longest / most descriptive)
-    if (!existing || (empresaLimpa.length > existing.empresa.length && !empresaLimpa.startsWith("Vínculo"))) {
+
+    // Mantém o registro mais descritivo (empresa melhor e maior intervalo)
+    const novoIntervalo = new Date(v.fim).getTime() - new Date(v.inicio).getTime();
+    const existenteIntervalo = existing
+      ? new Date(existing.fim).getTime() - new Date(existing.inicio).getTime()
+      : -1;
+
+    if (!existing || empresaLimpa.length > (existing.empresa || "").length || novoIntervalo > existenteIntervalo) {
       vinculosMap.set(key, {
         ...v,
         empresa: empresaLimpa || existing?.empresa || `Vínculo ${vinculosMap.size + 1}`,
