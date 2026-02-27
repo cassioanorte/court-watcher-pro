@@ -38,6 +38,7 @@ interface PaymentOrder {
   beneficiary_name: string | null;
   beneficiary_cpf: string | null;
   process_number: string | null;
+  plaintiff_name: string | null;
   court: string | null;
   entity: string | null;
   reference_date: string | null;
@@ -745,8 +746,20 @@ const Pagamentos = () => {
                        <td className="p-3">
                          <Badge variant="outline" className="text-xs uppercase">{o.type}</Badge>
                        </td>
-                       <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
-                       <td className="p-3 text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</td>
+                        <td className="p-3 text-foreground font-medium">{o.beneficiary_name || "—"}</td>
+                        <td className="p-3">
+                          <div className="text-muted-foreground font-mono text-xs">{o.process_number || getCasePn(o.case_id) || "—"}</div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {(o as any).plaintiff_name ? (
+                              <span className="text-xs text-muted-foreground">{(o as any).plaintiff_name}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/50 italic">Autor</span>
+                            )}
+                            <button className="text-muted-foreground/50 hover:text-foreground" onClick={e => { e.stopPropagation(); setSelected(o); startEdit(o); }}>
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
                        <td className="p-3 text-right text-foreground">{fmt(o.gross_amount)}</td>
                        <td className="p-3 text-right text-destructive/80 text-xs">{fmt(irAmount)} <span className="text-[10px]">({o.tax_percent ?? 10.9}%)</span></td>
                        <td className="p-3 text-right text-accent font-medium">{fmt(o.office_amount)}</td>
