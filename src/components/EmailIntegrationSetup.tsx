@@ -17,6 +17,7 @@ interface EmailCredential {
   use_tls: boolean;
   is_active: boolean;
   last_polled_at: string | null;
+  senders: string[];
 }
 
 const PROVIDER_PRESETS: Record<string, { host: string; port: number }> = {
@@ -28,12 +29,19 @@ const PROVIDER_PRESETS: Record<string, { host: string; port: number }> = {
   custom: { host: "", port: 993 },
 };
 
+const DEFAULT_SENDERS = [
+  "publicacao@trf4.jus.br",
+  "intimacoes@tjrs.jus.br",
+  "eproc@trf4.jus.br",
+];
+
 const EMPTY_FORM = {
   imap_host: "imap.gmail.com",
   imap_port: 993,
   imap_user: "",
   imap_password: "",
   use_tls: true,
+  senders: [...DEFAULT_SENDERS] as string[],
 };
 
 const EmailIntegrationSetup = () => {
@@ -46,6 +54,7 @@ const EmailIntegrationSetup = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [provider, setProvider] = useState("gmail");
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [newSender, setNewSender] = useState("");
   const [connectionError, setConnectionError] = useState<{ error: string; hint: string } | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
 
@@ -89,6 +98,7 @@ const EmailIntegrationSetup = () => {
       imap_user: cred.imap_user,
       imap_password: cred.imap_password,
       use_tls: cred.use_tls,
+      senders: cred.senders && cred.senders.length > 0 ? [...cred.senders] : [...DEFAULT_SENDERS],
     });
     const match = Object.entries(PROVIDER_PRESETS).find(([, v]) => v.host === cred.imap_host);
     setProvider(match ? match[0] : "custom");
@@ -142,7 +152,7 @@ const EmailIntegrationSetup = () => {
       }
 
       // Step 2: Connection OK — save credentials
-      const payload = { tenant_id: tenantId, ...form, is_active: true };
+      const payload = { tenant_id: tenantId, ...form, senders: form.senders.filter(s => s.trim()), is_active: true };
 
       if (editingId && editingId !== "new") {
         const { error } = await supabase
@@ -264,6 +274,58 @@ const EmailIntegrationSetup = () => {
           </Label>
           <Input type="password" placeholder="••••••••" value={form.imap_password}
             onChange={e => setForm(prev => ({ ...prev, imap_password: e.target.value }))} />
+        </div>
+      </div>
+
+      {/* Senders management */}
+      <div className="space-y-2">
+        <Label>Remetentes monitorados</Label>
+        <p className="text-xs text-muted-foreground">E-mails de tribunais dos quais buscar publicações e intimações.</p>
+        <div className="flex flex-wrap gap-2">
+          {form.senders.map((sender, idx) => (
+            <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/15 text-accent text-xs font-medium">
+              {sender}
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, senders: prev.senders.filter((_, i) => i !== idx) }))}
+                className="hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            type="email"
+            placeholder="ex: eproc@trf4.jus.br"
+            value={newSender}
+            onChange={e => setNewSender(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && newSender.trim()) {
+                e.preventDefault();
+                if (!form.senders.includes(newSender.trim())) {
+                  setForm(prev => ({ ...prev, senders: [...prev.senders, newSender.trim()] }));
+                }
+                setNewSender("");
+              }
+            }}
+            className="max-w-xs"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (newSender.trim() && !form.senders.includes(newSender.trim())) {
+                setForm(prev => ({ ...prev, senders: [...prev.senders, newSender.trim()] }));
+              }
+              setNewSender("");
+            }}
+            disabled={!newSender.trim()}
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
