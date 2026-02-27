@@ -1421,6 +1421,7 @@ export type Database = {
           office_amount: number | null
           office_fees_percent: number | null
           ownership_type: string
+          plaintiff_name: string | null
           process_number: string | null
           reference_date: string | null
           social_security: number | null
@@ -1453,6 +1454,7 @@ export type Database = {
           office_amount?: number | null
           office_fees_percent?: number | null
           ownership_type?: string
+          plaintiff_name?: string | null
           process_number?: string | null
           reference_date?: string | null
           social_security?: number | null
@@ -1485,6 +1487,7 @@ export type Database = {
           office_amount?: number | null
           office_fees_percent?: number | null
           ownership_type?: string
+          plaintiff_name?: string | null
           process_number?: string | null
           reference_date?: string | null
           social_security?: number | null
