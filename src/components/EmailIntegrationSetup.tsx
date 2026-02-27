@@ -152,7 +152,7 @@ const EmailIntegrationSetup = () => {
       }
 
       // Step 2: Connection OK — save credentials
-      const payload = { tenant_id: tenantId, ...form, is_active: true };
+      const payload = { tenant_id: tenantId, ...form, senders: form.senders.filter(s => s.trim()), is_active: true };
 
       if (editingId && editingId !== "new") {
         const { error } = await supabase
