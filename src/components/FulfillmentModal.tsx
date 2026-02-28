@@ -185,6 +185,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           }
         }
         toast({ title: "Cumprimento criado!", description: `${assignedToList.length} responsável(is) atribuído(s).` });
+      }
       onOpenChange(false);
       resetForm();
       onCreated?.();
