@@ -126,54 +126,27 @@ export function isEprocProcess(processNumber: string): boolean {
  * which eproc uses to restrict document access in the session.
  */
 export function openViaBlank(url: string, copyText?: string): void {
-  // Open first in a user-gesture-safe way; keep opener handle to navigate reliably
-  const popup = window.open("about:blank", "_blank");
-
-  // Copy text to clipboard, but never let failures interrupt navigation
+  // Copy text to clipboard with robust fallback BEFORE opening window
   if (copyText) {
     try {
-      if (navigator?.clipboard?.writeText) {
-        navigator.clipboard.writeText(copyText).catch(() => copyFallback(copyText));
-      } else {
-        copyFallback(copyText);
-      }
+      navigator.clipboard.writeText(copyText).catch(() => copyFallback(copyText));
     } catch {
-      // ignore copy errors
+      copyFallback(copyText);
     }
   }
-
-  if (popup) {
-    try {
-      // Security hardening while preserving Window handle
-      popup.opener = null;
-      popup.location.replace(url);
-      return;
-    } catch {
-      // fallback below
-    }
-  }
-
-  // Last-resort fallback (new tab); if blocked, navigate in current tab
-  const newTab = window.open(url, "_blank", "noopener,noreferrer");
-  if (!newTab) {
-    window.location.assign(url);
-  }
+  // Open with noreferrer to strip Referer header and avoid cross-site session tainting
+  window.open(url, "_blank", "noreferrer");
 }
 
 function copyFallback(text: string): void {
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {
-    // ignore copy fallback errors
-  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
 }
 
 /**

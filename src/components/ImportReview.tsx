@@ -3,12 +3,12 @@ import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSqua
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getCourtUrl, formatCNJ, openInTribunal, openViaBlank } from "@/lib/courtUrls";
+import { getCourtUrl } from "@/lib/courtUrls";
+import { formatCNJ } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
   process_number: string;
-  source: string | null;
   case_summary: string | null;
   client_user_id: string | null;
   subject: string | null;
@@ -140,7 +140,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     if (!tenantId) return;
     const { data } = await supabase
       .from("cases")
-      .select("id, process_number, source, case_summary, client_user_id, subject, parties")
+      .select("id, process_number, case_summary, client_user_id, subject, parties")
       .eq("tenant_id", tenantId)
       .eq("simple_status", "Importado")
       .is("client_user_id", null)
@@ -168,33 +168,6 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     fetchPending();
   }, [tenantId]);
 
-  const copyProcessNumber = async (value: string) => {
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value);
-        return true;
-      }
-    } catch {
-      // fallback below
-    }
-
-    try {
-      const textarea = document.createElement("textarea");
-      textarea.value = value;
-      textarea.setAttribute("readonly", "");
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      const copied = document.execCommand("copy");
-      document.body.removeChild(textarea);
-      return copied;
-    } catch {
-      return false;
-    }
-  };
-
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -212,18 +185,12 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   };
 
   const deleteCaseById = async (caseId: string) => {
-    // Keep the same deletion flow that already works in Processes page
-    const { error: movementsError } = await supabase.from("movements").delete().eq("case_id", caseId);
-    if (movementsError) throw new Error(`Falha ao excluir movimentações: ${movementsError.message}`);
-
-    const { error: messagesError } = await supabase.from("messages").delete().eq("case_id", caseId);
-    if (messagesError) throw new Error(`Falha ao excluir mensagens: ${messagesError.message}`);
-
-    const { error: documentsError } = await supabase.from("documents").delete().eq("case_id", caseId);
-    if (documentsError) throw new Error(`Falha ao excluir documentos: ${documentsError.message}`);
-
-    const { error: caseError } = await supabase.from("cases").delete().eq("id", caseId);
-    if (caseError) throw new Error(`Falha ao excluir processo: ${caseError.message}`);
+    await Promise.all([
+      supabase.from("documents").delete().eq("case_id", caseId),
+      supabase.from("messages").delete().eq("case_id", caseId),
+      supabase.from("movements").delete().eq("case_id", caseId),
+    ]);
+    await supabase.from("cases").delete().eq("id", caseId);
   };
 
   const handleDeleteSelected = async () => {
@@ -388,45 +355,25 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-mono text-foreground">{c.process_number}</p>
                         {(() => {
-                          const publicUrl = getCourtUrl(c.process_number, c.source ?? undefined);
+                          const publicUrl = getCourtUrl(c.process_number);
                           const formatted = formatCNJ(c.process_number);
                           return (
                             <>
                               {publicUrl && (
                                 <a
                                   href={publicUrl}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-
-                                    const { url, isEproc } = openInTribunal(
-                                      c.process_number,
-                                      c.source ?? undefined,
-                                      () => {
-                                        toast({
-                                          title: "Nº copiado!",
-                                          description: "Cole na busca do eproc.",
-                                        });
-                                      }
-                                    );
-
-                                    if (url && !isEproc) {
-                                      openViaBlank(url);
-                                    }
-                                  }}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
-                                  title="Copiar número e abrir consulta pública"
+                                  title="Consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
                                 </a>
                               )}
                               <button
-                                onClick={async () => {
-                                  const copied = await copyProcessNumber(formatted);
-                                  toast({
-                                    title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
-                                    description: formatted,
-                                    variant: copied ? "default" : "destructive",
-                                  });
+                                onClick={() => {
+                                  navigator.clipboard.writeText(formatted);
+                                  toast({ title: "Número copiado!", description: formatted });
                                 }}
                                 className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                 title="Copiar número formatado (para colar no eproc)"
