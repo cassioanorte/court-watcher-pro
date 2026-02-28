@@ -360,15 +360,18 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                           return (
                             <>
                               {publicUrl && (
-                                <a
-                                  href={publicUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
+                                  onClick={() => {
+                                    try { navigator.clipboard.writeText(formatted); } catch { const ta = document.createElement("textarea"); ta.value = formatted; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); }
+                                    toast({ title: "Número copiado!", description: formatted });
+                                    const w = window.open("about:blank", "_blank", "noreferrer");
+                                    if (w) w.location.href = publicUrl;
+                                  }}
                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
-                                  title="Consulta pública"
+                                  title="Copiar número e abrir consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
-                                </a>
+                                </button>
                               )}
                               <button
                                 onClick={() => {
