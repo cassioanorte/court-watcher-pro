@@ -168,6 +168,33 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     fetchPending();
   }, [tenantId]);
 
+  const copyProcessNumber = async (value: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  };
+
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
