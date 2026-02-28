@@ -278,6 +278,7 @@ export type Database = {
         Row: {
           assigned_by: string
           assigned_to: string
+          assigned_to_ids: string[] | null
           case_id: string
           category: string
           completed_at: string | null
@@ -298,6 +299,7 @@ export type Database = {
         Insert: {
           assigned_by: string
           assigned_to: string
+          assigned_to_ids?: string[] | null
           case_id: string
           category: string
           completed_at?: string | null
@@ -318,6 +320,7 @@ export type Database = {
         Update: {
           assigned_by?: string
           assigned_to?: string
+          assigned_to_ids?: string[] | null
           case_id?: string
           category?: string
           completed_at?: string | null

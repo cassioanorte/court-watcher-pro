@@ -136,7 +136,12 @@ const Cumprimentos = () => {
       setCases(map);
     }
 
-    const userIds = [...new Set([...items.map(f => f.assigned_to), ...items.map(f => f.assigned_by), ...items.map(f => (f as any).started_by).filter(Boolean)])];
+    const userIds = [...new Set([
+      ...items.map(f => f.assigned_to),
+      ...items.map(f => f.assigned_by),
+      ...items.map(f => (f as any).started_by).filter(Boolean),
+      ...items.flatMap(f => (f as any).assigned_to_ids || []),
+    ])];
     if (userIds.length > 0) {
       const { data: profileData } = await supabase
         .from("profiles")
@@ -205,6 +210,7 @@ const Cumprimentos = () => {
       category: f.category,
       description: f.description,
       assigned_to: f.assigned_to,
+      assigned_to_ids: (f as any).assigned_to_ids || [],
       due_date: f.due_date,
       priority: f.priority,
       notes: f.notes,
@@ -375,7 +381,7 @@ const Cumprimentos = () => {
                         <Clock className="w-3 h-3" />
                         Prazo: {new Date(f.due_date + "T12:00:00").toLocaleDateString("pt-BR")}
                       </span>
-                      <span>→ {profiles[f.assigned_to]?.full_name || "—"}</span>
+                      <span>→ {((f as any).assigned_to_ids?.length > 0 ? (f as any).assigned_to_ids : [f.assigned_to]).map((uid: string) => profiles[uid]?.full_name || "—").join(", ")}</span>
                       <span className="text-muted-foreground/50">por {profiles[f.assigned_by]?.full_name || "—"}</span>
                     </div>
                   </div>
