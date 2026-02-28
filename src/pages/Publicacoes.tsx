@@ -476,10 +476,8 @@ const Publicacoes = () => {
                     return (
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {processes.map((pn) => {
-                          const eproc = isEprocProcess(pn) || pub.source.startsWith("TRF4") || pub.source.startsWith("TJRS");
-                          const url = eproc
-                            ? getAuthenticatedCourtUrl(pn, pub.source) ?? getCourtUrl(pn, pub.source)
-                            : getCourtUrl(pn, pub.source);
+                          const eproc = isEprocProcess(pn);
+                          const url = eproc ? getAuthenticatedCourtUrl(pn) : getCourtUrl(pn);
                           return (
                             <span key={pn} className="inline-flex items-center gap-0.5">
                               {url && (
@@ -608,10 +606,8 @@ const Publicacoes = () => {
                   return (
                     <div className="space-y-1.5">
                       {processes.map((pn) => {
-                        const eproc = isEprocProcess(pn) || selectedPub.source.startsWith("TRF4") || selectedPub.source.startsWith("TJRS");
-                        const url = eproc
-                          ? getAuthenticatedCourtUrl(pn, selectedPub.source) ?? getCourtUrl(pn, selectedPub.source)
-                          : getCourtUrl(pn, selectedPub.source);
+                        const eproc = isEprocProcess(pn);
+                        const url = eproc ? getAuthenticatedCourtUrl(pn) : getCourtUrl(pn);
                         return (
                           <div key={pn} className="flex items-center gap-2">
                             <span className="text-sm font-mono text-muted-foreground">{pn}</span>
