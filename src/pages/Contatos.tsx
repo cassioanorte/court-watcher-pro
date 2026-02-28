@@ -33,6 +33,7 @@ const Contatos = () => {
   const [search, setSearch] = useState("");
   const [letterFilter, setLetterFilter] = useState("");
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const { tenantId } = useAuth();
 
   const loadContacts = useCallback(async () => {
