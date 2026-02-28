@@ -126,10 +126,10 @@ export function isEprocProcess(processNumber: string): boolean {
  * which eproc uses to restrict document access in the session.
  */
 export function openViaBlank(url: string, copyText?: string): void {
-  // Open first in a user-gesture-safe way; copy must never block navigation
-  const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+  // Open first in a user-gesture-safe way; keep opener handle to navigate reliably
+  const popup = window.open("about:blank", "_blank");
 
-  // Copy text to clipboard, but never let failures interrupt opening
+  // Copy text to clipboard, but never let failures interrupt navigation
   if (copyText) {
     try {
       if (navigator?.clipboard?.writeText) {
@@ -144,7 +144,9 @@ export function openViaBlank(url: string, copyText?: string): void {
 
   if (popup) {
     try {
-      popup.location.href = url;
+      // Security hardening while preserving Window handle
+      popup.opener = null;
+      popup.location.replace(url);
       return;
     } catch {
       // fallback below
