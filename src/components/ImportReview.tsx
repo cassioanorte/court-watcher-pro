@@ -387,22 +387,24 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                           return (
                             <>
                               {publicUrl && (
-                                <button
-                                   onClick={() => {
-                                     openViaBlank(publicUrl);
-                                     copyProcessNumber(formatted).then((copied) => {
-                                       toast({
-                                         title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
-                                         description: formatted,
-                                         variant: copied ? "default" : "destructive",
-                                       });
-                                     });
-                                    }}
-                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
-                                   title="Copiar número e abrir consulta pública"
+                                <a
+                                  href={publicUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => {
+                                    copyProcessNumber(formatted).then((copied) => {
+                                      toast({
+                                        title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                        description: formatted,
+                                        variant: copied ? "default" : "destructive",
+                                      });
+                                    });
+                                  }}
+                                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
+                                  title="Copiar número e abrir consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
-                                </button>
+                                </a>
                               )}
                               <button
                                 onClick={async () => {
