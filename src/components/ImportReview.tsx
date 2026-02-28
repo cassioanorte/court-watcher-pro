@@ -388,9 +388,13 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                             <>
                               {publicUrl && (
                                 <button
-                                  onClick={() => {
-                                    try { navigator.clipboard.writeText(formatted); } catch { const ta = document.createElement("textarea"); ta.value = formatted; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); }
-                                    toast({ title: "Número copiado!", description: formatted });
+                                  onClick={async () => {
+                                    const copied = await copyProcessNumber(formatted);
+                                    toast({
+                                      title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                      description: formatted,
+                                      variant: copied ? "default" : "destructive",
+                                    });
                                     const w = window.open("about:blank", "_blank", "noreferrer");
                                     if (w) w.location.href = publicUrl;
                                   }}
@@ -401,9 +405,13 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                                 </button>
                               )}
                               <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(formatted);
-                                  toast({ title: "Número copiado!", description: formatted });
+                                onClick={async () => {
+                                  const copied = await copyProcessNumber(formatted);
+                                  toast({
+                                    title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                    description: formatted,
+                                    variant: copied ? "default" : "destructive",
+                                  });
                                 }}
                                 className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                 title="Copiar número formatado (para colar no eproc)"
