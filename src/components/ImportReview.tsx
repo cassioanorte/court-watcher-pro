@@ -41,6 +41,11 @@ const EditablePartyName = ({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name || "");
 
+  // Sync internal value when name prop changes
+  useEffect(() => {
+    if (!editing) setValue(name || "");
+  }, [name, editing]);
+
   if (!name && !editing) {
     return (
       <div className="flex items-center gap-1">
