@@ -205,6 +205,7 @@ const Cumprimentos = () => {
       category: f.category,
       description: f.description,
       assigned_to: f.assigned_to,
+      assigned_to_ids: (f as any).assigned_to_ids || [],
       due_date: f.due_date,
       priority: f.priority,
       notes: f.notes,

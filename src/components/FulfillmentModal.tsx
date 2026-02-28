@@ -42,6 +42,7 @@ export interface FulfillmentEditData {
   category: string;
   description: string | null;
   assigned_to: string;
+  assigned_to_ids?: string[];
   due_date: string;
   priority: string;
   notes: string | null;
@@ -87,7 +88,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   useEffect(() => {
     if (editData && open) {
       setCategory(editData.category);
-      setAssignedToList([editData.assigned_to]);
+      setAssignedToList(editData.assigned_to_ids?.length ? editData.assigned_to_ids : [editData.assigned_to]);
       setDueDate(editData.due_date);
       setPriority(editData.priority);
       setDescription(editData.description || "");
@@ -140,39 +141,50 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     setSaving(true);
     try {
       if (isEditing) {
-        // Update existing fulfillment with first assignee
         const { error } = await supabase.from("case_fulfillments").update({
           category,
           description: description || null,
           assigned_to: assignedToList[0],
+          assigned_to_ids: assignedToList,
           due_date: dueDate,
           priority,
           notes: notes || null,
-        }).eq("id", editData!.id);
+        } as any).eq("id", editData!.id);
         if (error) throw error;
-
-        // Create new fulfillments for any additional assignees
-        const additionalAssignees = assignedToList.slice(1);
-        for (const assignee of additionalAssignees) {
-          const { error: insertErr } = await supabase.from("case_fulfillments").insert({
-            case_id: editData!.case_id,
-            tenant_id: tenantId!,
-            category,
-            description: description || null,
-            assigned_to: assignee,
-            assigned_by: user!.id,
-            due_date: dueDate,
-            status: "pendente",
-            source_type: "manual",
-            priority,
-            notes: notes || null,
-          });
-          if (insertErr) throw insertErr;
-        }
-        toast({ title: "Cumprimento atualizado!", description: additionalAssignees.length > 0 ? `${additionalAssignees.length} cumprimento(s) adicional(is) criado(s).` : undefined });
+        toast({ title: "Cumprimento atualizado!" });
       } else {
-        // Create one fulfillment per assigned user
-        for (const assignee of assignedToList) {
+        const { error, data: inserted } = await supabase.from("case_fulfillments").insert({
+          case_id: selectedCaseId,
+          tenant_id: tenantId!,
+          category,
+          description: description || null,
+          assigned_to: assignedToList[0],
+          assigned_to_ids: assignedToList,
+          assigned_by: user!.id,
+          due_date: dueDate,
+          status: "pendente",
+          source_type: sourceType || "manual",
+          source_id: sourceId || null,
+          priority,
+          notes: notes || null,
+        } as any).select("id").single();
+        if (error) throw error;
+        if (inserted && pendingFiles.length > 0) {
+          for (const file of pendingFiles) {
+            const path = `fulfillments/${inserted.id}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
+            if (uploadError) continue;
+            const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+            await supabase.from("fulfillment_documents").insert({
+              fulfillment_id: inserted.id,
+              tenant_id: tenantId!,
+              file_name: file.name,
+              file_url: urlData.publicUrl,
+              uploaded_by: user?.id,
+            });
+          }
+        }
+        toast({ title: "Cumprimento criado!", description: `${assignedToList.length} responsável(is) atribuído(s).` });
           const { error, data: inserted } = await supabase.from("case_fulfillments").insert({
             case_id: selectedCaseId,
             tenant_id: tenantId!,
