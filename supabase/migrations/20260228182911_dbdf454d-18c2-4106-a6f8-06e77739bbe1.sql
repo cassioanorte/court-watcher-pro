@@ -1,0 +1,2 @@
+ALTER TABLE public.case_fulfillments ADD COLUMN IF NOT EXISTS started_by uuid DEFAULT NULL;
+ALTER TABLE public.case_fulfillments ADD COLUMN IF NOT EXISTS started_at timestamp with time zone DEFAULT NULL;

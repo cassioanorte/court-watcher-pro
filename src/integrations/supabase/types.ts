@@ -289,6 +289,8 @@ export type Database = {
           priority: string
           source_id: string | null
           source_type: string | null
+          started_at: string | null
+          started_by: string | null
           status: string
           tenant_id: string
           updated_at: string
@@ -307,6 +309,8 @@ export type Database = {
           priority?: string
           source_id?: string | null
           source_type?: string | null
+          started_at?: string | null
+          started_by?: string | null
           status?: string
           tenant_id: string
           updated_at?: string
@@ -325,6 +329,8 @@ export type Database = {
           priority?: string
           source_id?: string | null
           source_type?: string | null
+          started_at?: string | null
+          started_by?: string | null
           status?: string
           tenant_id?: string
           updated_at?: string

@@ -136,7 +136,7 @@ const Cumprimentos = () => {
       setCases(map);
     }
 
-    const userIds = [...new Set([...items.map(f => f.assigned_to), ...items.map(f => f.assigned_by)])];
+    const userIds = [...new Set([...items.map(f => f.assigned_to), ...items.map(f => f.assigned_by), ...items.map(f => (f as any).started_by).filter(Boolean)])];
     if (userIds.length > 0) {
       const { data: profileData } = await supabase
         .from("profiles")
@@ -169,6 +169,14 @@ const Cumprimentos = () => {
     const updates: any = { status: newStatus };
     if (newStatus === "concluido") updates.completed_at = new Date().toISOString();
     if (newStatus === "pendente" || newStatus === "em_andamento") updates.completed_at = null;
+    if (newStatus === "em_andamento") {
+      updates.started_by = user?.id;
+      updates.started_at = new Date().toISOString();
+    }
+    if (newStatus === "pendente") {
+      updates.started_by = null;
+      updates.started_at = null;
+    }
 
     const { error } = await supabase.from("case_fulfillments").update(updates).eq("id", id);
     if (error) {
@@ -353,6 +361,15 @@ const Cumprimentos = () => {
                     {c?.parties && <p className="text-xs text-muted-foreground mt-0.5">{c.parties}</p>}
                     {f.description && <p className="text-sm text-foreground mt-1">{f.description}</p>}
                     {f.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">Obs: {f.notes}</p>}
+                    {f.status === "em_andamento" && (f as any).started_by && (
+                      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-md bg-accent/10 border border-accent/20 w-fit">
+                        <Loader2 className="w-3 h-3 text-accent animate-spin" />
+                        <span className="text-xs font-medium text-accent">
+                          Em cumprimento por {profiles[(f as any).started_by]?.full_name || "—"}
+                          {(f as any).started_at && ` desde ${new Date((f as any).started_at).toLocaleDateString("pt-BR")}`}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
