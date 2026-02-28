@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, Users, Phone, Mail, Plus } from "lucide-react";
+import { Search, Users, Phone, Mail, Plus, Merge } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import NewContactModal from "@/components/NewContactModal";
+import MergeContactsModal from "@/components/MergeContactsModal";
 
 type ContactProfile = {
   user_id: string;
