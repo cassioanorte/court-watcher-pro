@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Save, Palette, Upload, X, Eye, RotateCcw, Wand2 } from "lucide-react";
+import { Save, Palette, Upload, X, Eye, EyeOff, RotateCcw, Wand2, Lock } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import StaffAccessControl from "@/components/StaffAccessControl";
 import EprocCredentials from "@/components/EprocCredentials";
