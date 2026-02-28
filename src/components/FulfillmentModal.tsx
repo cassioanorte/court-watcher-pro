@@ -24,6 +24,7 @@ const CATEGORIES = [
   { value: "providencia_administrativa", label: "Providência Administrativa" },
   { value: "contestacao", label: "Contestação" },
   { value: "replica", label: "Réplica" },
+  { value: "cumprimento_sentenca", label: "Cumprimento de Sentença" },
   { value: "outro", label: "Outro" },
 ];
 
