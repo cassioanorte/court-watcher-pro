@@ -32,11 +32,13 @@ interface FulfillmentSummary {
   category: string;
   description: string | null;
   assigned_to: string;
+  assigned_to_ids?: string[];
   due_date: string;
   priority: string;
   status: string;
   notes: string | null;
   process_number?: string;
+  parties?: string;
 }
 
 const DashboardFulfillments = () => {
@@ -51,7 +53,7 @@ const DashboardFulfillments = () => {
     if (!tenantId) return;
     const { data } = await supabase
       .from("case_fulfillments")
-      .select("id, case_id, category, description, assigned_to, due_date, priority, status, notes")
+      .select("id, case_id, category, description, assigned_to, assigned_to_ids, due_date, priority, status, notes")
       .eq("tenant_id", tenantId)
       .in("status", ["pendente", "em_andamento"])
       .order("due_date", { ascending: true })
@@ -60,11 +62,11 @@ const DashboardFulfillments = () => {
     if (!data || data.length === 0) { setItems([]); setLoading(false); return; }
 
     const caseIds = [...new Set(data.map(d => d.case_id))];
-    const { data: cases } = await supabase.from("cases").select("id, process_number").in("id", caseIds);
-    const caseMap: Record<string, string> = {};
-    (cases || []).forEach(c => { caseMap[c.id] = c.process_number; });
+    const { data: cases } = await supabase.from("cases").select("id, process_number, parties").in("id", caseIds);
+    const caseMap: Record<string, { process_number: string; parties: string | null }> = {};
+    (cases || []).forEach(c => { caseMap[c.id] = { process_number: c.process_number, parties: c.parties }; });
 
-    setItems(data.map(d => ({ ...d, process_number: caseMap[d.case_id] || "—" })));
+    setItems(data.map(d => ({ ...d, process_number: caseMap[d.case_id]?.process_number || "—", parties: caseMap[d.case_id]?.parties || undefined })));
     setLoading(false);
   };
 
@@ -90,6 +92,7 @@ const DashboardFulfillments = () => {
       category: item.category,
       description: item.description,
       assigned_to: item.assigned_to,
+      assigned_to_ids: item.assigned_to_ids || [],
       due_date: item.due_date,
       priority: item.priority,
       notes: item.notes,
@@ -135,6 +138,7 @@ const DashboardFulfillments = () => {
                         <span className="text-[10px] font-mono text-muted-foreground">{item.process_number}</span>
                         {item.priority === "urgente" && <span className="text-[10px]">🔴</span>}
                       </div>
+                      {item.parties && <p className="text-xs text-muted-foreground truncate">{item.parties}</p>}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         <span className={overdue ? "text-destructive font-medium" : ""}>
