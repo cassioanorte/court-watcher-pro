@@ -78,12 +78,20 @@ const Contatos = () => {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Contatos</h1>
-        <button
-          onClick={() => setShowNewModal(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-4 h-4" /> Novo Contato
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMergeModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input bg-background text-foreground text-sm font-semibold hover:bg-muted transition-colors"
+          >
+            <Merge className="w-4 h-4" /> Mesclar
+          </button>
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" /> Novo Contato
+          </button>
+        </div>
       </div>
 
       <NewContactModal
