@@ -64,9 +64,10 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Hero Section */}
       <div
-        className="relative lg:flex-1 flex items-center justify-center overflow-hidden bg-card"
+        className="relative lg:flex-1 flex items-center justify-center overflow-hidden"
+        style={{ backgroundColor: '#0B132B' }}
       >
-        <img src={lexLogo} alt="Lex Imperium" className="w-[760px] max-w-[90%]" />
+        <img src={lexLogo} alt="Lex Imperium" className="w-[500px] max-w-[80%] object-contain" loading="eager" />
       </div>
 
       {/* Form Section */}
