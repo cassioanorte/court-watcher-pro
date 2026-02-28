@@ -140,6 +140,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
     setSaving(true);
     try {
       if (isEditing) {
+        // Update existing fulfillment with first assignee
         const { error } = await supabase.from("case_fulfillments").update({
           category,
           description: description || null,
@@ -149,7 +150,26 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           notes: notes || null,
         }).eq("id", editData!.id);
         if (error) throw error;
-        toast({ title: "Cumprimento atualizado!" });
+
+        // Create new fulfillments for any additional assignees
+        const additionalAssignees = assignedToList.slice(1);
+        for (const assignee of additionalAssignees) {
+          const { error: insertErr } = await supabase.from("case_fulfillments").insert({
+            case_id: editData!.case_id,
+            tenant_id: tenantId!,
+            category,
+            description: description || null,
+            assigned_to: assignee,
+            assigned_by: user!.id,
+            due_date: dueDate,
+            status: "pendente",
+            source_type: "manual",
+            priority,
+            notes: notes || null,
+          });
+          if (insertErr) throw insertErr;
+        }
+        toast({ title: "Cumprimento atualizado!", description: additionalAssignees.length > 0 ? `${additionalAssignees.length} cumprimento(s) adicional(is) criado(s).` : undefined });
       } else {
         // Create one fulfillment per assigned user
         for (const assignee of assignedToList) {
