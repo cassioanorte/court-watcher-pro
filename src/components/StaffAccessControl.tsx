@@ -436,6 +436,44 @@ const StaffAccessControl = () => {
           })}
         </div>
       )}
+
+      {bulkAssignUser && tenantId && (() => {
+        const member = staff.find(s => s.user_id === bulkAssignUser);
+        const config = getConfig(bulkAssignUser);
+        return (
+          <BulkCaseAssignModal
+            staffName={member?.full_name || ""}
+            staffUserId={bulkAssignUser}
+            tenantId={tenantId}
+            currentExtraIds={config.extra_case_ids}
+            currentBlockedIds={config.blocked_case_ids}
+            onClose={() => setBulkAssignUser(null)}
+            onSave={async (extraIds) => {
+              updateConfig(bulkAssignUser, { extra_case_ids: extraIds });
+              // Auto-save
+              const updatedConfig = { ...getConfig(bulkAssignUser), extra_case_ids: extraIds };
+              const { error } = await supabase.from("staff_case_access").upsert(
+                {
+                  user_id: bulkAssignUser,
+                  tenant_id: tenantId,
+                  access_mode: updatedConfig.access_mode,
+                  allowed_oab_numbers: updatedConfig.allowed_oab_numbers,
+                  allowed_client_ids: updatedConfig.allowed_client_ids,
+                  blocked_case_ids: updatedConfig.blocked_case_ids,
+                  extra_case_ids: extraIds,
+                } as any,
+                { onConflict: "user_id,tenant_id" }
+              );
+              if (error) {
+                toast({ title: "Erro", description: error.message, variant: "destructive" });
+              } else {
+                toast({ title: "Salvo!", description: `${extraIds.length} processos liberados.` });
+              }
+              setBulkAssignUser(null);
+            }}
+          />
+        );
+      })()}
     </motion.div>
   );
 };
