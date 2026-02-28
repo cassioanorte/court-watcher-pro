@@ -390,9 +390,14 @@ const Cumprimentos = () => {
                       </>
                     )}
                     {f.status === "em_andamento" && (
-                      <Button variant="default" size="sm" className="text-xs h-7 gap-1" onClick={() => updateStatus(f.id, "concluido")}>
-                        <CheckCircle2 className="w-3 h-3" /> Concluir
-                      </Button>
+                      <>
+                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => updateStatus(f.id, "pendente")}>
+                          Voltar p/ Pendente
+                        </Button>
+                        <Button variant="default" size="sm" className="text-xs h-7 gap-1" onClick={() => updateStatus(f.id, "concluido")}>
+                          <CheckCircle2 className="w-3 h-3" /> Concluir
+                        </Button>
+                      </>
                     )}
                     {f.status === "concluido" && (
                       <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => updateStatus(f.id, "pendente")}>
