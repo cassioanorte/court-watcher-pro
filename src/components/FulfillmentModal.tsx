@@ -74,7 +74,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [category, setCategory] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [assignedToList, setAssignedToList] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("normal");
   const [description, setDescription] = useState("");
@@ -87,7 +87,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   useEffect(() => {
     if (editData && open) {
       setCategory(editData.category);
-      setAssignedTo(editData.assigned_to);
+      setAssignedToList([editData.assigned_to]);
       setDueDate(editData.due_date);
       setPriority(editData.priority);
       setDescription(editData.description || "");
@@ -133,7 +133,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
   };
 
   const handleSubmit = async () => {
-    if (!category || !assignedTo || !dueDate || !selectedCaseId) {
+    if (!category || assignedToList.length === 0 || !dueDate || !selectedCaseId) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
     }
@@ -143,7 +143,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
         const { error } = await supabase.from("case_fulfillments").update({
           category,
           description: description || null,
-          assigned_to: assignedTo,
+          assigned_to: assignedToList[0],
           due_date: dueDate,
           priority,
           notes: notes || null,
@@ -151,38 +151,41 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
         if (error) throw error;
         toast({ title: "Cumprimento atualizado!" });
       } else {
-        const { error, data: inserted } = await supabase.from("case_fulfillments").insert({
-          case_id: selectedCaseId,
-          tenant_id: tenantId!,
-          category,
-          description: description || null,
-          assigned_to: assignedTo,
-          assigned_by: user!.id,
-          due_date: dueDate,
-          status: "pendente",
-          source_type: sourceType || "manual",
-          source_id: sourceId || null,
-          priority,
-          notes: notes || null,
-        }).select("id").single();
-        if (error) throw error;
-        // Upload pending files
-        if (inserted && pendingFiles.length > 0) {
-          for (const file of pendingFiles) {
-            const path = `fulfillments/${inserted.id}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
-            if (uploadError) continue;
-            const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
-            await supabase.from("fulfillment_documents").insert({
-              fulfillment_id: inserted.id,
-              tenant_id: tenantId!,
-              file_name: file.name,
-              file_url: urlData.publicUrl,
-              uploaded_by: user?.id,
-            });
+        // Create one fulfillment per assigned user
+        for (const assignee of assignedToList) {
+          const { error, data: inserted } = await supabase.from("case_fulfillments").insert({
+            case_id: selectedCaseId,
+            tenant_id: tenantId!,
+            category,
+            description: description || null,
+            assigned_to: assignee,
+            assigned_by: user!.id,
+            due_date: dueDate,
+            status: "pendente",
+            source_type: sourceType || "manual",
+            source_id: sourceId || null,
+            priority,
+            notes: notes || null,
+          }).select("id").single();
+          if (error) throw error;
+          // Upload pending files for each fulfillment
+          if (inserted && pendingFiles.length > 0) {
+            for (const file of pendingFiles) {
+              const path = `fulfillments/${inserted.id}/${Date.now()}_${file.name}`;
+              const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
+              if (uploadError) continue;
+              const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
+              await supabase.from("fulfillment_documents").insert({
+                fulfillment_id: inserted.id,
+                tenant_id: tenantId!,
+                file_name: file.name,
+                file_url: urlData.publicUrl,
+                uploaded_by: user?.id,
+              });
+            }
           }
         }
-        toast({ title: "Cumprimento criado!", description: "O responsável foi notificado." });
+        toast({ title: "Cumprimento criado!", description: `${assignedToList.length} responsável(is) notificado(s).` });
       }
       onOpenChange(false);
       resetForm();
@@ -196,7 +199,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
 
   const resetForm = () => {
     setCategory("");
-    setAssignedTo("");
+    setAssignedToList([]);
     setDueDate("");
     setPriority("normal");
     setDescription("");
@@ -256,19 +259,29 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           </div>
 
           <div className="space-y-1.5">
-            <Label>Responsável *</Label>
-            <Select value={assignedTo} onValueChange={setAssignedTo}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                {staff.map(s => (
-                  <SelectItem key={s.user_id} value={s.user_id}>
+            <Label>Responsável(is) *</Label>
+            <div className="space-y-1 max-h-40 overflow-y-auto rounded-lg border bg-background p-2">
+              {staff.length === 0 && <p className="text-xs text-muted-foreground">Nenhum advogado disponível</p>}
+              {staff.map(s => (
+                <label key={s.user_id} className="flex items-center gap-2 cursor-pointer px-1 py-1 rounded hover:bg-muted/50">
+                  <input
+                    type="checkbox"
+                    checked={assignedToList.includes(s.user_id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setAssignedToList(prev => [...prev, s.user_id]);
+                      } else {
+                        setAssignedToList(prev => prev.filter(id => id !== s.user_id));
+                      }
+                    }}
+                    className="rounded border-border"
+                  />
+                  <span className="text-sm text-foreground">
                     {s.full_name} {s.oab_number ? `(OAB ${s.oab_number})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-1.5">
