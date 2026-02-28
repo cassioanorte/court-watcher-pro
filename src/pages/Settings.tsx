@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Save, Palette, Upload, X, Eye, RotateCcw, Wand2 } from "lucide-react";
+import { Save, Palette, Upload, X, Eye, EyeOff, RotateCcw, Wand2, Lock } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
 import StaffAccessControl from "@/components/StaffAccessControl";
 import EprocCredentials from "@/components/EprocCredentials";
@@ -50,6 +50,60 @@ const COLOR_FIELDS: { key: keyof ThemeColors; label: string; description: string
   { key: "card", label: "Cor dos cards", description: "Painéis e caixas" },
   { key: "foreground", label: "Texto principal", description: "Títulos e parágrafos" },
 ];
+
+const ChangePasswordSection = () => {
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleChange = async () => {
+    if (newPw.length < 6) {
+      toast({ title: "Erro", description: "A nova senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPw });
+      if (error) throw error;
+      setCurrentPw("");
+      setNewPw("");
+      toast({ title: "Sucesso!", description: "Senha alterada com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md space-y-3">
+      <div>
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nova senha</label>
+        <div className="relative">
+          <input
+            type={showPw ? "text" : "password"}
+            value={newPw}
+            onChange={(e) => setNewPw(e.target.value)}
+            placeholder="Mínimo 6 caracteres"
+            className="w-full mt-1 h-10 px-3 pr-10 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40"
+          />
+          <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-muted-foreground hover:text-foreground">
+            {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+      <button
+        onClick={handleChange}
+        disabled={saving || newPw.length < 6}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+      >
+        <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Alterar senha"}
+      </button>
+    </div>
+  );
+};
 
 const Settings = () => {
   const { tenantId, user } = useAuth();
@@ -599,6 +653,12 @@ const Settings = () => {
             <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar perfil"}
           </button>
         </div>
+      </motion.div>
+
+      {/* Change own password */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-lg border p-5 shadow-card space-y-4">
+        <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><Lock className="w-4 h-4" /> Alterar minha senha</h2>
+        <ChangePasswordSection />
       </motion.div>
 
       <EprocSessionSync />
