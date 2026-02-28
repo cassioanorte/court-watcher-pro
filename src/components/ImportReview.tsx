@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check, ExternalLink, Copy } from "lucide-react";
+import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSquare, Square, MinusSquare, Pencil, Check, ExternalLink, Copy, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -12,16 +12,16 @@ interface ProcessWithParties {
   case_summary: string | null;
   client_user_id: string | null;
   subject: string | null;
-  author: string | null;
-  defendant: string | null;
+  authors: string[];
+  defendants: string[];
 }
 
-function extractPartiesFromSummary(summary: string | null): { author: string | null; defendant: string | null } {
-  if (!summary) return { author: null, defendant: null };
+function extractPartiesFromSummary(summary: string | null): { authors: string[]; defendants: string[] } {
+  if (!summary) return { authors: [], defendants: [] };
   const parts = summary.split(/\s*\|\s*/);
   return {
-    author: parts[0]?.trim() || null,
-    defendant: parts[1]?.trim() || null,
+    authors: parts[0]?.trim() ? [parts[0].trim()] : [],
+    defendants: parts[1]?.trim() ? [parts[1].trim()] : [],
   };
 }
 
@@ -31,30 +31,19 @@ const EditablePartyName = ({
   disabled,
   loading,
   onLink,
+  onRemove,
+  canRemove,
 }: {
-  name: string | null;
+  name: string;
   onSave: (newName: string) => void;
   disabled: boolean;
   loading: boolean;
   onLink: (name: string) => void;
+  onRemove?: () => void;
+  canRemove?: boolean;
 }) => {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(name || "");
-
-  if (!name && !editing) {
-    return (
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-muted-foreground italic">—</span>
-        <button
-          onClick={() => { setValue(""); setEditing(true); }}
-          className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          title="Adicionar nome"
-        >
-          <Pencil className="w-3 h-3" />
-        </button>
-      </div>
-    );
-  }
+  const [value, setValue] = useState(name);
 
   if (editing) {
     return (
@@ -69,26 +58,21 @@ const EditablePartyName = ({
               setEditing(false);
             }
             if (e.key === "Escape") {
-              setValue(name || "");
+              setValue(name);
               setEditing(false);
             }
           }}
           className="px-2 py-1 text-xs border rounded-md bg-background text-foreground w-full min-w-[120px] focus:outline-none focus:ring-1 focus:ring-accent"
         />
         <button
-          onClick={() => {
-            if (value.trim()) {
-              onSave(value.trim());
-              setEditing(false);
-            }
-          }}
+          onClick={() => { if (value.trim()) { onSave(value.trim()); setEditing(false); } }}
           className="p-1 rounded hover:bg-accent/10 text-accent transition-colors"
           title="Confirmar"
         >
           <Check className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={() => { setValue(name || ""); setEditing(false); }}
+          onClick={() => { setValue(name); setEditing(false); }}
           className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
           title="Cancelar"
         >
@@ -101,7 +85,7 @@ const EditablePartyName = ({
   return (
     <div className="flex items-center gap-1">
       <button
-        onClick={() => onLink(name!)}
+        onClick={() => onLink(name)}
         disabled={disabled}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
         title={`Vincular "${name}" como seu cliente`}
@@ -110,12 +94,130 @@ const EditablePartyName = ({
         {name}
       </button>
       <button
-        onClick={() => { setValue(name || ""); setEditing(true); }}
+        onClick={() => { setValue(name); setEditing(true); }}
         className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         title="Editar nome"
       >
         <Pencil className="w-3 h-3" />
       </button>
+      {canRemove && onRemove && (
+        <button
+          onClick={onRemove}
+          className="p-1 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+          title="Remover parte"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+const PartyList = ({
+  parties,
+  onUpdate,
+  disabled,
+  loading,
+  onLink,
+  label,
+}: {
+  parties: string[];
+  onUpdate: (newParties: string[]) => void;
+  disabled: boolean;
+  loading: boolean;
+  onLink: (name: string) => void;
+  label: string;
+}) => {
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  if (parties.length === 0 && !adding) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-muted-foreground italic">—</span>
+        <button
+          onClick={() => setAdding(true)}
+          className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          title={`Adicionar ${label}`}
+        >
+          <Plus className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {parties.map((name, idx) => (
+        <EditablePartyName
+          key={`${idx}-${name}`}
+          name={name}
+          onSave={(newName) => {
+            const updated = [...parties];
+            updated[idx] = newName;
+            onUpdate(updated);
+          }}
+          disabled={disabled}
+          loading={loading}
+          onLink={onLink}
+          canRemove={parties.length > 1}
+          onRemove={() => {
+            const updated = parties.filter((_, i) => i !== idx);
+            onUpdate(updated);
+          }}
+        />
+      ))}
+      {adding ? (
+        <div className="flex items-center gap-1">
+          <input
+            autoFocus
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder={`Nome do ${label}...`}
+            onKeyDown={e => {
+              if (e.key === "Enter" && newName.trim()) {
+                onUpdate([...parties, newName.trim()]);
+                setNewName("");
+                setAdding(false);
+              }
+              if (e.key === "Escape") {
+                setNewName("");
+                setAdding(false);
+              }
+            }}
+            className="px-2 py-1 text-xs border rounded-md bg-background text-foreground w-full min-w-[120px] focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+          <button
+            onClick={() => {
+              if (newName.trim()) {
+                onUpdate([...parties, newName.trim()]);
+                setNewName("");
+                setAdding(false);
+              }
+            }}
+            className="p-1 rounded hover:bg-accent/10 text-accent transition-colors"
+            title="Confirmar"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => { setNewName(""); setAdding(false); }}
+            className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
+            title="Cancelar"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent transition-colors w-fit"
+          title={`Adicionar outro ${label}`}
+        >
+          <Plus className="w-3 h-3" />
+          <span>Adicionar</span>
+        </button>
+      )}
     </div>
   );
 };
@@ -142,8 +244,8 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
       .order("created_at", { ascending: false });
 
     const processed = (data || []).map(c => {
-      const { author, defendant } = extractPartiesFromSummary((c as any).parties);
-      return { ...c, author, defendant };
+      const { authors, defendants } = extractPartiesFromSummary((c as any).parties);
+      return { ...c, authors, defendants };
     });
 
     setCases(processed);
@@ -205,29 +307,47 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     }
   };
 
+  const ensureContact = async (partyName: string): Promise<string> => {
+    const existingUserId = clientsCache.get(partyName.toLowerCase().trim());
+    if (existingUserId) return existingUserId;
+
+    const fakeEmail = `importado_${crypto.randomUUID().slice(0, 8)}@importado.local`;
+    const { data, error } = await supabase.functions.invoke("invite-client", {
+      body: { email: fakeEmail, fullName: partyName, role: "client", origin: "Importação em Massa" },
+    });
+    if (error || !data?.success) throw new Error(data?.error || error?.message || "Erro ao criar contato");
+    const userId = data.userId;
+    await supabase.functions.invoke("update-client-password", { body: { userId, password: "123456" } });
+    setClientsCache(prev => new Map(prev).set(partyName.toLowerCase().trim(), userId));
+    return userId;
+  };
+
   const handleSelectParty = async (caseItem: ProcessWithParties, partyName: string) => {
     setLinkingCase(caseItem.id);
     try {
-      const existingUserId = clientsCache.get(partyName.toLowerCase().trim());
-      let userId: string;
+      // Create the selected party as client and link to case
+      const mainUserId = await ensureContact(partyName);
 
-      if (existingUserId) {
-        userId = existingUserId;
-      } else {
-        const fakeEmail = `importado_${crypto.randomUUID().slice(0, 8)}@importado.local`;
-        const { data, error } = await supabase.functions.invoke("invite-client", {
-          body: { email: fakeEmail, fullName: partyName, role: "client", origin: "Importação em Massa" },
-        });
-        if (error || !data?.success) throw new Error(data?.error || error?.message || "Erro ao criar contato");
-        userId = data.userId;
-        await supabase.functions.invoke("update-client-password", { body: { userId, password: "123456" } });
-        setClientsCache(prev => new Map(prev).set(partyName.toLowerCase().trim(), userId));
+      // Also create all other parties as contacts (not linked as client_user_id)
+      const allParties = [...caseItem.authors, ...caseItem.defendants];
+      const otherParties = allParties.filter(p => p.toLowerCase().trim() !== partyName.toLowerCase().trim());
+      for (const otherName of otherParties) {
+        try {
+          await ensureContact(otherName);
+        } catch {
+          // Non-critical: continue even if one fails
+        }
       }
 
-      const { error: updateErr } = await supabase.from("cases").update({ client_user_id: userId }).eq("id", caseItem.id);
+      const { error: updateErr } = await supabase.from("cases").update({ client_user_id: mainUserId }).eq("id", caseItem.id);
       if (updateErr) throw updateErr;
 
-      toast({ title: "✅ Cliente vinculado!", description: `${partyName} → ${caseItem.process_number}` });
+      const registeredCount = otherParties.length;
+      const desc = registeredCount > 0
+        ? `${partyName} vinculado + ${registeredCount} outra${registeredCount !== 1 ? "s" : ""} parte${registeredCount !== 1 ? "s" : ""} cadastrada${registeredCount !== 1 ? "s" : ""}`
+        : `${partyName} → ${caseItem.process_number}`;
+
+      toast({ title: "✅ Cliente vinculado!", description: desc });
       setCases(prev => prev.filter(c => c.id !== caseItem.id));
       setSelected(prev => { const n = new Set(prev); n.delete(caseItem.id); return n; });
       onUpdate?.();
@@ -258,8 +378,8 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     }
   };
 
-  const updatePartyName = (caseId: string, field: "author" | "defendant", newName: string) => {
-    setCases(prev => prev.map(c => c.id === caseId ? { ...c, [field]: newName } : c));
+  const updateParties = (caseId: string, field: "authors" | "defendants", newParties: string[]) => {
+    setCases(prev => prev.map(c => c.id === caseId ? { ...c, [field]: newParties } : c));
   };
 
   if (loading || cases.length === 0) return null;
@@ -291,7 +411,6 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
 
       {expanded && (
         <div className="border-t">
-          {/* Bulk actions bar */}
           {selected.size > 0 && (
             <div className="flex items-center gap-3 px-4 py-2.5 bg-destructive/5 border-b">
               <span className="text-xs font-medium text-foreground">
@@ -318,8 +437,8 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                     </button>
                   </th>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Processo</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Autor</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Réu</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Autor(es)</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Réu(s)</th>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assunto</th>
                   <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-[100px]"></th>
                 </tr>
@@ -327,12 +446,12 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
               <tbody className="divide-y">
                 {cases.map(c => (
                   <tr key={c.id} className={`hover:bg-muted/20 transition-colors ${selected.has(c.id) ? "bg-accent/5" : ""}`}>
-                    <td className="px-4 py-3">
-                      <button onClick={() => toggleSelect(c.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                    <td className="px-4 py-3 align-top">
+                      <button onClick={() => toggleSelect(c.id)} className="text-muted-foreground hover:text-foreground transition-colors mt-1">
                         {selected.has(c.id) ? <CheckSquare className="w-4 h-4 text-accent" /> : <Square className="w-4 h-4" />}
                       </button>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-mono text-foreground">{c.process_number}</p>
                         {(() => {
@@ -366,30 +485,32 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                         })()}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <EditablePartyName
-                        name={c.author}
-                        onSave={(newName) => updatePartyName(c.id, "author", newName)}
+                    <td className="px-4 py-3 align-top">
+                      <PartyList
+                        parties={c.authors}
+                        onUpdate={(newParties) => updateParties(c.id, "authors", newParties)}
                         disabled={linkingCase === c.id}
                         loading={linkingCase === c.id}
                         onLink={(name) => handleSelectParty(c, name)}
+                        label="autor"
                       />
                     </td>
-                    <td className="px-4 py-3">
-                      <EditablePartyName
-                        name={c.defendant}
-                        onSave={(newName) => updatePartyName(c.id, "defendant", newName)}
+                    <td className="px-4 py-3 align-top">
+                      <PartyList
+                        parties={c.defendants}
+                        onUpdate={(newParties) => updateParties(c.id, "defendants", newParties)}
                         disabled={linkingCase === c.id}
                         loading={linkingCase === c.id}
                         onLink={(name) => handleSelectParty(c, name)}
+                        label="réu"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <p className="text-xs text-muted-foreground max-w-[250px] truncate" title={c.subject || ""}>
                         {c.subject || "—"}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right align-top">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => handleSkip(c.id)}
