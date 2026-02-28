@@ -601,6 +601,12 @@ const Settings = () => {
         </div>
       </motion.div>
 
+      {/* Change own password */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-lg border p-5 shadow-card space-y-4">
+        <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><Lock className="w-4 h-4" /> Alterar minha senha</h2>
+        <ChangePasswordSection />
+      </motion.div>
+
       <EprocSessionSync />
       <MassImportBookmarklet />
       <BookmarkletSetup />
