@@ -169,6 +169,14 @@ const Cumprimentos = () => {
     const updates: any = { status: newStatus };
     if (newStatus === "concluido") updates.completed_at = new Date().toISOString();
     if (newStatus === "pendente" || newStatus === "em_andamento") updates.completed_at = null;
+    if (newStatus === "em_andamento") {
+      updates.started_by = user?.id;
+      updates.started_at = new Date().toISOString();
+    }
+    if (newStatus === "pendente") {
+      updates.started_by = null;
+      updates.started_at = null;
+    }
 
     const { error } = await supabase.from("case_fulfillments").update(updates).eq("id", id);
     if (error) {
