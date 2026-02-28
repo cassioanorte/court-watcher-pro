@@ -115,7 +115,7 @@ const SubstabelecimentoSection = ({ caseId, responsibleUserId, onResponsibleChan
       if (type === "sem_reservas") {
         const { error: updateErr } = await supabase
           .from("cases")
-          .update({ responsible_user_id: toUserId })
+          .update({ responsible_user_id: toUserId, responsible_user_ids: [toUserId] } as any)
           .eq("id", caseId);
         if (updateErr) throw updateErr;
         onResponsibleChanged(toUserId);

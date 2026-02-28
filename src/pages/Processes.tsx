@@ -38,7 +38,7 @@ const Processes = () => {
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editProcess, setEditProcess] = useState<Tables<"cases"> | null>(null);
-  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", parties: "", case_summary: "", client_user_id: "", responsible_user_id: "", simple_status: "", automation_enabled: true });
+  const [editForm, setEditForm] = useState({ process_number: "", source: "TJRS_1G" as ProcessSource, subject: "", parties: "", case_summary: "", client_user_id: "", responsible_user_ids: [] as string[], simple_status: "", automation_enabled: true });
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [staff, setStaff] = useState<{ user_id: string; full_name: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -131,7 +131,7 @@ const Processes = () => {
       parties: (p as any).parties || "",
       case_summary: p.case_summary || "",
       client_user_id: p.client_user_id || "",
-      responsible_user_id: p.responsible_user_id || "",
+      responsible_user_ids: (p as any).responsible_user_ids?.length ? (p as any).responsible_user_ids : (p.responsible_user_id ? [p.responsible_user_id] : []),
       simple_status: p.simple_status || "",
       automation_enabled: p.automation_enabled ?? true,
     });
@@ -151,7 +151,8 @@ const Processes = () => {
         parties: editForm.parties || null,
         case_summary: editForm.case_summary || null,
         client_user_id: editForm.client_user_id || null,
-        responsible_user_id: editForm.responsible_user_id || null,
+        responsible_user_id: editForm.responsible_user_ids[0] || null,
+        responsible_user_ids: editForm.responsible_user_ids,
         simple_status: editForm.simple_status || null,
         automation_enabled: editForm.automation_enabled,
       }).eq("id", editProcess.id);
@@ -481,11 +482,27 @@ const Processes = () => {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado responsável</label>
-                <select value={editForm.responsible_user_id} onChange={(e) => setEditForm(f => ({ ...f, responsible_user_id: e.target.value }))} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
-                  <option value="">Selecione...</option>
-                  {staff.map((s) => <option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
-                </select>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado(s) responsável(is)</label>
+                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto rounded-lg border bg-background p-2">
+                  {staff.length === 0 && <p className="text-xs text-muted-foreground">Nenhum advogado disponível</p>}
+                  {staff.map((s) => (
+                    <label key={s.user_id} className="flex items-center gap-2 cursor-pointer px-1 py-1 rounded hover:bg-muted/50">
+                      <input
+                        type="checkbox"
+                        checked={editForm.responsible_user_ids.includes(s.user_id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditForm(f => ({ ...f, responsible_user_ids: [...f.responsible_user_ids, s.user_id] }));
+                          } else {
+                            setEditForm(f => ({ ...f, responsible_user_ids: f.responsible_user_ids.filter(id => id !== s.user_id) }));
+                          }
+                        }}
+                        className="rounded border-border"
+                      />
+                      <span className="text-sm text-foreground">{s.full_name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</label>

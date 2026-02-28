@@ -62,18 +62,22 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
   const [subject, setSubject] = useState("");
   const [caseSummary, setCaseSummary] = useState("");
   const [clientUserId, setClientUserId] = useState(defaultClientUserId || "");
+  const [responsibleUserIds, setResponsibleUserIds] = useState<string[]>([]);
   const [automationEnabled, setAutomationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [staffMembers, setStaffMembers] = useState<{ user_id: string; full_name: string }[]>([]);
   const { tenantId, user } = useAuth();
-  const [responsibleUserId, setResponsibleUserId] = useState("");
+  const [responsibleUserId, setResponsibleUserId] = useState(""); // primary responsible for backward compat
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
       if (defaultClientUserId) setClientUserId(defaultClientUserId);
-      if (user?.id && !responsibleUserId) setResponsibleUserId(user.id);
+      if (user?.id && !responsibleUserId) {
+        setResponsibleUserId(user.id);
+        setResponsibleUserIds([user.id]);
+      }
     }
   }, [open, defaultClientUserId, user?.id]);
 
@@ -113,9 +117,10 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
         subject: subject || null,
         case_summary: caseSummary || null,
         client_user_id: clientUserId || null,
-        responsible_user_id: responsibleUserId || null,
+        responsible_user_id: responsibleUserIds[0] || null,
+        responsible_user_ids: responsibleUserIds,
         automation_enabled: automationEnabled,
-      }).select("id").single();
+      } as any).select("id").single();
       if (error) throw error;
       toast({ title: "Processo cadastrado!", description: processNumber });
 
@@ -131,6 +136,7 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
       setCaseSummary("");
       setClientUserId("");
       setResponsibleUserId(user?.id || "");
+      setResponsibleUserIds(user?.id ? [user.id] : []);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -178,11 +184,27 @@ const NewProcessModal = ({ open, onClose, onSuccess, defaultClientUserId }: NewP
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado responsável</label>
-            <select value={responsibleUserId} onChange={(e) => setResponsibleUserId(e.target.value)} className="w-full mt-1 h-10 px-3 rounded-lg bg-background border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/40">
-              <option value="">Selecione...</option>
-              {staffMembers.map((s) => <option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
-            </select>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advogado(s) responsável(is)</label>
+            <div className="mt-1 space-y-1 max-h-40 overflow-y-auto rounded-lg border bg-background p-2">
+              {staffMembers.length === 0 && <p className="text-xs text-muted-foreground">Nenhum advogado disponível</p>}
+              {staffMembers.map((s) => (
+                <label key={s.user_id} className="flex items-center gap-2 cursor-pointer px-1 py-1 rounded hover:bg-muted/50">
+                  <input
+                    type="checkbox"
+                    checked={responsibleUserIds.includes(s.user_id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setResponsibleUserIds(prev => [...prev, s.user_id]);
+                      } else {
+                        setResponsibleUserIds(prev => prev.filter(id => id !== s.user_id));
+                      }
+                    }}
+                    className="rounded border-border"
+                  />
+                  <span className="text-sm text-foreground">{s.full_name}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={automationEnabled} onChange={(e) => setAutomationEnabled(e.target.checked)} className="rounded border-border" />

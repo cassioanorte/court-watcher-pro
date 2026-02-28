@@ -405,6 +405,7 @@ export type Database = {
           parties: string | null
           process_number: string
           responsible_user_id: string | null
+          responsible_user_ids: string[] | null
           simple_status: string | null
           source: Database["public"]["Enums"]["process_source"]
           subject: string | null
@@ -425,6 +426,7 @@ export type Database = {
           parties?: string | null
           process_number: string
           responsible_user_id?: string | null
+          responsible_user_ids?: string[] | null
           simple_status?: string | null
           source: Database["public"]["Enums"]["process_source"]
           subject?: string | null
@@ -445,6 +447,7 @@ export type Database = {
           parties?: string | null
           process_number?: string
           responsible_user_id?: string | null
+          responsible_user_ids?: string[] | null
           simple_status?: string | null
           source?: Database["public"]["Enums"]["process_source"]
           subject?: string | null
