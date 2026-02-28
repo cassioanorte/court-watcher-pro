@@ -197,7 +197,8 @@ export function openInTribunal(
   source?: string,
   onCopied?: () => void
 ): { url: string | null; isEproc: boolean } {
-  const eproc = isEprocProcess(processNumber);
+  const normalizedSource = source?.trim().toUpperCase();
+  const eproc = isEprocProcess(processNumber) || !!normalizedSource?.startsWith("TRF4") || !!normalizedSource?.startsWith("TJRS");
   const url = eproc
     ? getAuthenticatedCourtUrl(processNumber, source) ?? getCourtUrl(processNumber, source)
     : getCourtUrl(processNumber, source);
