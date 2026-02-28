@@ -391,14 +391,18 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                                   href={publicUrl}
                                   onClick={(e) => {
                                     e.preventDefault();
+
+                                    const opened = window.open(publicUrl, "_blank", "noopener,noreferrer");
+                                    if (!opened) {
+                                      window.location.assign(publicUrl);
+                                    }
+
                                     copyProcessNumber(formatted).then((copied) => {
                                       toast({
                                         title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
                                         description: formatted,
                                         variant: copied ? "default" : "destructive",
                                       });
-                                    }).finally(() => {
-                                      window.location.assign(publicUrl);
                                     });
                                   }}
                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
