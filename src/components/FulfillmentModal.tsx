@@ -185,40 +185,6 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           }
         }
         toast({ title: "Cumprimento criado!", description: `${assignedToList.length} responsável(is) atribuído(s).` });
-          const { error, data: inserted } = await supabase.from("case_fulfillments").insert({
-            case_id: selectedCaseId,
-            tenant_id: tenantId!,
-            category,
-            description: description || null,
-            assigned_to: assignee,
-            assigned_by: user!.id,
-            due_date: dueDate,
-            status: "pendente",
-            source_type: sourceType || "manual",
-            source_id: sourceId || null,
-            priority,
-            notes: notes || null,
-          }).select("id").single();
-          if (error) throw error;
-          // Upload pending files for each fulfillment
-          if (inserted && pendingFiles.length > 0) {
-            for (const file of pendingFiles) {
-              const path = `fulfillments/${inserted.id}/${Date.now()}_${file.name}`;
-              const { error: uploadError } = await supabase.storage.from("case-documents").upload(path, file);
-              if (uploadError) continue;
-              const { data: urlData } = supabase.storage.from("case-documents").getPublicUrl(path);
-              await supabase.from("fulfillment_documents").insert({
-                fulfillment_id: inserted.id,
-                tenant_id: tenantId!,
-                file_name: file.name,
-                file_url: urlData.publicUrl,
-                uploaded_by: user?.id,
-              });
-            }
-          }
-        }
-        toast({ title: "Cumprimento criado!", description: `${assignedToList.length} responsável(is) notificado(s).` });
-      }
       onOpenChange(false);
       resetForm();
       onCreated?.();
