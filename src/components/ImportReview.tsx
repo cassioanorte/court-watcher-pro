@@ -8,6 +8,7 @@ import { getCourtUrl, formatCNJ, openViaBlank } from "@/lib/courtUrls";
 interface ProcessWithParties {
   id: string;
   process_number: string;
+  source: string | null;
   case_summary: string | null;
   client_user_id: string | null;
   subject: string | null;
@@ -139,7 +140,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     if (!tenantId) return;
     const { data } = await supabase
       .from("cases")
-      .select("id, process_number, case_summary, client_user_id, subject, parties")
+      .select("id, process_number, source, case_summary, client_user_id, subject, parties")
       .eq("tenant_id", tenantId)
       .eq("simple_status", "Importado")
       .is("client_user_id", null)
@@ -381,7 +382,7 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-mono text-foreground">{c.process_number}</p>
                         {(() => {
-                          const publicUrl = getCourtUrl(c.process_number);
+                          const publicUrl = getCourtUrl(c.process_number, c.source ?? undefined);
                           const formatted = formatCNJ(c.process_number);
                           return (
                             <>

@@ -24,9 +24,11 @@ const tribunalUrls: Record<string, (n: string) => string> = {
  * Since publications don't always have a source mapping, we try to infer from the number.
  */
 export function getCourtUrl(processNumber: string, source?: string): string | null {
+  const normalizedSource = source?.trim().toUpperCase();
+
   // If we have a known source, use it directly
-  if (source && tribunalUrls[source]) {
-    return tribunalUrls[source](processNumber);
+  if (normalizedSource && tribunalUrls[normalizedSource]) {
+    return tribunalUrls[normalizedSource](processNumber);
   }
 
   // Try to infer from the process number (CNJ format: NNNNNNN-DD.AAAA.J.TR.OOOO)
@@ -66,11 +68,26 @@ export function getCourtUrl(processNumber: string, source?: string): string | nu
   return `https://comunica.pje.jus.br/consulta/processo/unificada/${encodeURIComponent(processNumber)}`;
 }
 
+const authenticatedTribunalUrls: Record<string, string> = {
+  TRF4_JFRS: "https://eproc.jfrs.jus.br/eprocV2/",
+  TRF4_JFSC: "https://eproc.jfsc.jus.br/eprocV2/",
+  TRF4_JFPR: "https://eproc.jfpr.jus.br/eprocV2/",
+  TRF4: "https://eproc.trf4.jus.br/eproc2trf4/",
+  TJRS_1G: "https://eproc1g.tjrs.jus.br/eproc/",
+  TJRS_2G: "https://eproc2g.tjrs.jus.br/eproc/",
+  TJRS: "https://eproc1g.tjrs.jus.br/eproc/",
+};
+
 /**
  * Get the authenticated eproc/PJe portal URL for a process number.
  * These require login (certificate or credentials) and work for cases with judicial secrecy.
  */
 export function getAuthenticatedCourtUrl(processNumber: string, source?: string): string | null {
+  const normalizedSource = source?.trim().toUpperCase();
+  if (normalizedSource && authenticatedTribunalUrls[normalizedSource]) {
+    return authenticatedTribunalUrls[normalizedSource];
+  }
+
   const digits = processNumber.replace(/\D/g, "");
   if (digits.length < 20) return null;
 
@@ -180,9 +197,10 @@ export function openInTribunal(
   source?: string,
   onCopied?: () => void
 ): { url: string | null; isEproc: boolean } {
-  const eproc = isEprocProcess(processNumber);
+  const normalizedSource = source?.trim().toUpperCase();
+  const eproc = isEprocProcess(processNumber) || !!normalizedSource?.startsWith("TRF4") || !!normalizedSource?.startsWith("TJRS");
   const url = eproc
-    ? getAuthenticatedCourtUrl(processNumber) ?? getCourtUrl(processNumber, source)
+    ? getAuthenticatedCourtUrl(processNumber, source) ?? getCourtUrl(processNumber, source)
     : getCourtUrl(processNumber, source);
   if (eproc && url) {
     const num = processNumber.replace(/\D/g, "");
