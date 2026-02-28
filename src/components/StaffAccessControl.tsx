@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Eye, Shield, Save, Plus, Trash2, Ban, CheckCircle } from "lucide-react";
+import { Eye, Shield, Save, Plus, Trash2, Ban, CheckCircle, ListChecks } from "lucide-react";
+import BulkCaseAssignModal from "./BulkCaseAssignModal";
 
 type AccessMode = "all" | "own_only" | "own_plus_oab" | "own_plus_clients";
 
@@ -49,7 +50,7 @@ const StaffAccessControl = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [caseSearch, setCaseSearch] = useState("");
-
+  const [bulkAssignUser, setBulkAssignUser] = useState<string | null>(null);
   const canManageAccess = role === "owner" || role === "superadmin";
 
   useEffect(() => {
@@ -193,8 +194,15 @@ const StaffAccessControl = () => {
                     <p className="text-xs text-muted-foreground">{modeInfo.label}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setBulkAssignUser(member.user_id); }}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                      title="Liberar processos em lote"
+                    >
+                      <ListChecks className="w-3.5 h-3.5" />
+                    </button>
                     {config.blocked_case_ids.length > 0 && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/10 text-red-600">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">
                         {config.blocked_case_ids.length} bloqueado(s)
                       </span>
                     )}
@@ -206,7 +214,7 @@ const StaffAccessControl = () => {
                     <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
                       config.access_mode === "all" ? "bg-emerald-500/10 text-emerald-600" :
                       config.access_mode === "own_only" ? "bg-orange-500/10 text-orange-600" :
-                      "bg-blue-500/10 text-blue-600"
+                      "bg-accent/10 text-accent"
                     }`}>
                       {config.access_mode === "all" ? "Total" : config.access_mode === "own_only" ? "Restrito" : "Parcial"}
                     </span>
@@ -428,6 +436,44 @@ const StaffAccessControl = () => {
           })}
         </div>
       )}
+
+      {bulkAssignUser && tenantId && (() => {
+        const member = staff.find(s => s.user_id === bulkAssignUser);
+        const config = getConfig(bulkAssignUser);
+        return (
+          <BulkCaseAssignModal
+            staffName={member?.full_name || ""}
+            staffUserId={bulkAssignUser}
+            tenantId={tenantId}
+            currentExtraIds={config.extra_case_ids}
+            currentBlockedIds={config.blocked_case_ids}
+            onClose={() => setBulkAssignUser(null)}
+            onSave={async (extraIds) => {
+              updateConfig(bulkAssignUser, { extra_case_ids: extraIds });
+              // Auto-save
+              const updatedConfig = { ...getConfig(bulkAssignUser), extra_case_ids: extraIds };
+              const { error } = await supabase.from("staff_case_access").upsert(
+                {
+                  user_id: bulkAssignUser,
+                  tenant_id: tenantId,
+                  access_mode: updatedConfig.access_mode,
+                  allowed_oab_numbers: updatedConfig.allowed_oab_numbers,
+                  allowed_client_ids: updatedConfig.allowed_client_ids,
+                  blocked_case_ids: updatedConfig.blocked_case_ids,
+                  extra_case_ids: extraIds,
+                } as any,
+                { onConflict: "user_id,tenant_id" }
+              );
+              if (error) {
+                toast({ title: "Erro", description: error.message, variant: "destructive" });
+              } else {
+                toast({ title: "Salvo!", description: `${extraIds.length} processos liberados.` });
+              }
+              setBulkAssignUser(null);
+            }}
+          />
+        );
+      })()}
     </motion.div>
   );
 };
