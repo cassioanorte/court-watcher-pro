@@ -212,22 +212,18 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   };
 
   const deleteCaseById = async (caseId: string) => {
-    // Delete all child records that reference this case
-    await Promise.all([
-      supabase.from("documents").delete().eq("case_id", caseId),
-      supabase.from("messages").delete().eq("case_id", caseId),
-      supabase.from("movements").delete().eq("case_id", caseId),
-      supabase.from("case_notes").delete().eq("case_id", caseId),
-      supabase.from("case_activities").delete().eq("case_id", caseId),
-      supabase.from("case_fulfillments").delete().eq("case_id", caseId),
-      supabase.from("notifications").delete().eq("case_id", caseId),
-      supabase.from("dje_publications").delete().eq("case_id", caseId),
-      supabase.from("billing_collections").delete().eq("case_id", caseId),
-      supabase.from("payment_orders").delete().eq("case_id", caseId),
-      supabase.from("appointments").delete().eq("case_id", caseId),
-    ]);
-    const { error } = await supabase.from("cases").delete().eq("id", caseId);
-    if (error) throw new Error(`Falha ao excluir processo: ${error.message}`);
+    // Keep the same deletion flow that already works in Processes page
+    const { error: movementsError } = await supabase.from("movements").delete().eq("case_id", caseId);
+    if (movementsError) throw new Error(`Falha ao excluir movimentações: ${movementsError.message}`);
+
+    const { error: messagesError } = await supabase.from("messages").delete().eq("case_id", caseId);
+    if (messagesError) throw new Error(`Falha ao excluir mensagens: ${messagesError.message}`);
+
+    const { error: documentsError } = await supabase.from("documents").delete().eq("case_id", caseId);
+    if (documentsError) throw new Error(`Falha ao excluir documentos: ${documentsError.message}`);
+
+    const { error: caseError } = await supabase.from("cases").delete().eq("id", caseId);
+    if (caseError) throw new Error(`Falha ao excluir processo: ${caseError.message}`);
   };
 
   const handleDeleteSelected = async () => {
