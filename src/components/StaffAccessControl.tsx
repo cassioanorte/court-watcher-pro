@@ -50,7 +50,7 @@ const StaffAccessControl = () => {
   const [saving, setSaving] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [caseSearch, setCaseSearch] = useState("");
-
+  const [bulkAssignUser, setBulkAssignUser] = useState<string | null>(null);
   const canManageAccess = role === "owner" || role === "superadmin";
 
   useEffect(() => {
