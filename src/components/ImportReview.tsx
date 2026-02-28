@@ -3,7 +3,7 @@ import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSqua
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getCourtUrl, formatCNJ, openViaBlank } from "@/lib/courtUrls";
+import { getCourtUrl, formatCNJ } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
@@ -387,22 +387,25 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                           return (
                             <>
                               {publicUrl && (
-                                <button
-                                   onClick={() => {
-                                     openViaBlank(publicUrl);
-                                     copyProcessNumber(formatted).then((copied) => {
-                                       toast({
-                                         title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
-                                         description: formatted,
-                                         variant: copied ? "default" : "destructive",
-                                       });
-                                     });
-                                    }}
-                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
-                                   title="Copiar número e abrir consulta pública"
+                                <a
+                                  href={publicUrl}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    copyProcessNumber(formatted).then((copied) => {
+                                      toast({
+                                        title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                        description: formatted,
+                                        variant: copied ? "default" : "destructive",
+                                      });
+                                    }).finally(() => {
+                                      window.location.assign(publicUrl);
+                                    });
+                                  }}
+                                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
+                                  title="Copiar número e abrir consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
-                                </button>
+                                </a>
                               )}
                               <button
                                 onClick={async () => {
