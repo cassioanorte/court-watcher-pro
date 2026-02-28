@@ -153,8 +153,11 @@ export function openViaBlank(url: string, copyText?: string): void {
     }
   }
 
-  // Last-resort fallback
-  window.open(url, "_blank", "noopener,noreferrer");
+  // Last-resort fallback (new tab); if blocked, navigate in current tab
+  const newTab = window.open(url, "_blank", "noopener,noreferrer");
+  if (!newTab) {
+    window.location.assign(url);
+  }
 }
 
 function copyFallback(text: string): void {
