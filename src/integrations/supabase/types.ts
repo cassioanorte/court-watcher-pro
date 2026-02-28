@@ -2251,6 +2251,7 @@ export type Database = {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
       }
+      delete_case_cascade: { Args: { _case_id: string }; Returns: undefined }
       get_email_by_cpf: { Args: { _cpf: string }; Returns: string }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
