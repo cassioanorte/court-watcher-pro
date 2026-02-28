@@ -44,6 +44,7 @@ interface TodayMovement {
   occurred_at: string;
   case_id: string;
   process_number: string;
+  source: string | null;
 }
 
 const Dashboard = () => {
@@ -68,7 +69,7 @@ const Dashboard = () => {
 
     const { data: cases } = await supabase
       .from("cases")
-      .select("id, process_number")
+      .select("id, process_number, source")
       .eq("tenant_id", tenantId);
 
     if (!cases || cases.length === 0) {
@@ -77,8 +78,8 @@ const Dashboard = () => {
     }
 
     const caseIds = cases.map((c) => c.id);
-    const caseMap: Record<string, string> = {};
-    cases.forEach((c) => { caseMap[c.id] = c.process_number; });
+    const caseMap: Record<string, { process_number: string; source: string | null }> = {};
+    cases.forEach((c) => { caseMap[c.id] = { process_number: c.process_number, source: c.source ?? null }; });
 
     const { data: movs } = await supabase
       .from("movements")
@@ -92,7 +93,8 @@ const Dashboard = () => {
     setTodayMovements(
       (movs || []).map((m) => ({
         ...m,
-        process_number: caseMap[m.case_id] || "—",
+        process_number: caseMap[m.case_id]?.process_number || "—",
+        source: caseMap[m.case_id]?.source ?? null,
       }))
     );
     setLastMovRefresh(new Date());
@@ -234,10 +236,10 @@ const Dashboard = () => {
                       </Link>
                       <div className="flex items-center gap-1">
                         {(() => {
-                          const eproc = isEprocProcess(mov.process_number);
+                          const eproc = isEprocProcess(mov.process_number) || !!mov.source?.startsWith("TRF4") || !!mov.source?.startsWith("TJRS");
                           const url = eproc
-                            ? getAuthenticatedCourtUrl(mov.process_number)
-                            : getCourtUrl(mov.process_number);
+                            ? getAuthenticatedCourtUrl(mov.process_number, mov.source ?? undefined) ?? getCourtUrl(mov.process_number, mov.source ?? undefined)
+                            : getCourtUrl(mov.process_number, mov.source ?? undefined);
                           if (!url) return null;
                           return eproc ? (
                             <button
@@ -370,28 +372,25 @@ const Dashboard = () => {
               <div className="space-y-1.5 mt-2">
                 <p className="text-xs font-medium text-muted-foreground">Processos identificados:</p>
                 {numbers.map((pn) => {
-                  const eproc = isEprocProcess(pn);
+                  const eproc = isEprocProcess(pn) || !!selectedPub?.source?.startsWith("TRF4") || !!selectedPub?.source?.startsWith("TJRS");
                   const url = eproc
-                    ? getAuthenticatedCourtUrl(pn)
+                    ? getAuthenticatedCourtUrl(pn, selectedPub?.source) ?? getCourtUrl(pn, selectedPub?.source)
                     : getCourtUrl(pn, selectedPub?.source);
                   return (
                     <div key={pn} className="flex items-center gap-2">
                       <span className="text-xs font-mono text-foreground">{pn}</span>
                       {url && (
                         eproc ? (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
                             onClick={() => {
-                              navigator.clipboard.writeText(pn.replace(/\D/g, ""));
                               toast.success("Nº copiado! Cole na busca do eproc.");
+                              openViaBlank(url, pn.replace(/\D/g, ""));
                             }}
                             className="text-accent hover:text-accent/80 transition-colors inline-flex items-center gap-1 text-xs"
                             title="Abrir no eproc (copia nº)"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                          </button>
                         ) : (
                           <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 transition-colors" title="Ver no tribunal">
                             <ExternalLink className="w-3.5 h-3.5" />
