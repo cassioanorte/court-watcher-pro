@@ -398,8 +398,8 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                                          variant: copied ? "default" : "destructive",
                                        });
                                      });
-                                   }
-                                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
+                                   }}
+                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                   title="Copiar número e abrir consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
