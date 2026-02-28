@@ -3,7 +3,7 @@ import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSqua
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getCourtUrl, formatCNJ } from "@/lib/courtUrls";
+import { getCourtUrl, formatCNJ, openInTribunal, openViaBlank } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
@@ -392,18 +392,20 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                                   onClick={(e) => {
                                     e.preventDefault();
 
-                                    const opened = window.open(publicUrl, "_blank", "noopener,noreferrer");
-                                    if (!opened) {
-                                      window.location.assign(publicUrl);
-                                    }
+                                    const { url, isEproc } = openInTribunal(
+                                      c.process_number,
+                                      c.source ?? undefined,
+                                      () => {
+                                        toast({
+                                          title: "Nº copiado!",
+                                          description: "Cole na busca do eproc.",
+                                        });
+                                      }
+                                    );
 
-                                    copyProcessNumber(formatted).then((copied) => {
-                                      toast({
-                                        title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
-                                        description: formatted,
-                                        variant: copied ? "default" : "destructive",
-                                      });
-                                    });
+                                    if (url && !isEproc) {
+                                      openViaBlank(url);
+                                    }
                                   }}
                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                   title="Copiar número e abrir consulta pública"
