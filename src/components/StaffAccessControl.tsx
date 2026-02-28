@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Eye, Shield, Save, Plus, Trash2, Ban, CheckCircle } from "lucide-react";
+import { Eye, Shield, Save, Plus, Trash2, Ban, CheckCircle, ListChecks } from "lucide-react";
+import BulkCaseAssignModal from "./BulkCaseAssignModal";
 
 type AccessMode = "all" | "own_only" | "own_plus_oab" | "own_plus_clients";
 
