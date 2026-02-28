@@ -262,8 +262,18 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     }
   };
 
-  const updatePartyName = (caseId: string, field: "author" | "defendant", newName: string) => {
-    setCases(prev => prev.map(c => c.id === caseId ? { ...c, [field]: newName } : c));
+  const updatePartyName = async (caseId: string, field: "author" | "defendant", newName: string) => {
+    setCases(prev => prev.map(c => {
+      if (c.id !== caseId) return c;
+      const updated = { ...c, [field]: newName };
+      // Persist to DB
+      const newParties = [
+        field === "author" ? newName : updated.author,
+        field === "defendant" ? newName : updated.defendant,
+      ].filter(Boolean).join(" | ");
+      supabase.from("cases").update({ parties: newParties }).eq("id", caseId).then();
+      return updated;
+    }));
   };
 
   if (loading || cases.length === 0) return null;
