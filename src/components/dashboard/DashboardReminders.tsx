@@ -84,6 +84,7 @@ const DashboardReminders = () => {
     const { data } = await supabase
       .from("reminders" as any)
       .select("*")
+      .eq("assigned_to", user.id)
       .order("completed", { ascending: true })
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
