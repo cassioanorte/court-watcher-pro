@@ -41,11 +41,6 @@ const EditablePartyName = ({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name || "");
 
-  // Sync internal value when name prop changes
-  useEffect(() => {
-    if (!editing) setValue(name || "");
-  }, [name, editing]);
-
   if (!name && !editing) {
     return (
       <div className="flex items-center gap-1">
@@ -267,18 +262,8 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     }
   };
 
-  const updatePartyName = async (caseId: string, field: "author" | "defendant", newName: string) => {
-    setCases(prev => prev.map(c => {
-      if (c.id !== caseId) return c;
-      const updated = { ...c, [field]: newName };
-      // Persist to DB
-      const newParties = [
-        field === "author" ? newName : updated.author,
-        field === "defendant" ? newName : updated.defendant,
-      ].filter(Boolean).join(" | ");
-      supabase.from("cases").update({ parties: newParties }).eq("id", caseId).then();
-      return updated;
-    }));
+  const updatePartyName = (caseId: string, field: "author" | "defendant", newName: string) => {
+    setCases(prev => prev.map(c => c.id === caseId ? { ...c, [field]: newName } : c));
   };
 
   if (loading || cases.length === 0) return null;
