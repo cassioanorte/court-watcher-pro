@@ -388,17 +388,18 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                             <>
                               {publicUrl && (
                                 <button
-                                  onClick={async () => {
-                                    const copied = await copyProcessNumber(formatted);
-                                    toast({
-                                      title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
-                                      description: formatted,
-                                      variant: copied ? "default" : "destructive",
-                                    });
-                                    const w = window.open("about:blank", "_blank", "noreferrer");
-                                    if (w) w.location.href = publicUrl;
-                                  }}
-                                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
+                                   onClick={() => {
+                                     const w = window.open("about:blank", "_blank", "noreferrer");
+                                     if (w) w.location.href = publicUrl;
+                                     copyProcessNumber(formatted).then(copied => {
+                                       toast({
+                                         title: copied ? "Número copiado!" : "Não foi possível copiar",
+                                         description: formatted,
+                                         variant: copied ? "default" : "destructive",
+                                       });
+                                     });
+                                   }}
+                                   className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                   title="Copiar número e abrir consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
