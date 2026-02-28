@@ -168,6 +168,33 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
     fetchPending();
   }, [tenantId]);
 
+  const copyProcessNumber = async (value: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  };
+
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -361,9 +388,13 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                             <>
                               {publicUrl && (
                                 <button
-                                  onClick={() => {
-                                    try { navigator.clipboard.writeText(formatted); } catch { const ta = document.createElement("textarea"); ta.value = formatted; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); }
-                                    toast({ title: "Número copiado!", description: formatted });
+                                  onClick={async () => {
+                                    const copied = await copyProcessNumber(formatted);
+                                    toast({
+                                      title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                      description: formatted,
+                                      variant: copied ? "default" : "destructive",
+                                    });
                                     const w = window.open("about:blank", "_blank", "noreferrer");
                                     if (w) w.location.href = publicUrl;
                                   }}
@@ -374,9 +405,13 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                                 </button>
                               )}
                               <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(formatted);
-                                  toast({ title: "Número copiado!", description: formatted });
+                                onClick={async () => {
+                                  const copied = await copyProcessNumber(formatted);
+                                  toast({
+                                    title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                    description: formatted,
+                                    variant: copied ? "default" : "destructive",
+                                  });
                                 }}
                                 className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                 title="Copiar número formatado (para colar no eproc)"
