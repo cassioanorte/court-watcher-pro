@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, Users, Phone, Mail, Plus } from "lucide-react";
+import { Search, Users, Phone, Mail, Plus, Merge } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import NewContactModal from "@/components/NewContactModal";
+import MergeContactsModal from "@/components/MergeContactsModal";
 
 type ContactProfile = {
   user_id: string;
@@ -32,6 +33,7 @@ const Contatos = () => {
   const [search, setSearch] = useState("");
   const [letterFilter, setLetterFilter] = useState("");
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const { tenantId } = useAuth();
 
   const loadContacts = useCallback(async () => {
@@ -76,18 +78,31 @@ const Contatos = () => {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Contatos</h1>
-        <button
-          onClick={() => setShowNewModal(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-4 h-4" /> Novo Contato
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMergeModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input bg-background text-foreground text-sm font-semibold hover:bg-muted transition-colors"
+          >
+            <Merge className="w-4 h-4" /> Mesclar
+          </button>
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" /> Novo Contato
+          </button>
+        </div>
       </div>
 
       <NewContactModal
         open={showNewModal}
         onClose={() => setShowNewModal(false)}
         onCreated={loadContacts}
+      />
+      <MergeContactsModal
+        open={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        onMerged={loadContacts}
       />
 
       {/* Alphabet filter */}
