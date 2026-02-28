@@ -180,12 +180,23 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   };
 
   const deleteCaseById = async (caseId: string) => {
+    // Clean all FK-dependent tables first
     await Promise.all([
       supabase.from("documents").delete().eq("case_id", caseId),
       supabase.from("messages").delete().eq("case_id", caseId),
       supabase.from("movements").delete().eq("case_id", caseId),
+      supabase.from("case_notes").delete().eq("case_id", caseId),
+      supabase.from("case_activities").delete().eq("case_id", caseId),
+      supabase.from("case_fulfillments").delete().eq("case_id", caseId),
+      supabase.from("dje_publications").delete().eq("case_id", caseId),
+      supabase.from("billing_collections").delete().eq("case_id", caseId),
+      supabase.from("payment_orders").delete().eq("case_id", caseId),
+      supabase.from("appointments").delete().eq("case_id", caseId),
+      supabase.from("notifications").delete().eq("case_id", caseId),
+      supabase.from("eproc_documents").delete().eq("case_id", caseId),
     ]);
-    await supabase.from("cases").delete().eq("id", caseId);
+    const { error } = await supabase.from("cases").delete().eq("id", caseId);
+    if (error) throw new Error(`Falha ao excluir processo: ${error.message}`);
   };
 
   const handleDeleteSelected = async () => {
