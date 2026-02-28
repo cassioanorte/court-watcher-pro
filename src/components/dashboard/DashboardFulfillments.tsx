@@ -22,6 +22,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   providencia_administrativa: "Prov. Admin.",
   contestacao: "Contestação",
   replica: "Réplica",
+  cumprimento_sentenca: "Cump. Sentença",
   outro: "Outro",
 };
 
