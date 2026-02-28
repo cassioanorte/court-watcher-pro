@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { useParams, Link, useLocation } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, MessageSquare, FileText, Plus, Info, Loader2, Save, Send, Upload, ExternalLink, Pencil, X, Trash2, Sparkles, Archive, ArchiveRestore, UserCheck, History, Calendar } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import type { Database } from "@/integrations/supabase/types";
@@ -30,8 +30,7 @@ const allSourceLabels: Record<string, string> = {
 const ProcessDetail = () => {
   const { id } = useParams();
   const location = useLocation();
-  const backTo = (location.state as any)?.from || "/processos";
-  const backLabel = backTo === "/processos" ? "Voltar" : "Voltar ao cliente";
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { tenantId, role, user } = useAuth();
   const [caseData, setCaseData] = useState<any>(null);
@@ -458,9 +457,9 @@ const ProcessDetail = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Back + header */}
       <div>
-        <Link to={backTo} state={backTo.startsWith("/clientes/") || backTo.startsWith("/contatos/") ? { scrollToProcesses: true } : undefined} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3">
-          <ArrowLeft className="w-4 h-4" /> {backLabel}
-        </Link>
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3">
+          <ArrowLeft className="w-4 h-4" /> Voltar
+        </button>
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-xl font-bold text-foreground">{caseData.process_number}</h1>
