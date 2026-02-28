@@ -3,8 +3,7 @@ import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSqua
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getCourtUrl } from "@/lib/courtUrls";
-import { formatCNJ } from "@/lib/courtUrls";
+import { getCourtUrl, formatCNJ, openViaBlank } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
@@ -389,18 +388,14 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                               {publicUrl && (
                                 <button
                                    onClick={() => {
-                                     const w = window.open("about:blank", "_blank", "noreferrer");
-                                     if (w) w.location.href = publicUrl;
-                                     copyProcessNumber(formatted).then(copied => {
-                                       toast({
-                                         title: copied ? "Número copiado!" : "Não foi possível copiar",
-                                         description: formatted,
-                                         variant: copied ? "default" : "destructive",
-                                       });
+                                     openViaBlank(publicUrl, formatted);
+                                     toast({
+                                       title: "Número copiado!",
+                                       description: formatted,
                                      });
                                    }}
                                    className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
-                                  title="Copiar número e abrir consulta pública"
+                                   title="Copiar número e abrir consulta pública"
                                 >
                                   <ExternalLink className="w-3 h-3" />
                                 </button>
