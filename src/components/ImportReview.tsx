@@ -389,12 +389,15 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
                               {publicUrl && (
                                 <button
                                    onClick={() => {
-                                     openViaBlank(publicUrl, formatted);
-                                     toast({
-                                       title: "Número copiado!",
-                                       description: formatted,
+                                     openViaBlank(publicUrl);
+                                     copyProcessNumber(formatted).then((copied) => {
+                                       toast({
+                                         title: copied ? "Número copiado!" : "Não foi possível copiar automaticamente",
+                                         description: formatted,
+                                         variant: copied ? "default" : "destructive",
+                                       });
                                      });
-                                   }}
+                                    }}
                                    className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-accent"
                                    title="Copiar número e abrir consulta pública"
                                 >
