@@ -370,7 +370,38 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
 
             <SectionTitle>Documentos</SectionTitle>
             <div>
-              <Field label="CPF" value={form.cpf} onChange={set("cpf")} />
+              <div className="flex items-center py-2 border-b">
+                <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
+                  CPF / CNPJ
+                </span>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={form.cpf}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "").slice(0, 14);
+                      let formatted = raw;
+                      if (raw.length <= 11) {
+                        // CPF: 000.000.000-00
+                        formatted = raw
+                          .replace(/(\d{3})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+                      } else {
+                        // CNPJ: 00.000.000/0000-00
+                        formatted = raw
+                          .replace(/(\d{2})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d)/, "$1/$2")
+                          .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+                      }
+                      set("cpf")(formatted);
+                    }}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+              </div>
               <Field label="RG" value={form.rg} onChange={set("rg")} />
               <Field label="CTPS" value={form.ctps} onChange={set("ctps")} />
               <Field label="PIS" value={form.pis} onChange={set("pis")} />
