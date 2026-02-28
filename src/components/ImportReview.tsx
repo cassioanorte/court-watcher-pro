@@ -3,7 +3,7 @@ import { Users, UserCheck, X, Trash2, Loader2, ChevronDown, ChevronUp, CheckSqua
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getCourtUrl, formatCNJ, openViaBlank } from "@/lib/courtUrls";
+import { getCourtUrl, formatCNJ } from "@/lib/courtUrls";
 
 interface ProcessWithParties {
   id: string;
