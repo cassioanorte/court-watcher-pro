@@ -1,0 +1,1 @@
+ALTER TABLE public.case_fulfillments ADD COLUMN IF NOT EXISTS assigned_to_ids uuid[] DEFAULT '{}';
