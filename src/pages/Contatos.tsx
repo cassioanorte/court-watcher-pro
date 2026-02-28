@@ -99,6 +99,11 @@ const Contatos = () => {
         onClose={() => setShowNewModal(false)}
         onCreated={loadContacts}
       />
+      <MergeContactsModal
+        open={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        onMerged={loadContacts}
+      />
 
       {/* Alphabet filter */}
       <div className="flex items-center gap-0.5 flex-wrap bg-card border rounded-lg p-2">
