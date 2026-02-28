@@ -194,8 +194,15 @@ const StaffAccessControl = () => {
                     <p className="text-xs text-muted-foreground">{modeInfo.label}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setBulkAssignUser(member.user_id); }}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                      title="Liberar processos em lote"
+                    >
+                      <ListChecks className="w-3.5 h-3.5" />
+                    </button>
                     {config.blocked_case_ids.length > 0 && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/10 text-red-600">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">
                         {config.blocked_case_ids.length} bloqueado(s)
                       </span>
                     )}
@@ -207,7 +214,7 @@ const StaffAccessControl = () => {
                     <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
                       config.access_mode === "all" ? "bg-emerald-500/10 text-emerald-600" :
                       config.access_mode === "own_only" ? "bg-orange-500/10 text-orange-600" :
-                      "bg-blue-500/10 text-blue-600"
+                      "bg-accent/10 text-accent"
                     }`}>
                       {config.access_mode === "all" ? "Total" : config.access_mode === "own_only" ? "Restrito" : "Parcial"}
                     </span>
