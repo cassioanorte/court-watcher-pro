@@ -48,13 +48,18 @@ const LinkProcessModal = ({ open, onClose, contactUserId, contactName, alreadyLi
   };
 
   const handleLink = async (caseId: string) => {
+    if (!tenantId) return;
     setLinking(caseId);
+    // Insert into case_contacts junction table (many-to-many)
     const { error } = await supabase
-      .from("cases")
-      .update({ client_user_id: contactUserId })
-      .eq("id", caseId);
+      .from("case_contacts")
+      .insert({ case_id: caseId, contact_user_id: contactUserId, tenant_id: tenantId });
     if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      if (error.code === "23505") {
+        toast({ title: "Já vinculado", description: "Este processo já está vinculado a este contato." });
+      } else {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      }
     } else {
       setLinked((prev) => new Set(prev).add(caseId));
       toast({ title: "Vinculado!", description: "Processo vinculado ao contato." });
