@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ContactExpenses from "@/components/ContactExpenses";
 import ContactFees from "@/components/ContactFees";
 import ContactNotifications from "@/components/ContactNotifications";
+import LinkProcessModal from "@/components/LinkProcessModal";
 
 
 const ContatoDetail = () => {
@@ -44,6 +45,7 @@ const ContatoDetail = () => {
   const [extractText, setExtractText] = useState("");
   const [extractingText, setExtractingText] = useState(false);
   const [extractPreview, setExtractPreview] = useState<Record<string, string> | null>(null);
+  const [showLinkProcess, setShowLinkProcess] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -758,7 +760,26 @@ const ContatoDetail = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="processos" className="mt-6">
+        <TabsContent value="processos" className="mt-6 space-y-3">
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowLinkProcess(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              <Link2 className="w-4 h-4" /> Vincular Processo
+            </button>
+          </div>
+          <LinkProcessModal
+            open={showLinkProcess}
+            onClose={() => setShowLinkProcess(false)}
+            contactUserId={id!}
+            contactName={contact.full_name}
+            alreadyLinkedCaseIds={cases.map((c: any) => c.id)}
+            onLinked={async () => {
+              const { data } = await supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false });
+              setCases(data || []);
+            }}
+          />
           <div className="bg-card border rounded-lg">
             {cases.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhum processo vinculado.</p>
