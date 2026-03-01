@@ -178,6 +178,7 @@ const Contatos = () => {
                 <th className="px-4 py-3 font-medium">NOME</th>
                 <th className="px-4 py-3 font-medium">TELEFONE</th>
                 <th className="px-4 py-3 font-medium">EMAIL</th>
+                <th className="px-4 py-3 font-medium w-12"></th>
               </tr>
             </thead>
             <tbody>
