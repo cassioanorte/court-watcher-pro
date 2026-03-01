@@ -35,7 +35,27 @@ const Contatos = () => {
   const [letterFilter, setLetterFilter] = useState("");
   const [showNewModal, setShowNewModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { tenantId } = useAuth();
+  const { toast } = useToast();
+
+  const handleDeleteContact = async (userId: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir "${name}"?\n\nIsso desvinculará o contato de todos os processos.`)) return;
+    setDeletingId(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("manage-team-member", {
+        body: { action: "delete", target_user_id: userId },
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Erro ao excluir");
+      setContacts(prev => prev.filter(c => c.user_id !== userId));
+      toast({ title: "Contato excluído", description: `${name} foi removido.` });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const loadContacts = useCallback(async () => {
     if (!tenantId) return;
