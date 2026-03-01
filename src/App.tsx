@@ -1,4 +1,5 @@
-// build-v6
+// build-v7-lazy
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,48 +8,59 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+
+// Layouts carregam eager (são necessários imediatamente)
 import AdminLayout from "./layouts/AdminLayout";
 import SuperAdminLayout from "./layouts/SuperAdminLayout";
-import Dashboard from "./pages/Dashboard";
-import Processes from "./pages/Processes";
-import ProcessDetail from "./pages/ProcessDetail";
-import ClientDetail from "./pages/ClientDetail";
-import Agenda from "./pages/Agenda";
-import Financeiro from "./pages/Financeiro";
-import Cobranca from "./pages/Cobranca";
-import Publicacoes from "./pages/Publicacoes";
-import CRM from "./pages/CRM";
-import Contatos from "./pages/Contatos";
-import ContatoDetail from "./pages/ContatoDetail";
-import Settings from "./pages/Settings";
-import ClientPortal from "./pages/ClientPortal";
-import ClientProcessDetail from "./pages/ClientProcessDetail";
-import Auth from "./pages/Auth";
-import ClientAuth from "./pages/ClientAuth";
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminTenants from "./pages/admin/AdminTenants";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminActivity from "./pages/admin/AdminActivity";
-import AdminBilling from "./pages/admin/AdminBilling";
-import AdminTrials from "./pages/admin/AdminTrials";
-import AdminReports from "./pages/admin/AdminReports";
-import NotFound from "./pages/NotFound";
-import ExtrairTexto from "./pages/ExtrairTexto";
-import LeadCapture from "./pages/LeadCapture";
-import LandingPages from "./pages/LandingPages";
-import LandingPageEditor from "./pages/LandingPageEditor";
-import LandingPagePublic from "./pages/LandingPagePublic";
-import Pagamentos from "./pages/Pagamentos";
-import AgentesIA from "./pages/AgentesIA";
-import Calculadoras from "./pages/Calculadoras";
-import Cumprimentos from "./pages/Cumprimentos";
-import Tarefas from "./pages/Tarefas";
-import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
-import DocumentosEproc from "./pages/DocumentosEproc";
-import HonorariosPrevistos from "./pages/HonorariosPrevistos";
-import CalculadoraFullPage from "./pages/CalculadoraFullPage";
+
+// Todas as páginas com lazy loading
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const Processes = React.lazy(() => import("./pages/Processes"));
+const ProcessDetail = React.lazy(() => import("./pages/ProcessDetail"));
+const ClientDetail = React.lazy(() => import("./pages/ClientDetail"));
+const Agenda = React.lazy(() => import("./pages/Agenda"));
+const Financeiro = React.lazy(() => import("./pages/Financeiro"));
+const Cobranca = React.lazy(() => import("./pages/Cobranca"));
+const Publicacoes = React.lazy(() => import("./pages/Publicacoes"));
+const CRM = React.lazy(() => import("./pages/CRM"));
+const Contatos = React.lazy(() => import("./pages/Contatos"));
+const ContatoDetail = React.lazy(() => import("./pages/ContatoDetail"));
+const Settings = React.lazy(() => import("./pages/Settings"));
+const ClientPortal = React.lazy(() => import("./pages/ClientPortal"));
+const ClientProcessDetail = React.lazy(() => import("./pages/ClientProcessDetail"));
+const Auth = React.lazy(() => import("./pages/Auth"));
+const ClientAuth = React.lazy(() => import("./pages/ClientAuth"));
+const AdminLogin = React.lazy(() => import("./pages/admin/AdminLogin"));
+const AdminDashboard = React.lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminTenants = React.lazy(() => import("./pages/admin/AdminTenants"));
+const AdminUsers = React.lazy(() => import("./pages/admin/AdminUsers"));
+const AdminActivity = React.lazy(() => import("./pages/admin/AdminActivity"));
+const AdminBilling = React.lazy(() => import("./pages/admin/AdminBilling"));
+const AdminTrials = React.lazy(() => import("./pages/admin/AdminTrials"));
+const AdminReports = React.lazy(() => import("./pages/admin/AdminReports"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const ExtrairTexto = React.lazy(() => import("./pages/ExtrairTexto"));
+const LeadCapture = React.lazy(() => import("./pages/LeadCapture"));
+const LandingPages = React.lazy(() => import("./pages/LandingPages"));
+const LandingPageEditor = React.lazy(() => import("./pages/LandingPageEditor"));
+const LandingPagePublic = React.lazy(() => import("./pages/LandingPagePublic"));
+const Pagamentos = React.lazy(() => import("./pages/Pagamentos"));
+const AgentesIA = React.lazy(() => import("./pages/AgentesIA"));
+const Calculadoras = React.lazy(() => import("./pages/Calculadoras"));
+const Cumprimentos = React.lazy(() => import("./pages/Cumprimentos"));
+const Tarefas = React.lazy(() => import("./pages/Tarefas"));
+const GoogleCalendarCallback = React.lazy(() => import("./pages/GoogleCalendarCallback"));
+const DocumentosEproc = React.lazy(() => import("./pages/DocumentosEproc"));
+const HonorariosPrevistos = React.lazy(() => import("./pages/HonorariosPrevistos"));
+const CalculadoraFullPage = React.lazy(() => import("./pages/CalculadoraFullPage"));
+
 const queryClient = new QueryClient();
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  </div>
+);
 
 const TenantBlockedScreen = () => {
   const { tenantBlockReason, signOut } = useAuth();
@@ -103,6 +115,7 @@ const App = () => (
       <PWAInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Auth routes */}
             <Route path="/auth" element={<Auth />} />
@@ -156,6 +169,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
