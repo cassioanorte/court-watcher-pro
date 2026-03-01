@@ -188,8 +188,6 @@ const Contatos = () => {
                     Nenhum contato encontrado.
                   </td>
                 </tr>
-                  </td>
-                </tr>
               ) : (
                 filtered.map((c, i) => (
                   <motion.tr
