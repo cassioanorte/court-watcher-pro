@@ -57,8 +57,23 @@ const CalculadoraFullPage = React.lazy(() => import("./pages/CalculadoraFullPage
 const queryClient = new QueryClient();
 
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[60vh]">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  <div className="space-y-5 p-6 animate-fade-in">
+    <div className="flex items-center justify-between">
+      <div className="space-y-2">
+        <div className="h-7 w-40 bg-muted animate-pulse rounded" />
+        <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+      </div>
+    </div>
+    <div className="h-10 w-full bg-muted animate-pulse rounded-lg" />
+    <div className="bg-card rounded-lg border overflow-hidden">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-0">
+          <div className="h-4 flex-1 max-w-[200px] bg-muted animate-pulse rounded" />
+          <div className="h-4 flex-1 max-w-[150px] bg-muted animate-pulse rounded hidden md:block" />
+          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+        </div>
+      ))}
+    </div>
   </div>
 );
 
