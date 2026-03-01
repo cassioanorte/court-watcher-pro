@@ -120,6 +120,18 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
+      // Safety: prevent deleting owner/staff users via this endpoint
+      const { data: targetRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", target_user_id);
+      const isStaffOrOwner = (targetRoles || []).some((r: { role: string }) => r.role === "owner" || r.role === "staff");
+      if (isStaffOrOwner) {
+        return new Response(JSON.stringify({ error: "Não é possível excluir um membro da equipe por aqui. Use a gestão de equipe." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       // Unlink from cases and clean up related data
       await supabase.from("cases").update({ client_user_id: null }).eq("client_user_id", target_user_id);
       await supabase.from("case_contacts").delete().eq("contact_user_id", target_user_id);
