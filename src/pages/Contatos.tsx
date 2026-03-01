@@ -241,6 +241,16 @@ const Contatos = () => {
                         <span className="italic text-muted-foreground/60">Nenhum email</span>
                       )}
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleDeleteContact(c.user_id, c.full_name)}
+                        disabled={deletingId === c.user_id}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                        title="Excluir contato"
+                      >
+                        {deletingId === c.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </td>
                   </motion.tr>
                 ))
               )}
