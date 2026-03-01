@@ -115,6 +115,7 @@ const App = () => (
       <PWAInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Auth routes */}
             <Route path="/auth" element={<Auth />} />
@@ -168,6 +169,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
