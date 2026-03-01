@@ -184,8 +184,10 @@ const Contatos = () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
                     Nenhum contato encontrado.
+                  </td>
+                </tr>
                   </td>
                 </tr>
               ) : (
