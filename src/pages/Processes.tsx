@@ -323,7 +323,18 @@ const Processes = () => {
       <ImportReview onUpdate={fetchProcesses} />
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <div className="bg-card rounded-lg border overflow-hidden">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-0 animate-pulse">
+              <div className="h-4 w-4 bg-muted rounded" />
+              <div className="h-4 flex-1 max-w-[200px] bg-muted rounded" />
+              <div className="h-4 flex-1 max-w-[150px] bg-muted rounded hidden md:block" />
+              <div className="h-4 flex-1 max-w-[150px] bg-muted rounded hidden md:block" />
+              <div className="h-4 w-16 bg-muted rounded" />
+              <div className="h-4 w-12 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="bg-card rounded-lg border p-8 text-center shadow-card">
           <p className="text-sm text-muted-foreground">

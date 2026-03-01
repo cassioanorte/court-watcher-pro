@@ -351,7 +351,29 @@ const Financeiro = () => {
     { label: "Honorários Previstos", value: fmt(totalHonorariosPrevistos), icon: Banknote, color: "text-blue-500", bgColor: "bg-blue-500/10", subtitle: `de ${fmt(totalBrutoRpv)} em honorários brutos`, clickable: true, onClick: () => navigate("/financeiro/honorarios-previstos"), clickLabel: "Ver detalhes" },
   ];
 
-  if (loading) return <div className="text-muted-foreground text-sm p-4">Carregando...</div>;
+  if (loading) return (
+    <div className="space-y-6 animate-fade-in p-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-7 w-40 bg-muted animate-pulse rounded" />
+          <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-card border rounded-lg p-4 space-y-3 animate-pulse">
+            <div className="h-4 w-20 bg-muted rounded" />
+            <div className="h-6 w-28 bg-muted rounded" />
+            <div className="h-3 w-16 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+      <div className="bg-card border rounded-lg p-6 animate-pulse">
+        <div className="h-4 w-32 bg-muted rounded mb-4" />
+        <div className="h-48 w-full bg-muted rounded" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">

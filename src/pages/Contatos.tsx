@@ -168,7 +168,17 @@ const Contatos = () => {
 
       {/* Table */}
       {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <div className="bg-card border rounded-lg overflow-hidden">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-0 animate-pulse">
+              <div className="h-5 w-14 bg-muted rounded" />
+              <div className="h-4 flex-1 max-w-[180px] bg-muted rounded" />
+              <div className="h-4 flex-1 max-w-[120px] bg-muted rounded" />
+              <div className="h-4 flex-1 max-w-[160px] bg-muted rounded" />
+              <div className="h-4 w-8 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="bg-card border rounded-lg overflow-hidden shadow-card">
           <table className="w-full text-sm">
