@@ -274,6 +274,45 @@ export type Database = {
           },
         ]
       }
+      case_contacts: {
+        Row: {
+          case_id: string
+          contact_user_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          case_id: string
+          contact_user_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          case_id?: string
+          contact_user_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_contacts_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_fulfillments: {
         Row: {
           assigned_by: string

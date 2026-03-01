@@ -50,16 +50,28 @@ const ContatoDetail = () => {
   useEffect(() => {
     if (!id) return;
     const load = async () => {
-      const [profileRes, casesRes, clientDocsRes, officeDocsRes] = await Promise.all([
+      const [profileRes, casesDirectRes, caseContactsRes, clientDocsRes, officeDocsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", id).single(),
         supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false }),
+        // Cases linked via junction table (many-to-many)
+        supabase.from("case_contacts").select("case_id").eq("contact_user_id", id),
         // Client-uploaded docs across all their cases
         supabase.from("documents").select("*").eq("uploaded_by", id).eq("category", "Enviado pelo cliente").order("created_at", { ascending: false }),
         // Office docs for this contact
         supabase.from("contact_documents").select("*").eq("contact_user_id", id).order("created_at", { ascending: false }),
       ]);
       setContact(profileRes.data);
-      setCases(casesRes.data || []);
+
+      // Merge direct cases + junction table cases (deduplicated)
+      const directCases = casesDirectRes.data || [];
+      const junctionCaseIds = (caseContactsRes.data || []).map((r: any) => r.case_id);
+      const extraIds = junctionCaseIds.filter((cid: string) => !directCases.some((c: any) => c.id === cid));
+      let allCases = [...directCases];
+      if (extraIds.length > 0) {
+        const { data: extraCases } = await supabase.from("cases").select("*").in("id", extraIds);
+        allCases = [...allCases, ...(extraCases || [])];
+      }
+      setCases(allCases);
       setClientDocs(clientDocsRes.data || []);
       setOfficeDocs(officeDocsRes.data || []);
       setLoading(false);
@@ -776,8 +788,19 @@ const ContatoDetail = () => {
             contactName={contact.full_name}
             alreadyLinkedCaseIds={cases.map((c: any) => c.id)}
             onLinked={async () => {
-              const { data } = await supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false });
-              setCases(data || []);
+              // Reload: direct + junction table cases
+              const [directRes, junctionRes] = await Promise.all([
+                supabase.from("cases").select("*").eq("client_user_id", id).order("updated_at", { ascending: false }),
+                supabase.from("case_contacts").select("case_id").eq("contact_user_id", id),
+              ]);
+              const direct = directRes.data || [];
+              const extraIds = (junctionRes.data || []).map((r: any) => r.case_id).filter((cid: string) => !direct.some((c: any) => c.id === cid));
+              let all = [...direct];
+              if (extraIds.length > 0) {
+                const { data: extra } = await supabase.from("cases").select("*").in("id", extraIds);
+                all = [...all, ...(extra || [])];
+              }
+              setCases(all);
             }}
           />
           <div className="bg-card border rounded-lg">
