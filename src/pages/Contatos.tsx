@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, Users, Phone, Mail, Plus, Merge } from "lucide-react";
+import { Search, Users, Phone, Mail, Plus, Merge, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import NewContactModal from "@/components/NewContactModal";
 import MergeContactsModal from "@/components/MergeContactsModal";
 
@@ -34,7 +35,27 @@ const Contatos = () => {
   const [letterFilter, setLetterFilter] = useState("");
   const [showNewModal, setShowNewModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { tenantId } = useAuth();
+  const { toast } = useToast();
+
+  const handleDeleteContact = async (userId: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir "${name}"?\n\nIsso desvinculará o contato de todos os processos.`)) return;
+    setDeletingId(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("manage-team-member", {
+        body: { action: "delete", target_user_id: userId },
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Erro ao excluir");
+      setContacts(prev => prev.filter(c => c.user_id !== userId));
+      toast({ title: "Contato excluído", description: `${name} foi removido.` });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const loadContacts = useCallback(async () => {
     if (!tenantId) return;
@@ -157,12 +178,13 @@ const Contatos = () => {
                 <th className="px-4 py-3 font-medium">NOME</th>
                 <th className="px-4 py-3 font-medium">TELEFONE</th>
                 <th className="px-4 py-3 font-medium">EMAIL</th>
+                <th className="px-4 py-3 font-medium w-12"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
                     Nenhum contato encontrado.
                   </td>
                 </tr>
@@ -216,6 +238,16 @@ const Contatos = () => {
                       ) : (
                         <span className="italic text-muted-foreground/60">Nenhum email</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleDeleteContact(c.user_id, c.full_name)}
+                        disabled={deletingId === c.user_id}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                        title="Excluir contato"
+                      >
+                        {deletingId === c.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </button>
                     </td>
                   </motion.tr>
                 ))
