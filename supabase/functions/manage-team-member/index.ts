@@ -120,6 +120,12 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
+      // Unlink from cases and clean up related data
+      await supabase.from("cases").update({ client_user_id: null }).eq("client_user_id", target_user_id);
+      await supabase.from("case_contacts").delete().eq("contact_user_id", target_user_id);
+      await supabase.from("billing_collections").delete().eq("client_user_id", target_user_id);
+      await supabase.from("client_notifications").delete().eq("client_user_id", target_user_id);
+      await supabase.from("contact_documents").delete().eq("contact_user_id", target_user_id);
       // Delete profile, role, and auth user
       await supabase.from("user_roles").delete().eq("user_id", target_user_id);
       await supabase.from("profiles").delete().eq("user_id", target_user_id);
