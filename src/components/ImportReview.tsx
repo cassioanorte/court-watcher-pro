@@ -325,27 +325,13 @@ const ImportReview = ({ onUpdate }: { onUpdate?: () => void }) => {
   const handleSelectParty = async (caseItem: ProcessWithParties, partyName: string) => {
     setLinkingCase(caseItem.id);
     try {
-      // Create the selected party as client and link to case
+      // Create only the selected party as client and link to case
       const mainUserId = await ensureContact(partyName);
-
-      // Also create all other parties as contacts (not linked as client_user_id)
-      const allParties = [...caseItem.authors, ...caseItem.defendants];
-      const otherParties = allParties.filter(p => p.toLowerCase().trim() !== partyName.toLowerCase().trim());
-      for (const otherName of otherParties) {
-        try {
-          await ensureContact(otherName);
-        } catch {
-          // Non-critical: continue even if one fails
-        }
-      }
 
       const { error: updateErr } = await supabase.from("cases").update({ client_user_id: mainUserId }).eq("id", caseItem.id);
       if (updateErr) throw updateErr;
 
-      const registeredCount = otherParties.length;
-      const desc = registeredCount > 0
-        ? `${partyName} vinculado + ${registeredCount} outra${registeredCount !== 1 ? "s" : ""} parte${registeredCount !== 1 ? "s" : ""} cadastrada${registeredCount !== 1 ? "s" : ""}`
-        : `${partyName} → ${caseItem.process_number}`;
+      const desc = `${partyName} → ${caseItem.process_number}`;
 
       toast({ title: "✅ Cliente vinculado!", description: desc });
       setCases(prev => prev.filter(c => c.id !== caseItem.id));
