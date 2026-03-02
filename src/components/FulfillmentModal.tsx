@@ -220,8 +220,11 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0" type="always">
-          <div className="px-6 pb-4 mt-2 pr-4">
+        <ScrollArea
+          className="flex-1 min-h-0 [&_[data-radix-scroll-area-scrollbar]]:w-3 [&_[data-radix-scroll-area-scrollbar]]:bg-muted/70 [&_[data-radix-scroll-area-scrollbar]]:p-0.5 [&_[data-radix-scroll-area-thumb]]:bg-foreground/40 [&_[data-radix-scroll-area-thumb]]:rounded-full"
+          type="always"
+        >
+          <div className="px-6 pb-4 mt-2 pr-5">
             {processNumber && !isEditing && (
               <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
                 Processo: {processNumber}
