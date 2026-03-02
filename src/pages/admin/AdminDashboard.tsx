@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale } from "lucide-react";
+import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale, Brain, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,8 @@ interface Stats {
   tenants: number;
   users: number;
   recentLogs: number;
+  totalAICredits: number;
+  totalAIUsed: number;
 }
 
 interface TenantSummary {
@@ -26,7 +28,7 @@ interface TenantUser {
 }
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState<Stats>({ tenants: 0, users: 0, recentLogs: 0 });
+  const [stats, setStats] = useState<Stats>({ tenants: 0, users: 0, recentLogs: 0, totalAICredits: 0, totalAIUsed: 0 });
   const [topTenants, setTopTenants] = useState<TenantSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState<TenantSummary | null>(null);
@@ -52,10 +54,20 @@ const AdminDashboard = () => {
       const clientUserIds = new Set(roles.filter((r) => r.role === "client").map((r) => r.user_id));
       const staffProfiles = profiles.filter((p) => !clientUserIds.has(p.user_id));
 
+      // AI credits totals
+      let totalAICredits = 0;
+      let totalAIUsed = 0;
+      tenants.forEach((t: any) => {
+        totalAICredits += (t.ai_credits_limit || 0);
+        totalAIUsed += (t.ai_credits_used || 0);
+      });
+
       setStats({
         tenants: tenants.length,
         users: staffProfiles.length,
         recentLogs: logsRes.count || 0,
+        totalAICredits,
+        totalAIUsed,
       });
 
       const usersByTenant: Record<string, number> = {};
@@ -121,6 +133,8 @@ const AdminDashboard = () => {
     { label: "Logs de Atividade", value: stats.recentLogs, icon: Activity, color: "from-rose-500 to-pink-600", link: "/admin/atividade" },
   ];
 
+  const aiPercentage = stats.totalAICredits > 0 ? Math.round((stats.totalAIUsed / stats.totalAICredits) * 100) : 0;
+
   if (loading) return <p className="text-slate-400">Carregando...</p>;
 
   return (
@@ -154,6 +168,48 @@ const AdminDashboard = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* AI Credits Overview */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-600/20 border border-purple-500/30 flex items-center justify-center">
+              <Brain className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Créditos de IA — Visão Global</h2>
+              <p className="text-xs text-slate-400">Total distribuído entre todos os escritórios</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-white">{stats.totalAICredits.toLocaleString("pt-BR")}</p>
+              <p className="text-xs text-slate-400 mt-1">Total Distribuído</p>
+            </div>
+            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-purple-400">{stats.totalAIUsed.toLocaleString("pt-BR")}</p>
+              <p className="text-xs text-slate-400 mt-1">Total Consumido</p>
+            </div>
+            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{(stats.totalAICredits - stats.totalAIUsed).toLocaleString("pt-BR")}</p>
+              <p className="text-xs text-slate-400 mt-1">Disponível</p>
+            </div>
+            <div className="bg-slate-800/60 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-amber-400">{aiPercentage}%</p>
+              <p className="text-xs text-slate-400 mt-1">Utilização</p>
+            </div>
+          </div>
+          <div className="mt-3 w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${aiPercentage >= 80 ? "bg-red-500" : aiPercentage >= 50 ? "bg-amber-500" : "bg-purple-500"}`}
+              style={{ width: `${Math.min(aiPercentage, 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1 text-right">
+            Gerencie os créditos por escritório em <a href="/admin/escritorios" className="text-violet-400 hover:underline">Escritórios</a>
+          </p>
+        </div>
+      </motion.div>
 
       <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur">
         <h2 className="text-lg font-semibold text-white mb-4">Top Escritórios por Processos</h2>
