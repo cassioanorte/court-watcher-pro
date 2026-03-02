@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Bell, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check, ClipboardCheck, CheckSquare } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check, ClipboardCheck, CheckSquare } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 import { useColorMode, LIGHT_VARIANT_OPTIONS, DARK_VARIANT_OPTIONS, type LightVariant, type DarkVariant } from "@/hooks/useColorMode";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -235,10 +236,7 @@ const AdminLayout = () => {
                 }
               </DropdownMenuContent>
             </DropdownMenu>
-            <button className="relative text-muted-foreground hover:text-foreground transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
-            </button>
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50">
