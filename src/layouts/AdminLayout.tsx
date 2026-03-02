@@ -108,7 +108,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
           {navItems.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to));
             return (
