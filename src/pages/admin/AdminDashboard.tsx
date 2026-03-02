@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale, Brain, Sparkles } from "lucide-react";
+import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale, Brain, Sparkles, DollarSign, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface Stats {
   tenants: number;
@@ -34,16 +35,28 @@ const AdminDashboard = () => {
   const [selectedTenant, setSelectedTenant] = useState<TenantSummary | null>(null);
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [dollarsLoaded, setDollarsLoaded] = useState(0);
+  const [creditsPerDollar, setCreditsPerDollar] = useState(100);
+  const [editingPool, setEditingPool] = useState(false);
+  const [poolDollarsInput, setPoolDollarsInput] = useState("");
+  const [poolRateInput, setPoolRateInput] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
-      const [tenantsRes, profilesRes, casesRes, logsRes, rolesRes] = await Promise.all([
-        supabase.from("tenants").select("id, name, slug, created_at"),
+      const [tenantsRes, profilesRes, casesRes, logsRes, rolesRes, poolRes] = await Promise.all([
+        supabase.from("tenants").select("*"),
         supabase.from("profiles").select("tenant_id, user_id"),
         supabase.from("cases").select("tenant_id"),
         supabase.from("audit_logs").select("id", { count: "exact", head: true }),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.from("system_config").select("value").eq("key", "ai_credits_pool").single(),
       ]);
+
+      if (poolRes.data?.value) {
+        const pool = poolRes.data.value as any;
+        setDollarsLoaded(pool.dollars_loaded || 0);
+        setCreditsPerDollar(pool.credits_per_dollar || 100);
+      }
 
       const tenants = tenantsRes.data || [];
       const profiles = profilesRes.data || [];
@@ -172,44 +185,142 @@ const AdminDashboard = () => {
       {/* AI Credits Overview */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-600/20 border border-purple-500/30 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-purple-400" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-600/20 border border-purple-500/30 flex items-center justify-center">
+                <Brain className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Créditos de IA — Visão Global</h2>
+                <p className="text-xs text-slate-400">Saldo mestre e distribuição entre escritórios</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Créditos de IA — Visão Global</h2>
-              <p className="text-xs text-slate-400">Total distribuído entre todos os escritórios</p>
-            </div>
+            <button
+              onClick={() => {
+                setPoolDollarsInput(String(dollarsLoaded));
+                setPoolRateInput(String(creditsPerDollar));
+                setEditingPool(true);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/30 transition-colors"
+            >
+              <DollarSign className="w-3.5 h-3.5 inline mr-1" />
+              Configurar Saldo
+            </button>
           </div>
+
+          {/* Master pool info */}
+          {(() => {
+            const totalPool = dollarsLoaded * creditsPerDollar;
+            const distributable = totalPool - stats.totalAICredits;
+            const poolUsagePercent = totalPool > 0 ? Math.round((stats.totalAICredits / totalPool) * 100) : 0;
+            return (
+              <>
+                <div className="bg-slate-800/40 rounded-lg p-4 mb-4 border border-slate-700/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400 uppercase tracking-wide font-semibold">Saldo Mestre</span>
+                    <span className="text-xs text-slate-500">${dollarsLoaded.toFixed(2)} × {creditsPerDollar}/$ = {totalPool.toLocaleString("pt-BR")} créditos</span>
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${poolUsagePercent >= 90 ? "bg-red-500" : poolUsagePercent >= 70 ? "bg-amber-500" : "bg-violet-500"}`}
+                      style={{ width: `${Math.min(poolUsagePercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1.5">
+                    <span className="text-[10px] text-slate-500">{stats.totalAICredits.toLocaleString("pt-BR")} distribuídos</span>
+                    <span className={`text-[10px] font-semibold ${distributable <= 0 ? "text-red-400" : "text-emerald-400"}`}>
+                      {distributable.toLocaleString("pt-BR")} disponíveis p/ distribuir
+                    </span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="bg-slate-800/60 rounded-lg p-4 text-center">
               <p className="text-2xl font-bold text-white">{stats.totalAICredits.toLocaleString("pt-BR")}</p>
-              <p className="text-xs text-slate-400 mt-1">Total Distribuído</p>
+              <p className="text-xs text-slate-400 mt-1">Distribuído</p>
             </div>
             <div className="bg-slate-800/60 rounded-lg p-4 text-center">
               <p className="text-2xl font-bold text-purple-400">{stats.totalAIUsed.toLocaleString("pt-BR")}</p>
-              <p className="text-xs text-slate-400 mt-1">Total Consumido</p>
+              <p className="text-xs text-slate-400 mt-1">Consumido</p>
             </div>
             <div className="bg-slate-800/60 rounded-lg p-4 text-center">
               <p className="text-2xl font-bold text-emerald-400">{(stats.totalAICredits - stats.totalAIUsed).toLocaleString("pt-BR")}</p>
-              <p className="text-xs text-slate-400 mt-1">Disponível</p>
+              <p className="text-xs text-slate-400 mt-1">Restante nos Escritórios</p>
             </div>
             <div className="bg-slate-800/60 rounded-lg p-4 text-center">
               <p className="text-2xl font-bold text-amber-400">{aiPercentage}%</p>
               <p className="text-xs text-slate-400 mt-1">Utilização</p>
             </div>
           </div>
-          <div className="mt-3 w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${aiPercentage >= 80 ? "bg-red-500" : aiPercentage >= 50 ? "bg-amber-500" : "bg-purple-500"}`}
-              style={{ width: `${Math.min(aiPercentage, 100)}%` }}
-            />
-          </div>
-          <p className="text-[10px] text-slate-500 mt-1 text-right">
+          <p className="text-[10px] text-slate-500 mt-3 text-right">
             Gerencie os créditos por escritório em <a href="/admin/escritorios" className="text-violet-400 hover:underline">Escritórios</a>
           </p>
         </div>
       </motion.div>
+
+      {/* Pool config modal */}
+      <Dialog open={editingPool} onOpenChange={setEditingPool}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Configurar Saldo de IA</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="text-xs text-slate-400 uppercase">Valor carregado (USD)</label>
+              <div className="relative mt-1">
+                <DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={poolDollarsInput}
+                  onChange={(e) => setPoolDollarsInput(e.target.value)}
+                  className="w-full h-9 pl-9 pr-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+                  placeholder="10.00"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 uppercase">Créditos por dólar</label>
+              <input
+                type="number"
+                min="1"
+                value={poolRateInput}
+                onChange={(e) => setPoolRateInput(e.target.value)}
+                className="w-full mt-1 h-9 px-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-white focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+                placeholder="100"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Resultado: <strong className="text-violet-300">{((parseFloat(poolDollarsInput) || 0) * (parseInt(poolRateInput) || 100)).toLocaleString("pt-BR")} créditos</strong> no pool
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                const dollars = parseFloat(poolDollarsInput) || 0;
+                const rate = parseInt(poolRateInput) || 100;
+                const { error } = await supabase
+                  .from("system_config")
+                  .update({ value: { dollars_loaded: dollars, credits_per_dollar: rate }, updated_at: new Date().toISOString() })
+                  .eq("key", "ai_credits_pool");
+                if (error) {
+                  toast.error("Erro ao salvar configuração");
+                  return;
+                }
+                setDollarsLoaded(dollars);
+                setCreditsPerDollar(rate);
+                setEditingPool(false);
+                toast.success(`Saldo atualizado: $${dollars} = ${(dollars * rate).toLocaleString("pt-BR")} créditos`);
+              }}
+              className="w-full h-9 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              <Save className="w-4 h-4 inline mr-1" /> Salvar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur">
         <h2 className="text-lg font-semibold text-white mb-4">Top Escritórios por Processos</h2>
