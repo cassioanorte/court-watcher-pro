@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale, Brain, Sparkles } from "lucide-react";
+import { Building2, Users, Activity, TrendingUp, ChevronRight, Scale, Brain, Sparkles, DollarSign, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface Stats {
   tenants: number;
