@@ -43,9 +43,7 @@ function applyDarkVariant(variant: DarkVariant) {
   const root = document.documentElement;
   LIGHT_CLASSES.forEach((c) => root.classList.remove(c));
   DARK_CLASSES.forEach((c) => root.classList.remove(c));
-  if (variant !== "imperial") {
-    root.classList.add(`dark-${variant}`);
-  }
+  root.classList.add(`dark-${variant}`);
 }
 
 export const LIGHT_VARIANT_OPTIONS: { key: LightVariant; label: string; desc: string }[] = [
