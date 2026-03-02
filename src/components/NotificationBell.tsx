@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bell } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 interface Notif {
   id: string;
@@ -40,6 +39,10 @@ const NotificationBell = () => {
     fetchNotifs();
   }, [fetchNotifs]);
 
+  useEffect(() => {
+    if (open) fetchNotifs();
+  }, [open, fetchNotifs]);
+
   const unread = items.filter((n) => !n.read).length;
 
   const markAllRead = async () => {
@@ -53,8 +56,8 @@ const NotificationBell = () => {
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={(o) => { setOpen(o); if (o) fetchNotifs(); }}>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <button className="relative text-muted-foreground hover:text-foreground transition-colors focus:outline-none">
           <Bell className="w-5 h-5" />
           {unread > 0 && (
@@ -63,36 +66,46 @@ const NotificationBell = () => {
             </span>
           )}
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 bg-popover z-[100]">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Notificações</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0 z-[100]">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h4 className="text-sm font-semibold text-foreground">Notificações</h4>
           {unread > 0 && (
-            <button onClick={markAllRead} className="text-xs text-primary hover:underline">
-              Marcar todas como lidas
-            </button>
+            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-primary" onClick={markAllRead}>
+              <CheckCheck className="w-3.5 h-3.5" />
+              Marcar lidas
+            </Button>
           )}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        </div>
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhuma notificação</p>
+          <div className="flex flex-col items-center justify-center py-10 px-4">
+            <Bell className="w-8 h-8 text-muted-foreground/30 mb-2" />
+            <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Quando houver alertas, eles aparecerão aqui.</p>
+          </div>
         ) : (
           <ScrollArea className="max-h-72">
             <div className="divide-y divide-border">
               {items.map((n) => (
-                <div key={n.id} className={`px-3 py-2.5 ${!n.read ? "bg-accent/10" : ""}`}>
-                  <p className="text-sm font-medium text-foreground line-clamp-1">{n.title}</p>
-                  {n.body && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.body}</p>}
-                  <span className="text-[10px] text-muted-foreground mt-1 block">
-                    {new Date(n.created_at).toLocaleDateString("pt-BR")} {new Date(n.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
+                <div key={n.id} className={`px-4 py-3 transition-colors ${!n.read ? "bg-accent/10" : "hover:bg-muted/30"}`}>
+                  <div className="flex items-start gap-2">
+                    {!n.read && <span className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground line-clamp-1">{n.title}</p>
+                      {n.body && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.body}</p>}
+                      <span className="text-[10px] text-muted-foreground mt-1 block">
+                        {new Date(n.created_at).toLocaleDateString("pt-BR")} às{" "}
+                        {new Date(n.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </ScrollArea>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 };
 
