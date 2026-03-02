@@ -220,7 +220,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 pb-4 mt-2 flex-1 min-h-0 overflow-y-auto">
+        <div className="px-6 pb-4 mt-2 flex-1 min-h-0 overflow-y-scroll overscroll-contain pr-1">
           {processNumber && !isEditing && (
             <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
               Processo: {processNumber}
