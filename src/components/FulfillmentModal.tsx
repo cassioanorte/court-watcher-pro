@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Send, Loader2, X, FileText } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
-
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const CATEGORIES = [
   { value: "peticao", label: "Petição" },
