@@ -212,7 +212,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0">
+      <DialogContent className="max-w-lg max-h-[90vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-accent" />
@@ -220,7 +220,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 pb-4 mt-2 max-h-[calc(90vh-9rem)] overflow-y-auto">
+        <div className="px-6 pb-4 mt-2 flex-1 min-h-0 overflow-y-auto">
           {processNumber && !isEditing && (
             <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
               Processo: {processNumber}
