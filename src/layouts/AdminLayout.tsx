@@ -235,10 +235,7 @@ const AdminLayout = () => {
                 }
               </DropdownMenuContent>
             </DropdownMenu>
-            <button className="relative text-muted-foreground hover:text-foreground transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
-            </button>
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50">
