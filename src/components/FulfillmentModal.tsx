@@ -212,7 +212,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-accent" />
@@ -221,7 +221,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
         </DialogHeader>
 
         <div
-          className="flex-1 min-h-0 overflow-y-scroll overscroll-contain px-6 pb-4 mt-2 pr-3 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
+          className="flex-1 min-h-0 overflow-y-scroll overscroll-contain px-6 pb-4 mt-2 pr-3 [scrollbar-gutter:stable_both-edges] [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_hsl(var(--muted))] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border"
         >
           {processNumber && !isEditing && (
             <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
