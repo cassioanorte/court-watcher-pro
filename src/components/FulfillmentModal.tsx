@@ -221,138 +221,140 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-scroll px-6 pb-4 mt-2 pr-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_hsl(var(--muted))] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
-          {processNumber && !isEditing && (
-            <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
-              Processo: {processNumber}
-            </div>
-          )}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-6 pb-4 mt-2 pr-4">
+            {processNumber && !isEditing && (
+              <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
+                Processo: {processNumber}
+              </div>
+            )}
 
-          <div className="space-y-4">
-            {!caseId && !isEditing && (
+            <div className="space-y-4">
+              {!caseId && !isEditing && (
+                <div className="space-y-1.5">
+                  <Label>Processo *</Label>
+                  <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o processo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cases.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-1.5">
-                <Label>Processo *</Label>
-                <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
+                <Label>Tipo de Ação *</Label>
+                <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o processo" />
+                    <SelectValue placeholder="Selecione a ação" />
                   </SelectTrigger>
                   <SelectContent>
-                    {cases.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.process_number}</SelectItem>
+                    {CATEGORIES.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            <div className="space-y-1.5">
-              <Label>Tipo de Ação *</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a ação" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(c => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Responsável(is) *</Label>
-              <div className="space-y-1 max-h-40 overflow-y-auto rounded-lg border bg-background p-2">
-                {staff.length === 0 && <p className="text-xs text-muted-foreground">Nenhum advogado disponível</p>}
-                {staff.map(s => (
-                  <label key={s.user_id} className="flex items-center gap-2 cursor-pointer px-1 py-1 rounded hover:bg-muted/50">
-                    <input
-                      type="checkbox"
-                      checked={assignedToList.includes(s.user_id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setAssignedToList(prev => [...prev, s.user_id]);
-                        } else {
-                          setAssignedToList(prev => prev.filter(id => id !== s.user_id));
-                        }
-                      }}
-                      className="rounded border-border"
-                    />
-                    <span className="text-sm text-foreground">
-                      {s.full_name} {s.oab_number ? `(OAB ${s.oab_number})` : ""}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Prazo *</Label>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="flex-1" />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {SUGGESTED_DAYS.map(d => (
-                  <Button key={d} type="button" variant="outline" size="sm" className="text-xs h-7" onClick={() => setSuggestedDays(d)}>
-                    {d} dias
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Prioridade</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Textarea placeholder="Descreva o que precisa ser feito..." value={description} onChange={e => setDescription(e.target.value)} rows={2} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Observações</Label>
-              <Input placeholder="Observações adicionais..." value={notes} onChange={e => setNotes(e.target.value)} />
-            </div>
-
-            {!isEditing && (
               <div className="space-y-1.5">
-                <Label>Anexar Documentos</Label>
-                <FileDropZone
-                  onFile={(file) => setPendingFiles(prev => [...prev, file])}
-                  multiple
-                  onFiles={(files) => setPendingFiles(prev => [...prev, ...files])}
-                  label="Arraste documentos aqui ou clique para selecionar"
-                  sublabel="PDF, Word, imagens e outros formatos"
-                  compact
-                />
-                {pendingFiles.length > 0 && (
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {pendingFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded border bg-muted/30 text-sm">
-                        <span className="flex items-center gap-1.5 truncate min-w-0">
-                          <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{file.name}</span>
-                        </span>
-                        <button onClick={() => removePendingFile(idx)} className="text-muted-foreground hover:text-destructive shrink-0">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <Label>Responsável(is) *</Label>
+                <div className="space-y-1 max-h-40 overflow-y-auto rounded-lg border bg-background p-2">
+                  {staff.length === 0 && <p className="text-xs text-muted-foreground">Nenhum advogado disponível</p>}
+                  {staff.map(s => (
+                    <label key={s.user_id} className="flex items-center gap-2 cursor-pointer px-1 py-1 rounded hover:bg-muted/50">
+                      <input
+                        type="checkbox"
+                        checked={assignedToList.includes(s.user_id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAssignedToList(prev => [...prev, s.user_id]);
+                          } else {
+                            setAssignedToList(prev => prev.filter(id => id !== s.user_id));
+                          }
+                        }}
+                        className="rounded border-border"
+                      />
+                      <span className="text-sm text-foreground">
+                        {s.full_name} {s.oab_number ? `(OAB ${s.oab_number})` : ""}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            )}
+
+              <div className="space-y-1.5">
+                <Label>Prazo *</Label>
+                <div className="flex items-center gap-2">
+                  <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="flex-1" />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {SUGGESTED_DAYS.map(d => (
+                    <Button key={d} type="button" variant="outline" size="sm" className="text-xs h-7" onClick={() => setSuggestedDays(d)}>
+                      {d} dias
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Prioridade</Label>
+                <Select value={priority} onValueChange={setPriority}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITIES.map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Descrição</Label>
+                <Textarea placeholder="Descreva o que precisa ser feito..." value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Observações</Label>
+                <Input placeholder="Observações adicionais..." value={notes} onChange={e => setNotes(e.target.value)} />
+              </div>
+
+              {!isEditing && (
+                <div className="space-y-1.5">
+                  <Label>Anexar Documentos</Label>
+                  <FileDropZone
+                    onFile={(file) => setPendingFiles(prev => [...prev, file])}
+                    multiple
+                    onFiles={(files) => setPendingFiles(prev => [...prev, ...files])}
+                    label="Arraste documentos aqui ou clique para selecionar"
+                    sublabel="PDF, Word, imagens e outros formatos"
+                    compact
+                  />
+                  {pendingFiles.length > 0 && (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {pendingFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded border bg-muted/30 text-sm">
+                          <span className="flex items-center gap-1.5 truncate min-w-0">
+                            <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{file.name}</span>
+                          </span>
+                          <button onClick={() => removePendingFile(idx)} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
 
         <div className="px-6 pb-6 pt-3 border-t bg-background">
           <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2">
