@@ -213,7 +213,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-md h-[78vh] max-h-[78vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-accent" />
