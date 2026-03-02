@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardCalendar from "@/components/DashboardCalendar";
 import DashboardStatsCards from "@/components/dashboard/DashboardStatsCards";
+import DashboardAICredits from "@/components/dashboard/DashboardAICredits";
 import DashboardReminders from "@/components/dashboard/DashboardReminders";
 import DashboardUserTasks from "@/components/dashboard/DashboardUserTasks";
 import DashboardCrmPipeline from "@/components/dashboard/DashboardCrmPipeline";
@@ -180,6 +181,13 @@ const Dashboard = () => {
         appointmentsCount={appointmentsCount}
         loading={loading}
       />
+
+      {/* AI Credits */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <DashboardAICredits />
+        </div>
+      </div>
 
       {/* Fulfillments + Tasks + Reminders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

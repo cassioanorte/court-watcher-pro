@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Save, Palette, Upload, X, Eye, EyeOff, RotateCcw, Wand2, Lock } from "lucide-react";
 import TeamManagement from "@/components/TeamManagement";
+import DashboardAICredits from "@/components/dashboard/DashboardAICredits";
 import StaffAccessControl from "@/components/StaffAccessControl";
 import EprocCredentials from "@/components/EprocCredentials";
 import BookmarkletSetup from "@/components/BookmarkletSetup";
@@ -653,6 +654,11 @@ const Settings = () => {
             <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar perfil"}
           </button>
         </div>
+      </motion.div>
+
+      {/* AI Credits */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+        <DashboardAICredits compact />
       </motion.div>
 
       {/* Change own password */}
