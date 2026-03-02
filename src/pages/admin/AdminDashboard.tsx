@@ -35,6 +35,11 @@ const AdminDashboard = () => {
   const [selectedTenant, setSelectedTenant] = useState<TenantSummary | null>(null);
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [dollarsLoaded, setDollarsLoaded] = useState(0);
+  const [creditsPerDollar, setCreditsPerDollar] = useState(100);
+  const [editingPool, setEditingPool] = useState(false);
+  const [poolDollarsInput, setPoolDollarsInput] = useState("");
+  const [poolRateInput, setPoolRateInput] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
