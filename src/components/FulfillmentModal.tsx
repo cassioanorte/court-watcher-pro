@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Send, Loader2, X, FileText } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 const CATEGORIES = [
   { value: "peticao", label: "Petição" },
@@ -221,11 +221,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea
-          type="always"
-          className="flex-1 min-h-0 h-full [&_[data-orientation=vertical]]:w-3 [&_[data-orientation=vertical]]:bg-muted [&_[data-orientation=vertical]]:p-0.5 [&_[data-orientation=vertical]]:rounded-full [&_[data-orientation=vertical]>div]:bg-border"
-        >
-          <div className="px-6 pb-4 mt-2 pr-5">
+        <div className="flex-1 min-h-0 overflow-y-scroll px-6 pb-4 mt-2 pr-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_hsl(var(--muted))] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
           {processNumber && !isEditing && (
             <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 font-mono mb-4">
               Processo: {processNumber}
@@ -356,8 +352,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
               </div>
             )}
           </div>
-          </div>
-        </ScrollArea>
+        </div>
 
         <div className="px-6 pb-6 pt-3 border-t bg-background">
           <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2">
