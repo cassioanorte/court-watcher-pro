@@ -223,7 +223,7 @@ const FulfillmentModal = ({ open, onOpenChange, caseId, processNumber, sourceTyp
 
         <ScrollArea
           type="always"
-          className="flex-1 min-h-0 [&_[data-orientation=vertical]]:w-3 [&_[data-orientation=vertical]]:bg-muted [&_[data-orientation=vertical]]:p-0.5 [&_[data-orientation=vertical]]:rounded-full [&_[data-orientation=vertical]>div]:bg-border"
+          className="flex-1 min-h-0 h-full [&_[data-orientation=vertical]]:w-3 [&_[data-orientation=vertical]]:bg-muted [&_[data-orientation=vertical]]:p-0.5 [&_[data-orientation=vertical]]:rounded-full [&_[data-orientation=vertical]>div]:bg-border"
         >
           <div className="px-6 pb-4 mt-2 pr-5">
           {processNumber && !isEditing && (
