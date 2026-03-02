@@ -43,13 +43,20 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [tenantsRes, profilesRes, casesRes, logsRes, rolesRes] = await Promise.all([
-        supabase.from("tenants").select("id, name, slug, created_at"),
+      const [tenantsRes, profilesRes, casesRes, logsRes, rolesRes, poolRes] = await Promise.all([
+        supabase.from("tenants").select("*"),
         supabase.from("profiles").select("tenant_id, user_id"),
         supabase.from("cases").select("tenant_id"),
         supabase.from("audit_logs").select("id", { count: "exact", head: true }),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.from("system_config").select("value").eq("key", "ai_credits_pool").single(),
       ]);
+
+      if (poolRes.data?.value) {
+        const pool = poolRes.data.value as any;
+        setDollarsLoaded(pool.dollars_loaded || 0);
+        setCreditsPerDollar(pool.credits_per_dollar || 100);
+      }
 
       const tenants = tenantsRes.data || [];
       const profiles = profilesRes.data || [];
