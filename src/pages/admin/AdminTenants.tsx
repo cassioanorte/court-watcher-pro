@@ -417,6 +417,7 @@ const AdminTenants = () => {
                   <th className="px-5 py-3 font-medium text-right">Usuários</th>
                   <th className="px-5 py-3 font-medium text-right">Processos</th>
                   <th className="px-5 py-3 font-medium text-right">Mensalidade</th>
+                  <th className="px-5 py-3 font-medium text-right">IA (usado/limite)</th>
                   <th className="px-5 py-3 font-medium">Teste</th>
                   <th className="px-5 py-3 font-medium text-right">Ações</th>
                 </tr>
@@ -442,6 +443,11 @@ const AdminTenants = () => {
                       <td className="px-5 py-3 text-right">
                         <span className="text-emerald-400 font-medium">
                           R$ {Number(t.monthly_fee).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <span className={`font-medium ${((t as any).ai_credits_used || 0) >= ((t as any).ai_credits_limit || 0) && (t as any).ai_credits_limit > 0 ? "text-red-400" : "text-purple-400"}`}>
+                          {(t as any).ai_credits_used || 0}/{(t as any).ai_credits_limit || 0}
                         </span>
                       </td>
                       <td className="px-5 py-3">
