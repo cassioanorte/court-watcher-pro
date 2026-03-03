@@ -26,6 +26,7 @@ const CATEGORIES = [
   { value: "contestacao", label: "Contestação" },
   { value: "replica", label: "Réplica" },
   { value: "cumprimento_sentenca", label: "Cumprimento de Sentença" },
+  { value: "aguardando_decurso_prazo", label: "Aguardando Decurso do Prazo" },
   { value: "outro", label: "Outro" },
 ];
 
