@@ -192,7 +192,8 @@ const DashboardReminders = () => {
 
   const getCategoryInfo = (cat: string) => CATEGORIES.find(c => c.value === cat) || CATEGORIES[CATEGORIES.length - 1];
   const getStaffName = (uid: string) => staffMembers.find(s => s.user_id === uid)?.full_name || "";
-  const getCaseLabel = (cid: string) => cases.find(c => c.id === cid)?.process_number || "";
+  const getCase = (cid: string) => cases.find(c => c.id === cid);
+  const getCaseLabel = (cid: string) => getCase(cid)?.process_number || "";
   const getClientName = (uid: string) => clients.find(c => c.user_id === uid)?.full_name || "";
 
   const activeReminders = reminders.filter(r => !r.completed);
@@ -255,6 +256,9 @@ const DashboardReminders = () => {
                       <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                         <Briefcase className="w-3 h-3" />
                         {getCaseLabel(r.case_id)}
+                        {getCase(r.case_id)?.parties && (
+                          <span className="text-foreground/70 ml-0.5 truncate max-w-[120px]">— {getCase(r.case_id)!.parties}</span>
+                        )}
                       </span>
                     )}
                     {r.client_user_id && (
