@@ -256,6 +256,9 @@ const DashboardReminders = () => {
                       <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                         <Briefcase className="w-3 h-3" />
                         {getCaseLabel(r.case_id)}
+                        {getCase(r.case_id)?.parties && (
+                          <span className="text-foreground/70 ml-0.5 truncate max-w-[120px]">— {getCase(r.case_id)!.parties}</span>
+                        )}
                       </span>
                     )}
                     {r.client_user_id && (
