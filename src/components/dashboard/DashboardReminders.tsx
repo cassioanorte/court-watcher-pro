@@ -192,7 +192,8 @@ const DashboardReminders = () => {
 
   const getCategoryInfo = (cat: string) => CATEGORIES.find(c => c.value === cat) || CATEGORIES[CATEGORIES.length - 1];
   const getStaffName = (uid: string) => staffMembers.find(s => s.user_id === uid)?.full_name || "";
-  const getCaseLabel = (cid: string) => cases.find(c => c.id === cid)?.process_number || "";
+  const getCase = (cid: string) => cases.find(c => c.id === cid);
+  const getCaseLabel = (cid: string) => getCase(cid)?.process_number || "";
   const getClientName = (uid: string) => clients.find(c => c.user_id === uid)?.full_name || "";
 
   const activeReminders = reminders.filter(r => !r.completed);
