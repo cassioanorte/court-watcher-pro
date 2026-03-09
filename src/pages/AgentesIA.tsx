@@ -137,8 +137,7 @@ const AgentesIA = () => {
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="group relative border rounded-xl p-5 bg-card hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => openInChatGPT(agent.prompt)}
+              className="group relative border rounded-xl p-5 bg-card hover:shadow-md transition-shadow"
             >
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -150,24 +149,41 @@ const AgentesIA = () => {
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{agent.description}</p>
                   )}
                 </div>
-                <ExternalLink className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary shrink-0 mt-1" />
               </div>
               <p className="text-xs text-muted-foreground line-clamp-3 bg-muted/50 rounded-lg p-3 font-mono">
                 {agent.prompt}
               </p>
+              <div className="flex items-center gap-2 mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 flex-1"
+                  onClick={() => copyPrompt(agent.prompt)}
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copiar Prompt
+                </Button>
+                <a
+                  href="https://chatgpt.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Abrir ChatGPT
+                </a>
+              </div>
               {agent.is_system && (
                 <span className="inline-block mt-2 text-[10px] uppercase tracking-wider text-primary font-semibold">Sistema</span>
               )}
               {canEdit(agent) && (
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={(e) => { e.stopPropagation(); openEdit(agent); }}
+                    onClick={() => openEdit(agent)}
                     className="p-1.5 rounded-md bg-background border hover:bg-muted"
                   >
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(agent); }}
+                    onClick={() => handleDelete(agent)}
                     className="p-1.5 rounded-md bg-background border hover:bg-destructive/10"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
