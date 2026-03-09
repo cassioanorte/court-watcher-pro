@@ -89,19 +89,21 @@ const AgentesIA = () => {
     fetchAgents();
   };
 
-  const openInChatGPT = async (prompt: string) => {
-    const newTab = window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer");
-
-    if (!newTab) {
-      toast.error("O navegador bloqueou a nova aba. Permita pop-ups para este site.");
-      return;
-    }
-
+  const copyPrompt = async (prompt: string) => {
     try {
       await navigator.clipboard.writeText(prompt);
-      toast.success("Prompt copiado! Cole no ChatGPT.");
+      toast.success("Prompt copiado para a área de transferência!");
     } catch {
-      toast.info("ChatGPT aberto. Copie o prompt manualmente se necessário.");
+      // Fallback: textarea hack
+      const ta = document.createElement("textarea");
+      ta.value = prompt;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      toast.success("Prompt copiado!");
     }
   };
 
