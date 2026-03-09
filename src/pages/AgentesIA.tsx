@@ -89,10 +89,16 @@ const AgentesIA = () => {
     fetchAgents();
   };
 
-  const openInChatGPT = (prompt: string) => {
-    const url = `https://chat.openai.com/?q=${encodeURIComponent(prompt)}`;
+  const openInChatGPT = async (prompt: string) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      toast.success("Prompt copiado! Abrindo ChatGPT...");
+    } catch {
+      toast.info("Abrindo ChatGPT. Copie o prompt manualmente se necessário.");
+    }
+
     const link = document.createElement("a");
-    link.href = url;
+    link.href = "https://chatgpt.com/";
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     document.body.appendChild(link);
