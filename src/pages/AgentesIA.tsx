@@ -90,20 +90,19 @@ const AgentesIA = () => {
   };
 
   const openInChatGPT = async (prompt: string) => {
-    try {
-      await navigator.clipboard.writeText(prompt);
-      toast.success("Prompt copiado! Abrindo ChatGPT...");
-    } catch {
-      toast.info("Abrindo ChatGPT. Copie o prompt manualmente se necessário.");
+    const newTab = window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer");
+
+    if (!newTab) {
+      toast.error("O navegador bloqueou a nova aba. Permita pop-ups para este site.");
+      return;
     }
 
-    const link = document.createElement("a");
-    link.href = "https://chatgpt.com/";
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      await navigator.clipboard.writeText(prompt);
+      toast.success("Prompt copiado! Cole no ChatGPT.");
+    } catch {
+      toast.info("ChatGPT aberto. Copie o prompt manualmente se necessário.");
+    }
   };
 
   const canEdit = (agent: AIAgent) =>
