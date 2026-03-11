@@ -33,6 +33,7 @@ const DEFAULT_SENDERS = [
   "publicacao@trf4.jus.br",
   "intimacoes@tjrs.jus.br",
   "eproc@trf4.jus.br",
+  "noreply@inss.gov.br",
 ];
 
 const EMPTY_FORM = {
