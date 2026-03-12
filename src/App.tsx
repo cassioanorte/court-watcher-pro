@@ -1,4 +1,4 @@
-// build-v7-lazy
+// build-v8-ai-chat
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
