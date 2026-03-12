@@ -576,18 +576,274 @@ async function executeWriteTool(
   }
 }
 
+// ─── Intelligent tool execution (Phase 4) ───
+async function executeIntelligentTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  db: ReturnType<typeof createClient>,
+  tenantId: string,
+  apiKey: string
+): Promise<string> {
+  switch (toolName) {
+    case "analisar_publicacao": {
+      let query = db
+        .from("dje_publications")
+        .select("id, title, content, publication_date, process_number, organ, publication_type, ai_summary")
+        .eq("tenant_id", tenantId)
+        .order("publication_date", { ascending: false })
+        .limit(1);
+
+      if (args.busca) {
+        const s = String(args.busca);
+        query = query.or(`title.ilike.%${s}%,process_number.ilike.%${s}%,content.ilike.%${s}%`);
+      } else {
+        query = query.eq("read", false);
+      }
+
+      const { data, error } = await query;
+      if (error) return `Erro: ${error.message}`;
+      if (!data?.length) return "Nenhuma publicação encontrada para análise.";
+
+      const pub = data[0] as any;
+      const analysisPrompt = `Você é um advogado brasileiro experiente. Analise a seguinte publicação do Diário de Justiça Eletrônico e forneça:
+
+1. **Resumo** — do que trata a publicação
+2. **Prazos identificados** — datas e contagens de prazo
+3. **Providências necessárias** — ações que o advogado deve tomar
+4. **Riscos** — consequências de inação
+5. **Classificação de urgência** — 🔴 Urgente / 🟡 Atenção / 🟢 Informativo
+
+Publicação:
+- Título: ${pub.title}
+- Data: ${pub.publication_date}
+- Processo: ${pub.process_number || "N/A"}
+- Órgão: ${pub.organ || "N/A"}
+- Tipo: ${pub.publication_type || "N/A"}
+- Conteúdo: ${(pub.content || "").substring(0, 3000)}`;
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [{ role: "user", content: analysisPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!aiResp.ok) return "Erro ao analisar publicação com IA.";
+      const aiResult = await aiResp.json();
+      const analysis = aiResult.choices?.[0]?.message?.content || "Não foi possível gerar análise.";
+
+      // Save analysis back to DB
+      await db.from("dje_publications").update({
+        ai_summary: analysis.substring(0, 500),
+        ai_analyzed_at: new Date().toISOString(),
+      }).eq("id", pub.id);
+
+      return `📋 Análise da publicação "${pub.title}" (${pub.publication_date}):\n\n${analysis}`;
+    }
+
+    case "resumir_processo": {
+      const { data: caseData } = await db
+        .from("cases")
+        .select("id, process_number, subject, parties, simple_status, tags, case_summary, client_user_id, responsible_user_id, created_at")
+        .eq("tenant_id", tenantId)
+        .ilike("process_number", `%${args.numero_processo}%`)
+        .limit(1)
+        .single();
+
+      if (!caseData) return `Processo "${args.numero_processo}" não encontrado.`;
+
+      // Fetch related data in parallel
+      const [movRes, fulRes, pubRes, finRes, notesRes] = await Promise.all([
+        db.from("movements").select("title, occurred_at, translation").eq("case_id", caseData.id).order("occurred_at", { ascending: false }).limit(10),
+        db.from("case_fulfillments").select("category, description, due_date, status, priority").eq("case_id", caseData.id).order("due_date").limit(10),
+        db.from("dje_publications").select("title, publication_date, ai_summary").eq("case_id", caseData.id).order("publication_date", { ascending: false }).limit(5),
+        db.from("financial_transactions").select("type, amount, description, date").eq("case_id", caseData.id).order("date", { ascending: false }).limit(10),
+        db.from("case_notes").select("text, created_at").eq("case_id", caseData.id).order("created_at", { ascending: false }).limit(5),
+      ]);
+
+      // Build context
+      let context = `📁 PROCESSO: ${caseData.process_number}\n`;
+      context += `Assunto: ${caseData.subject || "N/A"}\nPartes: ${caseData.parties || "N/A"}\nStatus: ${caseData.simple_status || "N/A"}\nTags: ${(caseData.tags || []).join(", ") || "N/A"}\n`;
+
+      if (movRes.data?.length) {
+        context += `\n📋 MOVIMENTAÇÕES RECENTES (${movRes.data.length}):\n`;
+        context += movRes.data.map((m: any) => `• ${m.occurred_at} — ${m.translation || m.title}`).join("\n");
+      }
+
+      if (fulRes.data?.length) {
+        context += `\n\n⚡ CUMPRIMENTOS (${fulRes.data.length}):\n`;
+        context += fulRes.data.map((f: any) => `• [${f.priority}/${f.status}] ${f.category} — ${f.description || ""} | Prazo: ${f.due_date}`).join("\n");
+      }
+
+      if (pubRes.data?.length) {
+        context += `\n\n📰 PUBLICAÇÕES (${pubRes.data.length}):\n`;
+        context += pubRes.data.map((p: any) => `• ${p.publication_date} — ${p.title}${p.ai_summary ? ` | ${p.ai_summary.substring(0, 80)}...` : ""}`).join("\n");
+      }
+
+      if (finRes.data?.length) {
+        const totalIncome = finRes.data.filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const totalExpense = finRes.data.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
+        context += `\n\n💰 FINANCEIRO:\nReceitas: R$ ${totalIncome.toFixed(2)} | Despesas: R$ ${totalExpense.toFixed(2)} | Saldo: R$ ${(totalIncome - totalExpense).toFixed(2)}`;
+      }
+
+      if (notesRes.data?.length) {
+        context += `\n\n📝 NOTAS:\n`;
+        context += notesRes.data.map((n: any) => `• ${n.text}`).join("\n");
+      }
+
+      // Generate AI summary
+      const summaryPrompt = `Você é um advogado brasileiro experiente. Com base nos dados abaixo, gere um resumo executivo completo do processo, destacando: situação atual, pontos críticos, pendências e valores envolvidos. Seja objetivo.\n\n${context}`;
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [{ role: "user", content: summaryPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!aiResp.ok) return context; // Fallback: return raw data
+      const aiResult = await aiResp.json();
+      return aiResult.choices?.[0]?.message?.content || context;
+    }
+
+    case "sugerir_proximos_passos": {
+      const { data: caseData } = await db
+        .from("cases")
+        .select("id, process_number, subject, parties, simple_status, next_step, case_summary")
+        .eq("tenant_id", tenantId)
+        .ilike("process_number", `%${args.numero_processo}%`)
+        .limit(1)
+        .single();
+
+      if (!caseData) return `Processo "${args.numero_processo}" não encontrado.`;
+
+      const [movRes, fulRes, pubRes] = await Promise.all([
+        db.from("movements").select("title, occurred_at, translation").eq("case_id", caseData.id).order("occurred_at", { ascending: false }).limit(15),
+        db.from("case_fulfillments").select("category, description, due_date, status, priority").eq("case_id", caseData.id).in("status", ["pending", "in_progress"]).order("due_date"),
+        db.from("dje_publications").select("title, publication_date, ai_summary, content").eq("case_id", caseData.id).order("publication_date", { ascending: false }).limit(5),
+      ]);
+
+      let context = `Processo: ${caseData.process_number}\nAssunto: ${caseData.subject || "N/A"}\nPartes: ${caseData.parties || "N/A"}\nStatus: ${caseData.simple_status}\nPróximo passo atual: ${caseData.next_step || "Não definido"}`;
+
+      if (movRes.data?.length) {
+        context += `\n\nMovimentações recentes:\n${movRes.data.map((m: any) => `• ${m.occurred_at} — ${m.translation || m.title}`).join("\n")}`;
+      }
+      if (fulRes.data?.length) {
+        context += `\n\nCumprimentos pendentes:\n${fulRes.data.map((f: any) => `• [${f.priority}] ${f.category} — Prazo: ${f.due_date}`).join("\n")}`;
+      }
+      if (pubRes.data?.length) {
+        context += `\n\nPublicações recentes:\n${pubRes.data.map((p: any) => `• ${p.publication_date} — ${p.title}${p.content ? ` — ${(p.content as string).substring(0, 200)}` : ""}`).join("\n")}`;
+      }
+
+      const suggestPrompt = `Você é um advogado estrategista brasileiro. Analise o estado atual deste processo e sugira os próximos passos concretos e acionáveis. Para cada sugestão, inclua:
+1. **Ação recomendada**
+2. **Prazo sugerido**
+3. **Justificativa**
+4. **Prioridade** (🔴 Alta / 🟡 Média / 🟢 Baixa)
+
+Dados do processo:\n${context}`;
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [{ role: "user", content: suggestPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!aiResp.ok) return "Erro ao gerar sugestões com IA.";
+      const aiResult = await aiResp.json();
+      return aiResult.choices?.[0]?.message?.content || "Não foi possível gerar sugestões.";
+    }
+
+    case "gerar_peticao": {
+      const { data: caseData } = await db
+        .from("cases")
+        .select("id, process_number, subject, parties, simple_status, case_summary")
+        .eq("tenant_id", tenantId)
+        .ilike("process_number", `%${args.numero_processo}%`)
+        .limit(1)
+        .single();
+
+      if (!caseData) return `Processo "${args.numero_processo}" não encontrado.`;
+
+      // Get relevant context
+      const [movRes, pubRes, notesRes] = await Promise.all([
+        db.from("movements").select("title, occurred_at, translation").eq("case_id", caseData.id).order("occurred_at", { ascending: false }).limit(10),
+        db.from("dje_publications").select("title, content, publication_date").eq("case_id", caseData.id).order("publication_date", { ascending: false }).limit(3),
+        db.from("case_notes").select("text").eq("case_id", caseData.id).order("created_at", { ascending: false }).limit(5),
+      ]);
+
+      let context = `Processo: ${caseData.process_number}\nAssunto: ${caseData.subject || "N/A"}\nPartes: ${caseData.parties || "N/A"}\nStatus: ${caseData.simple_status}`;
+      if (caseData.case_summary) context += `\nResumo: ${caseData.case_summary}`;
+
+      if (movRes.data?.length) {
+        context += `\n\nMovimentações:\n${movRes.data.map((m: any) => `• ${m.occurred_at} — ${m.translation || m.title}`).join("\n")}`;
+      }
+      if (pubRes.data?.length) {
+        context += `\n\nPublicações:\n${pubRes.data.map((p: any) => `• ${p.publication_date} — ${p.title}\n${(p.content || "").substring(0, 500)}`).join("\n")}`;
+      }
+      if (notesRes.data?.length) {
+        context += `\n\nNotas do advogado:\n${notesRes.data.map((n: any) => `• ${n.text}`).join("\n")}`;
+      }
+
+      const petitionPrompt = `Você é um advogado brasileiro experiente. Gere um RASCUNHO de ${args.tipo_peca} para o processo abaixo.
+
+REGRAS:
+- Use linguagem jurídica formal adequada ao tipo de peça
+- Inclua todos os elementos formais necessários (endereçamento, qualificação das partes, dos fatos, do direito, pedidos)
+- Marque com [PREENCHER] campos que precisam ser completados pelo advogado
+- Inclua fundamentação legal pertinente
+- Este é um RASCUNHO — indique claramente no início
+
+${args.instrucoes_adicionais ? `Instruções adicionais do advogado: ${args.instrucoes_adicionais}\n` : ""}
+Dados do processo:\n${context}`;
+
+      const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-pro",
+          messages: [{ role: "user", content: petitionPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!aiResp.ok) return "Erro ao gerar rascunho com IA.";
+      const aiResult = await aiResp.json();
+      return `📄 RASCUNHO DE ${String(args.tipo_peca).toUpperCase()}\n⚠️ Este é um rascunho gerado por IA — revise antes de usar.\n\n${aiResult.choices?.[0]?.message?.content || "Não foi possível gerar o rascunho."}`;
+    }
+
+    default:
+      return `Ferramenta inteligente "${toolName}" não encontrada.`;
+  }
+}
+
 // ─── Unified executor ───
 async function executeTool(
   toolName: string,
   args: Record<string, unknown>,
   db: ReturnType<typeof createClient>,
   tenantId: string,
-  userId: string
+  userId: string,
+  apiKey: string
 ): Promise<string> {
   try {
     const readToolNames = ["listar_processos", "buscar_cliente", "ver_agenda", "ver_publicacoes", "ver_cumprimentos", "ver_financeiro"];
+    const intelligentToolNames = ["analisar_publicacao", "resumir_processo", "sugerir_proximos_passos", "gerar_peticao"];
     if (readToolNames.includes(toolName)) {
       return await executeReadTool(toolName, args, db, tenantId);
+    }
+    if (intelligentToolNames.includes(toolName)) {
+      return await executeIntelligentTool(toolName, args, db, tenantId, apiKey);
     }
     return await executeWriteTool(toolName, args, db, tenantId, userId);
   } catch (err) {
