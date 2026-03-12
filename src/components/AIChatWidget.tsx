@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageSquare, X, Send, Trash2, Loader2 } from "lucide-react";
+import { MessageSquare, X, Send, Trash2, Loader2, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,8 @@ interface Message {
   content: string;
 }
 
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
 const AIChatWidget = () => {
   const { user, tenantId } = useAuth();
   const [open, setOpen] = useState(false);
@@ -20,8 +22,10 @@ const AIChatWidget = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Auto-scroll
   useEffect(() => {
@@ -95,6 +99,55 @@ const AIChatWidget = () => {
     setMessages([]);
     setConversationId(null);
   };
+
+  const toggleListening = useCallback(() => {
+    if (!SpeechRecognition) {
+      toast.error("Seu navegador não suporta reconhecimento de voz.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognitionRef.current = recognition;
+
+    let finalTranscript = input;
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += (finalTranscript ? " " : "") + transcript;
+        } else {
+          interim = transcript;
+        }
+      }
+      setInput(finalTranscript + (interim ? " " + interim : ""));
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        toast.error("Permissão de microfone negada.");
+      }
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+    setIsListening(true);
+  }, [isListening, input]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -211,6 +264,15 @@ const AIChatWidget = () => {
 
           {/* Input */}
           <div className="border-t border-border p-3">
+            {isListening && (
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
+                </span>
+                <span className="text-xs text-muted-foreground">Ouvindo... fale agora</span>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -227,6 +289,17 @@ const AIChatWidget = () => {
                   el.style.height = Math.min(el.scrollHeight, 96) + "px";
                 }}
               />
+              {SpeechRecognition && (
+                <Button
+                  size="icon"
+                  variant={isListening ? "destructive" : "outline"}
+                  className="h-9 w-9 shrink-0"
+                  onClick={toggleListening}
+                  title={isListening ? "Parar gravação" : "Falar por voz"}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+              )}
               <Button
                 size="icon"
                 className="h-9 w-9 shrink-0"
