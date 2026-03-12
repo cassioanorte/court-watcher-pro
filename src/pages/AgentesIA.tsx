@@ -166,9 +166,19 @@ const AgentesIA = () => {
                   href="https://chatgpt.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 h-8 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                  title="Abrir ChatGPT"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" /> Abrir ChatGPT
+                  <ExternalLink className="w-3.5 h-3.5" /> GPT
+                </a>
+                <a
+                  href="https://claude.ai/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 h-8 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+                  title="Abrir Claude"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Claude
                 </a>
               </div>
               {agent.is_system && (
