@@ -185,6 +185,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <Suspense fallback={null}><AIChatWidget /></Suspense>
           </Suspense>
         </AuthProvider>
       </BrowserRouter>
