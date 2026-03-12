@@ -264,6 +264,15 @@ const AIChatWidget = () => {
 
           {/* Input */}
           <div className="border-t border-border p-3">
+            {isListening && (
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
+                </span>
+                <span className="text-xs text-muted-foreground">Ouvindo... fale agora</span>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -280,6 +289,17 @@ const AIChatWidget = () => {
                   el.style.height = Math.min(el.scrollHeight, 96) + "px";
                 }}
               />
+              {SpeechRecognition && (
+                <Button
+                  size="icon"
+                  variant={isListening ? "destructive" : "outline"}
+                  className="h-9 w-9 shrink-0"
+                  onClick={toggleListening}
+                  title={isListening ? "Parar gravação" : "Falar por voz"}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+              )}
               <Button
                 size="icon"
                 className="h-9 w-9 shrink-0"
