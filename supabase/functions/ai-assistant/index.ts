@@ -926,7 +926,13 @@ Ferramentas de ESCRITA (ações):
 - criar_cumprimento: criar cumprimento vinculado a processo
 - criar_tarefa: criar tarefa pessoal
 - registrar_lancamento: criar lançamento financeiro
-- enviar_notificacao: enviar notificação ao cliente`;
+- enviar_notificacao: enviar notificação ao cliente
+
+Ferramentas INTELIGENTES (análise avançada):
+- analisar_publicacao: análise profunda de publicação do DJe com prazos, riscos e providências
+- resumir_processo: resumo executivo completo de um processo (movimentações, cumprimentos, financeiro, publicações)
+- sugerir_proximos_passos: sugestões estratégicas de próximos passos para um processo
+- gerar_peticao: rascunho de peça processual (petição, contestação, recurso, etc.) — SEMPRE avise que é rascunho e precisa de revisão`;
 
     // Call Lovable AI with tools
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
