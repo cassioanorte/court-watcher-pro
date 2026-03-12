@@ -221,7 +221,73 @@ const writeTools = [
   },
 ];
 
-const tools = [...readTools, ...writeTools];
+// Phase 4 — intelligent tools
+const intelligentTools = [
+  {
+    type: "function",
+    function: {
+      name: "analisar_publicacao",
+      description: "Analisa uma publicação do DJe em profundidade, identificando prazos, providências necessárias e riscos. Busca a publicação mais recente não lida ou por termo de busca.",
+      parameters: {
+        type: "object",
+        properties: {
+          busca: { type: "string", description: "Termo para buscar a publicação (número do processo, parte do título)" },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "resumir_processo",
+      description: "Gera um resumo completo de um processo: dados básicos, movimentações recentes, cumprimentos pendentes, publicações e situação financeira.",
+      parameters: {
+        type: "object",
+        properties: {
+          numero_processo: { type: "string", description: "Número do processo" },
+        },
+        required: ["numero_processo"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "sugerir_proximos_passos",
+      description: "Analisa o estado atual de um processo e sugere próximos passos estratégicos com base nas movimentações, prazos e publicações.",
+      parameters: {
+        type: "object",
+        properties: {
+          numero_processo: { type: "string", description: "Número do processo" },
+        },
+        required: ["numero_processo"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "gerar_peticao",
+      description: "Gera um rascunho de petição ou peça processual com base nos dados do processo. Especifique o tipo de peça desejada.",
+      parameters: {
+        type: "object",
+        properties: {
+          numero_processo: { type: "string", description: "Número do processo" },
+          tipo_peca: { type: "string", description: "Tipo da peça: petição inicial, contestação, recurso, manifestação, embargos, agravo, réplica, alegações finais, pedido de alvará, cumprimento de sentença, habeas corpus, mandado de segurança" },
+          instrucoes_adicionais: { type: "string", description: "Instruções específicas do advogado sobre o que incluir ou como abordar" },
+        },
+        required: ["numero_processo", "tipo_peca"],
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
+const tools = [...readTools, ...writeTools, ...intelligentTools];
 
 // ─── Read tool execution ───
 async function executeReadTool(
