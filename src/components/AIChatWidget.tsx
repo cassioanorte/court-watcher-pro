@@ -152,17 +152,17 @@ const AIChatWidget = () => {
                 <div>
                   <p className="text-sm font-medium text-foreground">Olá! Sou seu assistente jurídico.</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Posso consultar processos, agenda, publicações, cumprimentos e financeiro.
+                    Consulto, executo ações e analiso processos com inteligência artificial.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center mt-4">
                   {[
                     "Processos recentes",
-                    "Minha agenda",
                     "Resumo financeiro",
-                    "Agendar uma reunião",
-                    "Cadastrar um cliente",
-                    "Criar uma tarefa",
+                    "Resumir um processo",
+                    "Analisar publicação",
+                    "Sugerir próximos passos",
+                    "Gerar petição",
                   ].map((suggestion) => (
                     <button
                       key={suggestion}
