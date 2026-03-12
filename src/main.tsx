@@ -1,5 +1,24 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+
+// ── Force-clear stale Service Workers so new code is never blocked by old cache ──
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const reg of registrations) {
+      reg.update(); // ask SW to check for new version immediately
+    }
+  });
+  // Listen for new SW and auto-activate it (skip waiting)
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // A new SW took over — reload once to pick up fresh assets
+    if (!sessionStorage.getItem("sw-reloaded")) {
+      sessionStorage.setItem("sw-reloaded", "1");
+      window.location.reload();
+    }
+  });
+  // Clear the reload flag after 5s so future updates also trigger reload
+  setTimeout(() => sessionStorage.removeItem("sw-reloaded"), 5000);
+}
 import "./index.css";
 
 // Prevent "removeChild" / "insertBefore" DOM errors caused by

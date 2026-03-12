@@ -115,7 +115,7 @@ const AgentesIA = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Agentes de IA</h1>
-          <p className="text-sm text-muted-foreground">Crie agentes com prompts pré-configurados para usar no ChatGPT</p>
+          <p className="text-sm text-muted-foreground">Crie agentes com prompts pré-configurados para usar no ChatGPT ou Claude</p>
         </div>
         <Button onClick={openNew} className="gap-2">
           <Plus className="w-4 h-4" /> Novo Agente
