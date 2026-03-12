@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+const AIChatWidget = React.lazy(() => import("@/components/AIChatWidget"));
 
 // Layouts carregam eager (são necessários imediatamente)
 import AdminLayout from "./layouts/AdminLayout";
