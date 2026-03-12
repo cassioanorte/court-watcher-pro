@@ -981,7 +981,7 @@ Ferramentas INTELIGENTES (análise avançada):
         const fnName = toolCall.function.name;
         const fnArgs = JSON.parse(toolCall.function.arguments || "{}");
         console.log(`Executing tool: ${fnName}`, fnArgs);
-        const toolResult = await executeTool(fnName, fnArgs, adminClient, profile.tenant_id, user.id);
+        const toolResult = await executeTool(fnName, fnArgs, adminClient, profile.tenant_id, user.id, LOVABLE_API_KEY);
         conversationMessages.push({
           role: "tool",
           tool_call_id: toolCall.id,
