@@ -157,10 +157,12 @@ const AIChatWidget = () => {
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center mt-4">
                   {[
-                    "Quais são meus processos recentes?",
-                    "Como está minha agenda?",
-                    "Publicações não lidas",
+                    "Processos recentes",
+                    "Minha agenda",
                     "Resumo financeiro",
+                    "Agendar uma reunião",
+                    "Cadastrar um cliente",
+                    "Criar uma tarefa",
                   ].map((suggestion) => (
                     <button
                       key={suggestion}
