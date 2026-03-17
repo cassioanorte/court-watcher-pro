@@ -529,8 +529,21 @@ const PaymentOrdersTracker = () => {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="p-3 text-xs text-muted-foreground">
-                        {o.expected_payment_date ? new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
+                      <td className="p-3 text-xs">
+                        {o.expected_payment_date ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className={isOverdue ? "text-destructive font-semibold" : "text-muted-foreground"}>
+                              {new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                            </span>
+                            {isOverdue && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-destructive bg-destructive/10 border border-destructive/20 rounded-full px-1.5 py-0.5 w-fit">
+                                <AlertTriangle className="w-3 h-3" />
+                                {daysOverdue} dia{daysOverdue > 1 ? "s" : ""} em atraso
+                              </span>
+                            )}
+                          </div>
+                        ) : "—"}
+                      </td>
                       </td>
                       <td className="p-3">
                         <div className="flex items-center justify-center gap-1">
