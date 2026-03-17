@@ -462,14 +462,17 @@ const PaymentOrdersTracker = () => {
                   const StIcon = st.icon;
                   const isPaid = o.status === "sacado";
                   const isDraft = o.status === "rascunho";
+                  const isCancelled = o.status === "cancelado";
                   const math = computePaymentOrderMath(o);
+                  const isOverdue = !isPaid && !isCancelled && o.expected_payment_date && differenceInDays(new Date(), new Date(o.expected_payment_date + "T12:00:00")) > 0;
+                  const daysOverdue = isOverdue ? differenceInDays(new Date(), new Date(o.expected_payment_date + "T12:00:00")) : 0;
                   return (
                     <motion.tr
                       key={o.id}
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.02 }}
-                      className={`border-b last:border-0 transition-colors ${isPaid ? "bg-muted/20" : "hover:bg-muted/30"}`}
+                      className={`border-b last:border-0 transition-colors ${isOverdue ? "bg-destructive/8 border-l-2 border-l-destructive" : isPaid ? "bg-muted/20" : "hover:bg-muted/30"}`}
                     >
                       <td className="p-3">
                         <Checkbox checked={isPaid} onCheckedChange={() => togglePaid(o.id, o.status)} />
