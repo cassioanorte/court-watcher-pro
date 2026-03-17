@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { differenceInDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -461,14 +462,17 @@ const PaymentOrdersTracker = () => {
                   const StIcon = st.icon;
                   const isPaid = o.status === "sacado";
                   const isDraft = o.status === "rascunho";
+                  const isCancelled = o.status === "cancelado";
                   const math = computePaymentOrderMath(o);
+                  const isOverdue = !isPaid && !isCancelled && o.expected_payment_date && differenceInDays(new Date(), new Date(o.expected_payment_date + "T12:00:00")) > 0;
+                  const daysOverdue = isOverdue ? differenceInDays(new Date(), new Date(o.expected_payment_date + "T12:00:00")) : 0;
                   return (
                     <motion.tr
                       key={o.id}
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.02 }}
-                      className={`border-b last:border-0 transition-colors ${isPaid ? "bg-muted/20" : "hover:bg-muted/30"}`}
+                      className={`border-b last:border-0 transition-colors ${isOverdue ? "bg-destructive/8 border-l-2 border-l-destructive" : isPaid ? "bg-muted/20" : "hover:bg-muted/30"}`}
                     >
                       <td className="p-3">
                         <Checkbox checked={isPaid} onCheckedChange={() => togglePaid(o.id, o.status)} />
@@ -525,8 +529,20 @@ const PaymentOrdersTracker = () => {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="p-3 text-xs text-muted-foreground">
-                        {o.expected_payment_date ? new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
+                      <td className="p-3 text-xs">
+                        {o.expected_payment_date ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className={isOverdue ? "text-destructive font-semibold" : "text-muted-foreground"}>
+                              {new Date(o.expected_payment_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                            </span>
+                            {isOverdue && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-destructive bg-destructive/10 border border-destructive/20 rounded-full px-1.5 py-0.5 w-fit">
+                                <AlertTriangle className="w-3 h-3" />
+                                {daysOverdue} dia{daysOverdue > 1 ? "s" : ""} em atraso
+                              </span>
+                            )}
+                          </div>
+                        ) : "—"}
                       </td>
                       <td className="p-3">
                         <div className="flex items-center justify-center gap-1">
