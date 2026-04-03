@@ -668,6 +668,7 @@ const Settings = () => {
         <ChangePasswordSection />
       </motion.div>
 
+      <ApiKeyManager />
       <EprocSessionSync />
       <MassImportBookmarklet />
       <BookmarkletSetup />
