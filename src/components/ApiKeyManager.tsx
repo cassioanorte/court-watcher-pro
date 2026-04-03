@@ -172,8 +172,8 @@ const ApiKeyManager = () => {
 
       {/* Show newly created key */}
       {showNewKey && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 space-y-2">
-          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+        <div className="bg-accent/10 border border-accent/30 rounded-lg p-4 space-y-2">
+          <p className="text-xs font-semibold text-accent">
             ⚠️ Copie esta chave agora! Ela não será exibida novamente.
           </p>
           <div className="flex items-center gap-2 bg-background rounded-lg p-2">
@@ -182,7 +182,7 @@ const ApiKeyManager = () => {
               onClick={() => copyToClipboard(showNewKey)}
               className="p-1.5 rounded-md hover:bg-muted transition-colors"
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+              {copied ? <Check className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
             </button>
           </div>
           <button onClick={() => setShowNewKey(null)} className="text-xs text-muted-foreground hover:text-foreground">
