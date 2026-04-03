@@ -27,6 +27,7 @@ const navItems = [
   { to: "/landing-pages", icon: Globe, label: "Landing Pages" },
   { to: "/agentes-ia", icon: Bot, label: "Agentes de IA" },
   { to: "/calculadoras", icon: Calculator, label: "Calculadoras" },
+  { to: "/configuracoes?tab=api", icon: Settings, label: "API" },
 ];
 
 const AdminLayout = () => {
