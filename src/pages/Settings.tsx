@@ -13,6 +13,7 @@ import MassImportBookmarklet from "@/components/MassImportBookmarklet";
 import ExtractDataBookmarklet from "@/components/ExtractDataBookmarklet";
 import DocumentCaptureBookmarklet from "@/components/DocumentCaptureBookmarklet";
 import EprocSessionSync from "@/components/EprocSessionSync";
+import ApiKeyManager from "@/components/ApiKeyManager";
 import { type ThemeColors, DEFAULT_THEME, applyTheme, applyLogoOnly, getLogoFilter } from "@/hooks/useTheme";
 import { extractColorsFromImage, generateThemePresetsFromColors } from "@/lib/extractColors";
 
@@ -667,6 +668,7 @@ const Settings = () => {
         <ChangePasswordSection />
       </motion.div>
 
+      <ApiKeyManager />
       <EprocSessionSync />
       <MassImportBookmarklet />
       <BookmarkletSetup />
