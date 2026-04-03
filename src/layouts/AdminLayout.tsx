@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Scale, Users, Settings, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check, ClipboardCheck, CheckSquare } from "lucide-react";
+import { LayoutDashboard, Scale, Users, Settings, Menu, X, CalendarDays, DollarSign, Receipt, LogOut, Newspaper, UserPlus, Contact, User, Globe, Shield, Banknote, Bot, Calculator, Sun, Moon, Check, ClipboardCheck, CheckSquare, Key } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { useColorMode, LIGHT_VARIANT_OPTIONS, DARK_VARIANT_OPTIONS, type LightVariant, type DarkVariant } from "@/hooks/useColorMode";
 import { useState, useEffect } from "react";
