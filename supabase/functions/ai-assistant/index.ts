@@ -851,6 +851,97 @@ async function executeTool(
   }
 }
 
+// ─── Embedding helper ───
+async function getEmbedding(text: string, apiKey: string): Promise<number[] | null> {
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai/gpt-5-nano", input: text.substring(0, 2000) }),
+    });
+    if (!resp.ok) {
+      console.error("Embedding error:", resp.status);
+      return null;
+    }
+    const data = await resp.json();
+    return data.data?.[0]?.embedding || null;
+  } catch (e) {
+    console.error("Embedding exception:", e);
+    return null;
+  }
+}
+
+// ─── Memory helpers ───
+async function searchMemories(
+  userId: string, tenantId: string, queryText: string,
+  db: ReturnType<typeof createClient>, apiKey: string
+): Promise<string> {
+  const embedding = await getEmbedding(queryText, apiKey);
+  if (!embedding) return "";
+
+  const { data, error } = await db.rpc("match_memories", {
+    _user_id: userId,
+    _tenant_id: tenantId,
+    query_embedding: JSON.stringify(embedding),
+    match_threshold: 0.4,
+    match_count: 5,
+  });
+
+  if (error || !data?.length) return "";
+  return data.map((m: any) => `• ${m.summary}`).join("\n");
+}
+
+async function saveMemory(
+  userId: string, tenantId: string, conversationId: string | null,
+  summary: string, db: ReturnType<typeof createClient>, apiKey: string
+) {
+  const embedding = await getEmbedding(summary, apiKey);
+  if (!embedding) return;
+
+  await db.from("ai_memory").insert({
+    user_id: userId,
+    tenant_id: tenantId,
+    conversation_id: conversationId,
+    summary,
+    embedding: JSON.stringify(embedding),
+  });
+}
+
+async function generateConversationSummary(
+  messages: any[], apiKey: string
+): Promise<string | null> {
+  // Only summarize if there are enough messages
+  const textMessages = messages.filter((m: any) => m.role === "user" || m.role === "assistant");
+  if (textMessages.length < 2) return null;
+
+  const lastMessages = textMessages.slice(-6);
+  const conversation = lastMessages.map((m: any) => {
+    const content = typeof m.content === "string" ? m.content : 
+      Array.isArray(m.content) ? m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(" ") : "";
+    return `${m.role === "user" ? "Usuário" : "Assistente"}: ${content.substring(0, 300)}`;
+  }).join("\n");
+
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{
+          role: "user",
+          content: `Resuma em UMA frase curta (máximo 80 palavras) o que foi discutido e decidido nesta conversa. Inclua nomes, datas e ações concretas. Não use saudações nem formato de lista.\n\nConversa:\n${conversation}`,
+        }],
+        stream: false,
+      }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Main handler ───
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -909,12 +1000,23 @@ serve(async (req) => {
       }
     }
 
+    // RAG: search relevant memories
+    const lastUserText = messages?.length
+      ? extractText(messages[messages.length - 1].content)
+      : "";
+    let memoriesContext = "";
+    if (lastUserText) {
+      memoriesContext = await searchMemories(
+        user.id, profile.tenant_id, lastUserText, adminClient, LOVABLE_API_KEY
+      );
+    }
+
     const systemPrompt = `Você é o Assistente Jurídico IA do sistema Lex Imperium. Você ajuda advogados e funcionários de escritórios de advocacia.
 
 Informações do usuário:
 - Nome: ${profile.full_name}
 - OAB: ${profile.oab_number || "Não cadastrada"}
-
+${memoriesContext ? `\nMEMÓRIAS DE CONVERSAS ANTERIORES (use como contexto, mas não cite explicitamente que são "memórias"):\n${memoriesContext}\n` : ""}
 REGRAS:
 1. Sempre responda em português brasileiro
 2. Seja profissional mas amigável
@@ -925,6 +1027,7 @@ REGRAS:
 7. Ao receber confirmação ("sim", "pode", "ok", "confirmo", "prossiga"), execute a ação imediatamente.
 8. Quando o usuário enviar uma imagem, analise-a detalhadamente (documentos, contratos, publicações, decisões judiciais, etc.) e forneça insights relevantes.
 9. Você pode receber imagens junto com texto — analise ambos em conjunto.
+10. Você tem memória de longo prazo — pode se lembrar de conversas anteriores. Use esse contexto naturalmente.
 
 Ferramentas de LEITURA (consultas):
 - listar_processos: buscar processos
@@ -1024,7 +1127,7 @@ Ferramentas INTELIGENTES (análise avançada):
 
     const finalContent = assistantMessage?.content || "Desculpe, não consegui processar sua solicitação.";
 
-    // Save assistant message
+    // Save assistant message + generate memory (non-blocking)
     if (conversation_id) {
       await adminClient.from("ai_messages").insert({
         conversation_id,
@@ -1033,6 +1136,15 @@ Ferramentas INTELIGENTES (análise avançada):
         content: finalContent,
         tool_calls: assistantMessage?.tool_calls || null,
       });
+
+      // Save memory asynchronously (don't block response)
+      const allMsgs = [...messages, { role: "assistant", content: finalContent }];
+      generateConversationSummary(allMsgs, LOVABLE_API_KEY).then((summary) => {
+        if (summary) {
+          saveMemory(user.id, profile.tenant_id, conversation_id, summary, adminClient, LOVABLE_API_KEY)
+            .catch((e) => console.error("Memory save error:", e));
+        }
+      }).catch((e) => console.error("Summary generation error:", e));
     }
 
     return new Response(JSON.stringify({ content: finalContent }), {

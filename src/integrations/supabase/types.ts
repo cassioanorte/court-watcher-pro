@@ -2449,6 +2449,21 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      match_memories: {
+        Args: {
+          _tenant_id: string
+          _user_id: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+          similarity: number
+          summary: string
+        }[]
+      }
     }
     Enums: {
       app_role: "owner" | "staff" | "client" | "superadmin"
