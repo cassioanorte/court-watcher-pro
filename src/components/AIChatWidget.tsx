@@ -37,6 +37,7 @@ const AIChatWidget = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const clearedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +53,7 @@ const AIChatWidget = () => {
   // Load last conversation when opened
   useEffect(() => {
     if (!open || !user || !tenantId) return;
-    if (conversationId) {
+    if (conversationId || clearedRef.current) {
       // Already have a conversation, just focus
       setTimeout(() => inputRef.current?.focus(), 100);
       return;
@@ -167,6 +168,7 @@ const AIChatWidget = () => {
 
   const sendMessage = async () => {
     if ((!input.trim() && !imageFile) || loading) return;
+    clearedRef.current = false;
 
     const userMsg: Message = {
       role: "user",
@@ -233,6 +235,7 @@ const AIChatWidget = () => {
   const clearChat = () => {
     setMessages([]);
     setConversationId(null);
+    clearedRef.current = true;
     clearImage();
   };
 
