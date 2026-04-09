@@ -77,17 +77,7 @@ const AIChatWidget = () => {
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Selecione um arquivo de imagem.");
-      return;
-    }
-    if (file.size > MAX_IMAGE_SIZE) {
-      toast.error("Imagem muito grande. Máximo 4MB.");
-      return;
-    }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    if (file) processFile(file);
   };
 
   const clearImage = () => {
