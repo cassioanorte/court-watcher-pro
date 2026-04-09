@@ -53,7 +53,7 @@ const AIChatWidget = () => {
   // Load last conversation when opened
   useEffect(() => {
     if (!open || !user || !tenantId) return;
-    if (conversationId) {
+    if (conversationId || clearedRef.current) {
       // Already have a conversation, just focus
       setTimeout(() => inputRef.current?.focus(), 100);
       return;
