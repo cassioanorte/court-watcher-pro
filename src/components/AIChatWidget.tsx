@@ -49,12 +49,44 @@ const AIChatWidget = () => {
     }
   }, [messages]);
 
-  // Focus input when opened
+  // Load last conversation when opened
   useEffect(() => {
-    if (open && inputRef.current) {
+    if (!open || !user || !tenantId) return;
+    if (conversationId) {
+      // Already have a conversation, just focus
       setTimeout(() => inputRef.current?.focus(), 100);
+      return;
     }
-  }, [open]);
+
+    const loadLastConversation = async () => {
+      // Find most recent conversation
+      const { data: conv } = await supabase
+        .from("ai_conversations")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (conv) {
+        // Load messages from that conversation
+        const { data: msgs } = await supabase
+          .from("ai_messages")
+          .select("role, content")
+          .eq("conversation_id", conv.id)
+          .order("created_at", { ascending: true });
+
+        if (msgs && msgs.length > 0) {
+          setConversationId(conv.id);
+          setMessages(msgs.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })));
+        }
+      }
+      setTimeout(() => inputRef.current?.focus(), 100);
+    };
+
+    loadLastConversation();
+  }, [open, user, tenantId, conversationId]);
 
   // Create or load conversation
   const ensureConversation = useCallback(async () => {
