@@ -168,6 +168,7 @@ const AIChatWidget = () => {
 
   const sendMessage = async () => {
     if ((!input.trim() && !imageFile) || loading) return;
+    clearedRef.current = false;
 
     const userMsg: Message = {
       role: "user",
