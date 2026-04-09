@@ -1000,12 +1000,23 @@ serve(async (req) => {
       }
     }
 
+    // RAG: search relevant memories
+    const lastUserText = messages?.length
+      ? extractText(messages[messages.length - 1].content)
+      : "";
+    let memoriesContext = "";
+    if (lastUserText) {
+      memoriesContext = await searchMemories(
+        user.id, profile.tenant_id, lastUserText, adminClient, LOVABLE_API_KEY
+      );
+    }
+
     const systemPrompt = `Você é o Assistente Jurídico IA do sistema Lex Imperium. Você ajuda advogados e funcionários de escritórios de advocacia.
 
 Informações do usuário:
 - Nome: ${profile.full_name}
 - OAB: ${profile.oab_number || "Não cadastrada"}
-
+${memoriesContext ? `\nMEMÓRIAS DE CONVERSAS ANTERIORES (use como contexto, mas não cite explicitamente que são "memórias"):\n${memoriesContext}\n` : ""}
 REGRAS:
 1. Sempre responda em português brasileiro
 2. Seja profissional mas amigável
@@ -1016,6 +1027,7 @@ REGRAS:
 7. Ao receber confirmação ("sim", "pode", "ok", "confirmo", "prossiga"), execute a ação imediatamente.
 8. Quando o usuário enviar uma imagem, analise-a detalhadamente (documentos, contratos, publicações, decisões judiciais, etc.) e forneça insights relevantes.
 9. Você pode receber imagens junto com texto — analise ambos em conjunto.
+10. Você tem memória de longo prazo — pode se lembrar de conversas anteriores. Use esse contexto naturalmente.
 
 Ferramentas de LEITURA (consultas):
 - listar_processos: buscar processos
