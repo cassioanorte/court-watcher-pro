@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, X, Camera, Loader2 } from "lucide-react";
+import { Save, X, Camera, Loader2, Search } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type NewContactModalProps = {
