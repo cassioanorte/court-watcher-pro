@@ -884,6 +884,18 @@ serve(async (req) => {
 
     const { messages, conversation_id } = await req.json();
 
+    // Helper to extract text from content (string or multimodal array)
+    const extractText = (content: any): string => {
+      if (typeof content === "string") return content;
+      if (Array.isArray(content)) {
+        return content
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text)
+          .join(" ");
+      }
+      return "";
+    };
+
     // Save user message
     if (messages?.length && conversation_id) {
       const lastMsg = messages[messages.length - 1];
@@ -892,7 +904,7 @@ serve(async (req) => {
           conversation_id,
           tenant_id: profile.tenant_id,
           role: "user",
-          content: lastMsg.content,
+          content: extractText(lastMsg.content),
         });
       }
     }
@@ -911,6 +923,8 @@ REGRAS:
 5. Formate respostas com clareza usando listas e destaques quando necessário
 6. Para ações de ESCRITA (cadastrar, agendar, criar, registrar, enviar), SEMPRE confirme com o usuário ANTES de executar. Descreva exatamente o que será feito e peça "Posso prosseguir?" — só execute a ferramenta após confirmação.
 7. Ao receber confirmação ("sim", "pode", "ok", "confirmo", "prossiga"), execute a ação imediatamente.
+8. Quando o usuário enviar uma imagem, analise-a detalhadamente (documentos, contratos, publicações, decisões judiciais, etc.) e forneça insights relevantes.
+9. Você pode receber imagens junto com texto — analise ambos em conjunto.
 
 Ferramentas de LEITURA (consultas):
 - listar_processos: buscar processos

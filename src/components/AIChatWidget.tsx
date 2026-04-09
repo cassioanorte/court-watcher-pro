@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageSquare, X, Send, Trash2, Loader2, Mic, MicOff } from "lucide-react";
+import { MessageSquare, X, Send, Trash2, Loader2, Mic, MicOff, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -11,9 +10,21 @@ interface Message {
   id?: string;
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string; // local preview URL for display
 }
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4MB
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const AIChatWidget = () => {
   const { user, tenantId } = useAuth();
@@ -23,8 +34,11 @@ const AIChatWidget = () => {
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
 
   // Auto-scroll
@@ -60,21 +74,73 @@ const AIChatWidget = () => {
     return data.id;
   }, [conversationId, user, tenantId]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      toast.error("Imagem muito grande. Máximo 4MB.");
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
-    const userMsg: Message = { role: "user", content: input.trim() };
+  const clearImage = () => {
+    setImageFile(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const sendMessage = async () => {
+    if ((!input.trim() && !imageFile) || loading) return;
+
+    const userMsg: Message = {
+      role: "user",
+      content: input.trim() || (imageFile ? "Analise esta imagem" : ""),
+      imageUrl: imagePreview || undefined,
+    };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+
+    // Prepare base64 before clearing
+    let base64Image: string | null = null;
+    if (imageFile) {
+      try {
+        base64Image = await fileToBase64(imageFile);
+      } catch {
+        toast.error("Erro ao processar imagem.");
+      }
+    }
+
     setInput("");
+    clearImage();
     setLoading(true);
 
     try {
       const convId = await ensureConversation();
 
+      // Build messages payload — last message may have image
+      const apiMessages = newMessages.map((m, i) => {
+        if (i === newMessages.length - 1 && base64Image) {
+          return {
+            role: m.role,
+            content: [
+              ...(m.content ? [{ type: "text", text: m.content }] : []),
+              { type: "image_url", image_url: { url: base64Image } },
+            ],
+          };
+        }
+        return { role: m.role, content: m.content };
+      });
+
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
         body: {
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
           conversation_id: convId,
         },
       });
@@ -98,6 +164,7 @@ const AIChatWidget = () => {
   const clearChat = () => {
     setMessages([]);
     setConversationId(null);
+    clearImage();
   };
 
   const toggleListening = useCallback(() => {
@@ -205,7 +272,7 @@ const AIChatWidget = () => {
                 <div>
                   <p className="text-sm font-medium text-foreground">Olá! Sou seu assistente jurídico.</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Consulto, executo ações e analiso processos com inteligência artificial.
+                    Consulto, executo ações e analiso processos com inteligência artificial. Você também pode enviar imagens!
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center mt-4">
@@ -241,12 +308,19 @@ const AIChatWidget = () => {
                       : "bg-secondary text-secondary-foreground"
                   }`}
                 >
+                  {msg.imageUrl && (
+                    <img
+                      src={msg.imageUrl}
+                      alt="Imagem enviada"
+                      className="rounded-md mb-2 max-h-40 object-contain"
+                    />
+                  )}
                   {msg.role === "assistant" ? (
                     <div className="prose prose-sm prose-invert max-w-none [&_p]:mb-1 [&_ul]:mb-1 [&_li]:mb-0.5">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>
                   )}
                 </div>
               </div>
@@ -273,13 +347,42 @@ const AIChatWidget = () => {
                 <span className="text-xs text-muted-foreground">Ouvindo... fale agora</span>
               </div>
             )}
+            {/* Image preview */}
+            {imagePreview && (
+              <div className="relative inline-block mb-2">
+                <img src={imagePreview} alt="Preview" className="h-16 rounded-md border border-border" />
+                <button
+                  onClick={clearImage}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs hover:scale-110 transition-transform"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                title="Enviar imagem"
+                disabled={loading}
+              >
+                <ImagePlus className="h-4 w-4" />
+              </Button>
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Pergunte algo..."
+                placeholder="Pergunte algo ou envie uma imagem..."
                 rows={1}
                 className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-h-24 min-h-[36px]"
                 style={{ height: "36px" }}
@@ -304,7 +407,7 @@ const AIChatWidget = () => {
                 size="icon"
                 className="h-9 w-9 shrink-0"
                 onClick={sendMessage}
-                disabled={!input.trim() || loading}
+                disabled={(!input.trim() && !imageFile) || loading}
               >
                 <Send className="h-4 w-4" />
               </Button>
