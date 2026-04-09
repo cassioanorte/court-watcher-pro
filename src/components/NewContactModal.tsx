@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, X, Camera, Loader2 } from "lucide-react";
+import { Save, X, Camera, Loader2, Search } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type NewContactModalProps = {
@@ -147,12 +147,58 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
   const [saving, setSaving] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const set = (field: string) => (value: any) =>
     setForm((f) => ({ ...f, [field]: value }));
 
+  const isCnpj = form.cpf.replace(/\D/g, "").length >= 12;
+
+  const fetchCnpj = useCallback(async () => {
+    const raw = form.cpf.replace(/\D/g, "");
+    if (raw.length !== 14) {
+      toast({ title: "CNPJ inválido", description: "Digite os 14 dígitos do CNPJ.", variant: "destructive" });
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${raw}`);
+      if (!res.ok) throw new Error("CNPJ não encontrado");
+      const data = await res.json();
+
+      const socios = (data.qsa || []).map((s: any) => `${s.nome_socio} (${s.qual_socio})`).join("; ");
+      
+      setForm((f) => ({
+        ...f,
+        full_name: f.full_name || data.razao_social || data.nome_fantasia || "",
+        email: f.email || (data.email ? data.email.toLowerCase() : ""),
+        phone: f.phone || data.ddd_telefone_1 || "",
+        address: f.address || [
+          data.descricao_tipo_de_logradouro, data.logradouro, data.numero,
+          data.complemento, data.bairro,
+          data.municipio && data.uf ? `${data.municipio}/${data.uf}` : "",
+          data.cep ? `CEP ${data.cep}` : "",
+        ].filter(Boolean).join(", "),
+        atividade_economica: f.atividade_economica || (data.cnae_fiscal_descricao || ""),
+        comentarios: f.comentarios
+          ? f.comentarios
+          : [
+              data.nome_fantasia ? `Nome Fantasia: ${data.nome_fantasia}` : "",
+              data.situacao_cadastral ? `Situação: ${data.descricao_situacao_cadastral}` : "",
+              data.capital_social ? `Capital Social: R$ ${Number(data.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+              socios ? `Sócios: ${socios}` : "",
+            ].filter(Boolean).join("\n"),
+      }));
+
+      toast({ title: "CNPJ encontrado!", description: `${data.razao_social || "Dados preenchidos automaticamente."}` });
+    } catch (err: any) {
+      toast({ title: "Erro na consulta", description: err.message || "Não foi possível consultar o CNPJ.", variant: "destructive" });
+    } finally {
+      setCnpjLoading(false);
+    }
+  }, [form.cpf, toast]);
   const handleSubmit = async () => {
     if (!form.full_name.trim()) {
       toast({ title: "Erro", description: "Nome completo é obrigatório.", variant: "destructive" });
@@ -374,7 +420,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                 <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
                   CPF / CNPJ
                 </span>
-                <div className="flex-1">
+                <div className="flex-1 flex items-center gap-2">
                   <input
                     type="text"
                     value={form.cpf}
@@ -382,13 +428,11 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                       const raw = e.target.value.replace(/\D/g, "").slice(0, 14);
                       let formatted = raw;
                       if (raw.length <= 11) {
-                        // CPF: 000.000.000-00
                         formatted = raw
                           .replace(/(\d{3})(\d)/, "$1.$2")
                           .replace(/(\d{3})(\d)/, "$1.$2")
                           .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
                       } else {
-                        // CNPJ: 00.000.000/0000-00
                         formatted = raw
                           .replace(/(\d{2})(\d)/, "$1.$2")
                           .replace(/(\d{3})(\d)/, "$1.$2")
@@ -400,6 +444,18 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                     placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
+                  {isCnpj && (
+                    <button
+                      type="button"
+                      onClick={fetchCnpj}
+                      disabled={cnpjLoading}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+                      title="Consultar CNPJ na Receita Federal"
+                    >
+                      {cnpjLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      Buscar
+                    </button>
+                  )}
                 </div>
               </div>
               <Field label="RG" value={form.rg} onChange={set("rg")} />
