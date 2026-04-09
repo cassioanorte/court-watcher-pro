@@ -420,7 +420,7 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                 <span className="w-40 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right pr-4 shrink-0">
                   CPF / CNPJ
                 </span>
-                <div className="flex-1">
+                <div className="flex-1 flex items-center gap-2">
                   <input
                     type="text"
                     value={form.cpf}
@@ -428,13 +428,11 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                       const raw = e.target.value.replace(/\D/g, "").slice(0, 14);
                       let formatted = raw;
                       if (raw.length <= 11) {
-                        // CPF: 000.000.000-00
                         formatted = raw
                           .replace(/(\d{3})(\d)/, "$1.$2")
                           .replace(/(\d{3})(\d)/, "$1.$2")
                           .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
                       } else {
-                        // CNPJ: 00.000.000/0000-00
                         formatted = raw
                           .replace(/(\d{2})(\d)/, "$1.$2")
                           .replace(/(\d{3})(\d)/, "$1.$2")
@@ -446,6 +444,18 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
                     placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     className="h-8 px-2 rounded border bg-background text-sm text-foreground w-full focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
+                  {isCnpj && (
+                    <button
+                      type="button"
+                      onClick={fetchCnpj}
+                      disabled={cnpjLoading}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+                      title="Consultar CNPJ na Receita Federal"
+                    >
+                      {cnpjLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      Buscar
+                    </button>
+                  )}
                 </div>
               </div>
               <Field label="RG" value={form.rg} onChange={set("rg")} />
