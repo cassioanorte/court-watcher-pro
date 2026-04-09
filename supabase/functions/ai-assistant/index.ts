@@ -884,6 +884,18 @@ serve(async (req) => {
 
     const { messages, conversation_id } = await req.json();
 
+    // Helper to extract text from content (string or multimodal array)
+    const extractText = (content: any): string => {
+      if (typeof content === "string") return content;
+      if (Array.isArray(content)) {
+        return content
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text)
+          .join(" ");
+      }
+      return "";
+    };
+
     // Save user message
     if (messages?.length && conversation_id) {
       const lastMsg = messages[messages.length - 1];
@@ -892,7 +904,7 @@ serve(async (req) => {
           conversation_id,
           tenant_id: profile.tenant_id,
           role: "user",
-          content: lastMsg.content,
+          content: extractText(lastMsg.content),
         });
       }
     }
