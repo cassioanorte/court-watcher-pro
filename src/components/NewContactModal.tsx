@@ -147,12 +147,58 @@ const NewContactModal = ({ open, onClose, onCreated }: NewContactModalProps) => 
   const [saving, setSaving] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const set = (field: string) => (value: any) =>
     setForm((f) => ({ ...f, [field]: value }));
 
+  const isCnpj = form.cpf.replace(/\D/g, "").length >= 12;
+
+  const fetchCnpj = useCallback(async () => {
+    const raw = form.cpf.replace(/\D/g, "");
+    if (raw.length !== 14) {
+      toast({ title: "CNPJ inválido", description: "Digite os 14 dígitos do CNPJ.", variant: "destructive" });
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${raw}`);
+      if (!res.ok) throw new Error("CNPJ não encontrado");
+      const data = await res.json();
+
+      const socios = (data.qsa || []).map((s: any) => `${s.nome_socio} (${s.qual_socio})`).join("; ");
+      
+      setForm((f) => ({
+        ...f,
+        full_name: f.full_name || data.razao_social || data.nome_fantasia || "",
+        email: f.email || (data.email ? data.email.toLowerCase() : ""),
+        phone: f.phone || data.ddd_telefone_1 || "",
+        address: f.address || [
+          data.descricao_tipo_de_logradouro, data.logradouro, data.numero,
+          data.complemento, data.bairro,
+          data.municipio && data.uf ? `${data.municipio}/${data.uf}` : "",
+          data.cep ? `CEP ${data.cep}` : "",
+        ].filter(Boolean).join(", "),
+        atividade_economica: f.atividade_economica || (data.cnae_fiscal_descricao || ""),
+        comentarios: f.comentarios
+          ? f.comentarios
+          : [
+              data.nome_fantasia ? `Nome Fantasia: ${data.nome_fantasia}` : "",
+              data.situacao_cadastral ? `Situação: ${data.descricao_situacao_cadastral}` : "",
+              data.capital_social ? `Capital Social: R$ ${Number(data.capital_social).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+              socios ? `Sócios: ${socios}` : "",
+            ].filter(Boolean).join("\n"),
+      }));
+
+      toast({ title: "CNPJ encontrado!", description: `${data.razao_social || "Dados preenchidos automaticamente."}` });
+    } catch (err: any) {
+      toast({ title: "Erro na consulta", description: err.message || "Não foi possível consultar o CNPJ.", variant: "destructive" });
+    } finally {
+      setCnpjLoading(false);
+    }
+  }, [form.cpf, toast]);
   const handleSubmit = async () => {
     if (!form.full_name.trim()) {
       toast({ title: "Erro", description: "Nome completo é obrigatório.", variant: "destructive" });
