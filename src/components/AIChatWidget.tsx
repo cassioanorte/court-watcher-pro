@@ -234,6 +234,7 @@ const AIChatWidget = () => {
   const clearChat = () => {
     setMessages([]);
     setConversationId(null);
+    clearedRef.current = true;
     clearImage();
   };
 
