@@ -1127,7 +1127,7 @@ Ferramentas INTELIGENTES (análise avançada):
 
     const finalContent = assistantMessage?.content || "Desculpe, não consegui processar sua solicitação.";
 
-    // Save assistant message
+    // Save assistant message + generate memory (non-blocking)
     if (conversation_id) {
       await adminClient.from("ai_messages").insert({
         conversation_id,
@@ -1136,6 +1136,15 @@ Ferramentas INTELIGENTES (análise avançada):
         content: finalContent,
         tool_calls: assistantMessage?.tool_calls || null,
       });
+
+      // Save memory asynchronously (don't block response)
+      const allMsgs = [...messages, { role: "assistant", content: finalContent }];
+      generateConversationSummary(allMsgs, LOVABLE_API_KEY).then((summary) => {
+        if (summary) {
+          saveMemory(user.id, profile.tenant_id, conversation_id, summary, adminClient, LOVABLE_API_KEY)
+            .catch((e) => console.error("Memory save error:", e));
+        }
+      }).catch((e) => console.error("Summary generation error:", e));
     }
 
     return new Response(JSON.stringify({ content: finalContent }), {
