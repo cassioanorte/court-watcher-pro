@@ -851,6 +851,97 @@ async function executeTool(
   }
 }
 
+// ─── Embedding helper ───
+async function getEmbedding(text: string, apiKey: string): Promise<number[] | null> {
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai/gpt-5-nano", input: text.substring(0, 2000) }),
+    });
+    if (!resp.ok) {
+      console.error("Embedding error:", resp.status);
+      return null;
+    }
+    const data = await resp.json();
+    return data.data?.[0]?.embedding || null;
+  } catch (e) {
+    console.error("Embedding exception:", e);
+    return null;
+  }
+}
+
+// ─── Memory helpers ───
+async function searchMemories(
+  userId: string, tenantId: string, queryText: string,
+  db: ReturnType<typeof createClient>, apiKey: string
+): Promise<string> {
+  const embedding = await getEmbedding(queryText, apiKey);
+  if (!embedding) return "";
+
+  const { data, error } = await db.rpc("match_memories", {
+    _user_id: userId,
+    _tenant_id: tenantId,
+    query_embedding: JSON.stringify(embedding),
+    match_threshold: 0.4,
+    match_count: 5,
+  });
+
+  if (error || !data?.length) return "";
+  return data.map((m: any) => `• ${m.summary}`).join("\n");
+}
+
+async function saveMemory(
+  userId: string, tenantId: string, conversationId: string | null,
+  summary: string, db: ReturnType<typeof createClient>, apiKey: string
+) {
+  const embedding = await getEmbedding(summary, apiKey);
+  if (!embedding) return;
+
+  await db.from("ai_memory").insert({
+    user_id: userId,
+    tenant_id: tenantId,
+    conversation_id: conversationId,
+    summary,
+    embedding: JSON.stringify(embedding),
+  });
+}
+
+async function generateConversationSummary(
+  messages: any[], apiKey: string
+): Promise<string | null> {
+  // Only summarize if there are enough messages
+  const textMessages = messages.filter((m: any) => m.role === "user" || m.role === "assistant");
+  if (textMessages.length < 2) return null;
+
+  const lastMessages = textMessages.slice(-6);
+  const conversation = lastMessages.map((m: any) => {
+    const content = typeof m.content === "string" ? m.content : 
+      Array.isArray(m.content) ? m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(" ") : "";
+    return `${m.role === "user" ? "Usuário" : "Assistente"}: ${content.substring(0, 300)}`;
+  }).join("\n");
+
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{
+          role: "user",
+          content: `Resuma em UMA frase curta (máximo 80 palavras) o que foi discutido e decidido nesta conversa. Inclua nomes, datas e ações concretas. Não use saudações nem formato de lista.\n\nConversa:\n${conversation}`,
+        }],
+        stream: false,
+      }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Main handler ───
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
