@@ -114,12 +114,11 @@ const DashboardCrmPipeline = () => {
         </div>
       )}
 
-      <div className="flex gap-3 mt-3 pt-3 border-t">
-        {(["fechado_ganho", "fechado_perdido"] as const).map((key) => {
-          const stage = STAGES.find((s) => s.key === key)!;
-          const count = stageCounts[key] || 0;
+      <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t">
+        {footerStages.map((stage) => {
+          const count = stageCounts[stage.key] || 0;
           return (
-            <div key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div key={stage.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className={`w-2 h-2 rounded-full ${stage.color}`} />
               {stage.label}: <span className="font-semibold text-foreground">{count}</span>
             </div>
