@@ -12,8 +12,12 @@ const STAGES = [
   { key: "reuniao_agendada", label: "Reunião", color: "bg-[hsl(38,80%,55%)]" },
   { key: "proposta_enviada", label: "Proposta", color: "bg-[hsl(280,60%,55%)]" },
   { key: "negociacao", label: "Negociação", color: "bg-[hsl(38,92%,50%)]" },
+  { key: "qualificado", label: "Qualificado", color: "bg-[hsl(200,80%,50%)]" },
+  { key: "cliente_ativo", label: "Ativo", color: "bg-[hsl(152,60%,42%)]" },
   { key: "fechado_ganho", label: "Ganho", color: "bg-[hsl(152,60%,42%)]" },
   { key: "fechado_perdido", label: "Perdido", color: "bg-destructive" },
+  { key: "nao_qualificado", label: "Descartado", color: "bg-[hsl(0,0%,55%)]", group: "descartados" },
+  { key: "cliente_encerrado", label: "Encerrado", color: "bg-[hsl(270,50%,55%)]", group: "encerrados" },
 ] as const;
 
 const DashboardCrmPipeline = () => {
@@ -42,9 +46,10 @@ const DashboardCrmPipeline = () => {
     load();
   }, [tenantId]);
 
-  const activeStages = STAGES.filter((s) => s.key !== "fechado_perdido" && s.key !== "fechado_ganho");
+  const activeStages = STAGES.filter((s) => !["fechado_perdido", "fechado_ganho", "nao_qualificado", "cliente_encerrado"].includes(s.key));
   const totalActive = activeStages.reduce((acc, s) => acc + (stageCounts[s.key] || 0), 0);
   const maxCount = Math.max(...activeStages.map((s) => stageCounts[s.key] || 0), 1);
+  const footerStages = STAGES.filter((s) => ["fechado_ganho", "fechado_perdido", "nao_qualificado", "cliente_encerrado"].includes(s.key));
 
   return (
     <motion.div
@@ -109,12 +114,11 @@ const DashboardCrmPipeline = () => {
         </div>
       )}
 
-      <div className="flex gap-3 mt-3 pt-3 border-t">
-        {(["fechado_ganho", "fechado_perdido"] as const).map((key) => {
-          const stage = STAGES.find((s) => s.key === key)!;
-          const count = stageCounts[key] || 0;
+      <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t">
+        {footerStages.map((stage) => {
+          const count = stageCounts[stage.key] || 0;
           return (
-            <div key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div key={stage.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className={`w-2 h-2 rounded-full ${stage.color}`} />
               {stage.label}: <span className="font-semibold text-foreground">{count}</span>
             </div>
