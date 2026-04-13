@@ -46,9 +46,10 @@ const DashboardCrmPipeline = () => {
     load();
   }, [tenantId]);
 
-  const activeStages = STAGES.filter((s) => s.key !== "fechado_perdido" && s.key !== "fechado_ganho");
+  const activeStages = STAGES.filter((s) => !["fechado_perdido", "fechado_ganho", "nao_qualificado", "cliente_encerrado"].includes(s.key));
   const totalActive = activeStages.reduce((acc, s) => acc + (stageCounts[s.key] || 0), 0);
   const maxCount = Math.max(...activeStages.map((s) => stageCounts[s.key] || 0), 1);
+  const footerStages = STAGES.filter((s) => ["fechado_ganho", "fechado_perdido", "nao_qualificado", "cliente_encerrado"].includes(s.key));
 
   return (
     <motion.div
