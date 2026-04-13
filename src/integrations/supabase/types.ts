@@ -2475,6 +2475,10 @@ export type Database = {
         | "negociacao"
         | "fechado_ganho"
         | "fechado_perdido"
+        | "qualificado"
+        | "nao_qualificado"
+        | "cliente_ativo"
+        | "cliente_encerrado"
       process_source:
         | "TJRS_1G"
         | "TJRS_2G"
@@ -2651,6 +2655,10 @@ export const Constants = {
         "negociacao",
         "fechado_ganho",
         "fechado_perdido",
+        "qualificado",
+        "nao_qualificado",
+        "cliente_ativo",
+        "cliente_encerrado",
       ],
       process_source: [
         "TJRS_1G",
