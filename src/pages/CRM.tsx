@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type CrmStage = "contato_inicial" | "reuniao_agendada" | "proposta_enviada" | "negociacao" | "fechado_ganho" | "fechado_perdido";
+type CrmStage = "contato_inicial" | "reuniao_agendada" | "proposta_enviada" | "negociacao" | "fechado_ganho" | "fechado_perdido" | "qualificado" | "nao_qualificado" | "cliente_ativo" | "cliente_encerrado";
 
 interface Lead {
   id: string;
