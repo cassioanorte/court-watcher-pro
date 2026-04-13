@@ -73,13 +73,17 @@ interface CrmTask {
   created_at: string;
 }
 
-const STAGES: { key: CrmStage; label: string; color: string; bgColor: string }[] = [
+const STAGES: { key: CrmStage; label: string; color: string; bgColor: string; group?: string }[] = [
   { key: "contato_inicial", label: "Contato Inicial", color: "text-blue-600", bgColor: "bg-blue-500/10 border-blue-500/20" },
   { key: "reuniao_agendada", label: "Reunião Agendada", color: "text-amber-600", bgColor: "bg-amber-500/10 border-amber-500/20" },
   { key: "proposta_enviada", label: "Proposta Enviada", color: "text-purple-600", bgColor: "bg-purple-500/10 border-purple-500/20" },
   { key: "negociacao", label: "Negociação", color: "text-orange-600", bgColor: "bg-orange-500/10 border-orange-500/20" },
+  { key: "qualificado", label: "Qualificado", color: "text-sky-600", bgColor: "bg-sky-500/10 border-sky-500/20" },
+  { key: "cliente_ativo", label: "Cliente Ativo", color: "text-emerald-600", bgColor: "bg-emerald-500/10 border-emerald-500/20" },
   { key: "fechado_ganho", label: "Fechado (Ganho)", color: "text-emerald-600", bgColor: "bg-emerald-500/10 border-emerald-500/20" },
   { key: "fechado_perdido", label: "Fechado (Perdido)", color: "text-red-600", bgColor: "bg-red-500/10 border-red-500/20" },
+  { key: "nao_qualificado", label: "Não Qualificado", color: "text-gray-500", bgColor: "bg-gray-500/10 border-gray-500/20", group: "descartados" },
+  { key: "cliente_encerrado", label: "Cliente Encerrado", color: "text-violet-600", bgColor: "bg-violet-500/10 border-violet-500/20", group: "encerrados" },
 ];
 
 const INTERACTION_TYPES = [

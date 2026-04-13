@@ -12,8 +12,12 @@ const STAGES = [
   { key: "reuniao_agendada", label: "Reunião", color: "bg-[hsl(38,80%,55%)]" },
   { key: "proposta_enviada", label: "Proposta", color: "bg-[hsl(280,60%,55%)]" },
   { key: "negociacao", label: "Negociação", color: "bg-[hsl(38,92%,50%)]" },
+  { key: "qualificado", label: "Qualificado", color: "bg-[hsl(200,80%,50%)]" },
+  { key: "cliente_ativo", label: "Ativo", color: "bg-[hsl(152,60%,42%)]" },
   { key: "fechado_ganho", label: "Ganho", color: "bg-[hsl(152,60%,42%)]" },
   { key: "fechado_perdido", label: "Perdido", color: "bg-destructive" },
+  { key: "nao_qualificado", label: "Descartado", color: "bg-[hsl(0,0%,55%)]", group: "descartados" },
+  { key: "cliente_encerrado", label: "Encerrado", color: "bg-[hsl(270,50%,55%)]", group: "encerrados" },
 ] as const;
 
 const DashboardCrmPipeline = () => {
