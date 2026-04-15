@@ -187,6 +187,127 @@ async function handleGet(req: Request) {
   }
 }
 
+// ─── DELETE handler: remove data ───
+async function handleDelete(req: Request) {
+  const auth = await validateApiKey(req);
+  if ("error" in auth) return json({ error: auth.error }, auth.status);
+  const { tenantId, supabase } = auth;
+
+  const body = await req.json();
+  const { type, ids } = body;
+
+  if (!type || !ids || !Array.isArray(ids) || ids.length === 0) {
+    return json({ error: "Body must have 'type' (movements|documents|publications) and 'ids' (array of UUIDs)" }, 400);
+  }
+
+  if (ids.length > 100) {
+    return json({ error: "Maximum 100 IDs per request" }, 400);
+  }
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const invalidIds = ids.filter((id: string) => !uuidRegex.test(id));
+  if (invalidIds.length > 0) {
+    return json({ error: `Invalid UUID format: ${invalidIds.join(", ")}` }, 400);
+  }
+
+  const results: any = { type, deleted: 0, errors: [] };
+
+  switch (type) {
+    case "movements": {
+      // Verify tenant ownership via cases join
+      const { data: tenantCases } = await supabase
+        .from("cases")
+        .select("id")
+        .eq("tenant_id", tenantId);
+      const caseIds = (tenantCases || []).map((c: any) => c.id);
+
+      if (caseIds.length === 0) {
+        return json({ error: "No cases found for your tenant" }, 404);
+      }
+
+      const { data: toDelete } = await supabase
+        .from("movements")
+        .select("id")
+        .in("id", ids)
+        .in("case_id", caseIds);
+
+      const validIds = (toDelete || []).map((m: any) => m.id);
+      const skipped = ids.filter((id: string) => !validIds.includes(id));
+
+      if (skipped.length > 0) {
+        results.errors.push({ skipped, reason: "Not found or not in your tenant" });
+      }
+
+      if (validIds.length > 0) {
+        const { error } = await supabase
+          .from("movements")
+          .delete()
+          .in("id", validIds);
+        if (error) results.errors.push({ error: error.message });
+        else results.deleted = validIds.length;
+      }
+      break;
+    }
+
+    case "documents": {
+      const { data: toDelete } = await supabase
+        .from("documents")
+        .select("id, case_id")
+        .in("id", ids);
+
+      // Verify tenant via cases
+      const caseIdsToCheck = [...new Set((toDelete || []).map((d: any) => d.case_id))];
+      const { data: tenantCases } = await supabase
+        .from("cases")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .in("id", caseIdsToCheck);
+      const validCaseIds = (tenantCases || []).map((c: any) => c.id);
+      const validIds = (toDelete || []).filter((d: any) => validCaseIds.includes(d.case_id)).map((d: any) => d.id);
+
+      const skipped = ids.filter((id: string) => !validIds.includes(id));
+      if (skipped.length > 0) {
+        results.errors.push({ skipped, reason: "Not found or not in your tenant" });
+      }
+
+      if (validIds.length > 0) {
+        const { error } = await supabase.from("documents").delete().in("id", validIds);
+        if (error) results.errors.push({ error: error.message });
+        else results.deleted = validIds.length;
+      }
+      break;
+    }
+
+    case "publications": {
+      const { data: toDelete } = await supabase
+        .from("dje_publications")
+        .select("id")
+        .in("id", ids)
+        .eq("tenant_id", tenantId);
+
+      const validIds = (toDelete || []).map((p: any) => p.id);
+      const skipped = ids.filter((id: string) => !validIds.includes(id));
+
+      if (skipped.length > 0) {
+        results.errors.push({ skipped, reason: "Not found or not in your tenant" });
+      }
+
+      if (validIds.length > 0) {
+        const { error } = await supabase.from("dje_publications").delete().in("id", validIds);
+        if (error) results.errors.push({ error: error.message });
+        else results.deleted = validIds.length;
+      }
+      break;
+    }
+
+    default:
+      return json({ error: `Unknown type: ${type}. Use: movements, documents, publications` }, 400);
+  }
+
+  return json({ success: true, ...results });
+}
+
 // ─── POST handler: ingest data (existing) ───
 async function handlePost(req: Request) {
   const auth = await validateApiKey(req);
@@ -339,7 +460,8 @@ Deno.serve(async (req) => {
   try {
     if (req.method === "GET") return await handleGet(req);
     if (req.method === "POST") return await handlePost(req);
-    return json({ error: "Method not allowed. Use GET (read) or POST (ingest)" }, 405);
+    if (req.method === "DELETE") return await handleDelete(req);
+    return json({ error: "Method not allowed. Use GET (read), POST (ingest), or DELETE (remove)" }, 405);
   } catch (err) {
     return json({ error: err.message }, 500);
   }
