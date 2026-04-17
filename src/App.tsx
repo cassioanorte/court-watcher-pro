@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
@@ -29,9 +29,9 @@ const ContatoDetail = React.lazy(() => import("./pages/ContatoDetail"));
 const Settings = React.lazy(() => import("./pages/Settings"));
 const ClientPortal = React.lazy(() => import("./pages/ClientPortal"));
 const ClientProcessDetail = React.lazy(() => import("./pages/ClientProcessDetail"));
-const Auth = React.lazy(() => import("./pages/Auth"));
-const ClientAuth = React.lazy(() => import("./pages/ClientAuth"));
-const AdminLogin = React.lazy(() => import("./pages/admin/AdminLogin"));
+import Auth from "./pages/Auth";
+import ClientAuth from "./pages/ClientAuth";
+import AdminLogin from "./pages/admin/AdminLogin";
 const AdminDashboard = React.lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminTenants = React.lazy(() => import("./pages/admin/AdminTenants"));
 const AdminUsers = React.lazy(() => import("./pages/admin/AdminUsers"));
@@ -122,13 +122,28 @@ const ProtectedSuperAdminRoute = ({ children }: { children: React.ReactNode }) =
   return <>{children}</>;
 };
 
+const GlobalOverlays = () => {
+  const { pathname } = useLocation();
+  const hideOnAuthScreens = ["/auth", "/portal/login", "/admin/login"].includes(pathname);
+
+  if (hideOnAuthScreens) return null;
+
+  return (
+    <>
+      <PWAInstallPrompt />
+      <Suspense fallback={null}>
+        <AIChatWidget />
+      </Suspense>
+    </>
+  );
+};
+
 const App = () => (
   <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <PWAInstallPrompt />
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<PageLoader />}>
@@ -185,8 +200,8 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <Suspense fallback={null}><AIChatWidget /></Suspense>
           </Suspense>
+          <GlobalOverlays />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
