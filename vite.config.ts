@@ -20,9 +20,12 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       manifest: false,
       injectManifest: undefined,
+      devOptions: {
+        enabled: false,
+      },
       workbox: {
         importScripts: ['/push-handler.js'],
-        navigateFallbackDenylist: [/^\/~oauth/],
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/auth$/, /^\/portal\/login$/, /^\/admin\/login$/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
